@@ -1,0 +1,313 @@
+openapi: 3.0.3
+info:
+  title: Finance API
+  version: 1.0.0
+  description: |
+    Contract-first API of the Finance backend. This file is the single source of truth:
+    the backend generates its server interfaces from it and the mobile app generates its client.
+
+    Conventions
+    - All write endpoints (POST / PUT / PATCH) require an `Idempotency-Key` header (UUID). Replaying the same key
+      with the same payload returns the original response; a different payload returns 422.
+    - Errors follow RFC 7807 `application/problem+json` with an additional machine-readable `code`.
+    - Money is never a float: amounts are integers in minor units plus an ISO-4217 currency code.
+servers:
+  - url: http://localhost:8080
+    description: Local development
+tags:
+  - name: auth
+    description: Registration, login and session lifecycle
+  - name: me
+    description: Current user
+security:
+  - bearerAuth: []
+paths:
+  /api/v1/auth/register:
+    post:
+      tags: [auth]
+      operationId: register
+      summary: Register a new user and open a session on this device
+      security: []
+      parameters:
+        - $ref: '#/components/parameters/IdempotencyKey'
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/RegisterRequest'
+      responses:
+        '201':
+          description: User created, session opened
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/TokenPair'
+        '400': { $ref: '#/components/responses/BadRequest' }
+        '409': { $ref: '#/components/responses/Conflict' }
+        '422': { $ref: '#/components/responses/UnprocessableEntity' }
+        '429': { $ref: '#/components/responses/TooManyRequests' }
+  /api/v1/auth/login:
+    post:
+      tags: [auth]
+      operationId: login
+      summary: Authenticate with email and password and open a session on this device
+      security: []
+      parameters:
+        - $ref: '#/components/parameters/IdempotencyKey'
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/LoginRequest'
+      responses:
+        '200':
+          description: Session opened
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/TokenPair'
+        '400': { $ref: '#/components/responses/BadRequest' }
+        '401': { $ref: '#/components/responses/Unauthorized' }
+        '422': { $ref: '#/components/responses/UnprocessableEntity' }
+        '429': { $ref: '#/components/responses/TooManyRequests' }
+  /api/v1/auth/refresh:
+    post:
+      tags: [auth]
+      operationId: refresh
+      summary: Rotate the refresh token and issue a new access token
+      description: |
+        The presented refresh token is revoked and replaced. Presenting an already-rotated token is treated
+        as a reuse attack: every session of that device is revoked and 401 is returned.
+      security: []
+      parameters:
+        - $ref: '#/components/parameters/IdempotencyKey'
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/RefreshRequest'
+      responses:
+        '200':
+          description: New token pair
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/TokenPair'
+        '400': { $ref: '#/components/responses/BadRequest' }
+        '401': { $ref: '#/components/responses/Unauthorized' }
+        '422': { $ref: '#/components/responses/UnprocessableEntity' }
+  /api/v1/auth/logout:
+    post:
+      tags: [auth]
+      operationId: logout
+      summary: Revoke the session of this device
+      parameters:
+        - $ref: '#/components/parameters/IdempotencyKey'
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/LogoutRequest'
+      responses:
+        '204':
+          description: Session revoked (also returned when the token was already invalid)
+        '400': { $ref: '#/components/responses/BadRequest' }
+        '401': { $ref: '#/components/responses/Unauthorized' }
+  /api/v1/me:
+    get:
+      tags: [me]
+      operationId: getCurrentUser
+      summary: Profile of the authenticated user
+      responses:
+        '200':
+          description: Current user
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/UserProfile'
+        '401': { $ref: '#/components/responses/Unauthorized' }
+components:
+  securitySchemes:
+    bearerAuth:
+      type: http
+      scheme: bearer
+      bearerFormat: JWT
+  parameters:
+    IdempotencyKey:
+      name: Idempotency-Key
+      in: header
+      required: true
+      description: Client-generated UUID, unique per logical operation. Reused verbatim on retries.
+      schema:
+        type: string
+        format: uuid
+  schemas:
+    DeviceInfo:
+      type: object
+      required: [deviceId, deviceName, platform]
+      properties:
+        deviceId:
+          type: string
+          description: Stable installation identifier generated by the app on first launch
+          minLength: 8
+          maxLength: 128
+        deviceName:
+          type: string
+          maxLength: 100
+          example: Pixel 9
+        platform:
+          type: string
+          enum: [ANDROID, IOS]
+    RegisterRequest:
+      type: object
+      required: [email, password, displayName, device]
+      properties:
+        email:
+          type: string
+          format: email
+          maxLength: 254
+        password:
+          type: string
+          format: password
+          minLength: 8
+          maxLength: 72
+        displayName:
+          type: string
+          minLength: 1
+          maxLength: 100
+        device:
+          $ref: '#/components/schemas/DeviceInfo'
+    LoginRequest:
+      type: object
+      required: [email, password, device]
+      properties:
+        email:
+          type: string
+          format: email
+          maxLength: 254
+        password:
+          type: string
+          format: password
+          maxLength: 72
+        device:
+          $ref: '#/components/schemas/DeviceInfo'
+    RefreshRequest:
+      type: object
+      required: [refreshToken, deviceId]
+      properties:
+        refreshToken:
+          type: string
+        deviceId:
+          type: string
+          minLength: 8
+          maxLength: 128
+    LogoutRequest:
+      type: object
+      required: [refreshToken]
+      properties:
+        refreshToken:
+          type: string
+    TokenPair:
+      type: object
+      required: [accessToken, refreshToken, tokenType, expiresIn]
+      properties:
+        accessToken:
+          type: string
+          description: Short-lived JWT
+        refreshToken:
+          type: string
+          description: Opaque, single-use, bound to the device
+        tokenType:
+          type: string
+          example: Bearer
+        expiresIn:
+          type: integer
+          format: int32
+          description: Access token lifetime in seconds
+    UserProfile:
+      type: object
+      required: [id, email, displayName, createdAt]
+      properties:
+        id:
+          type: string
+          format: uuid
+        email:
+          type: string
+          format: email
+        displayName:
+          type: string
+        createdAt:
+          type: string
+          format: date-time
+    FieldError:
+      type: object
+      required: [field, message]
+      properties:
+        field:
+          type: string
+        message:
+          type: string
+    Problem:
+      type: object
+      description: RFC 7807 Problem Details extended with a stable machine-readable `code`
+      required: [type, title, status, code]
+      properties:
+        type:
+          type: string
+          format: uri
+          example: about:blank
+        title:
+          type: string
+        status:
+          type: integer
+          format: int32
+        detail:
+          type: string
+        instance:
+          type: string
+          format: uri
+        code:
+          type: string
+          description: Stable error code, e.g. `identity.email_taken`
+          example: identity.email_taken
+        traceId:
+          type: string
+        errors:
+          type: array
+          items:
+            $ref: '#/components/schemas/FieldError'
+  responses:
+    BadRequest:
+      description: Malformed request or validation failure
+      content:
+        application/problem+json:
+          schema:
+            $ref: '#/components/schemas/Problem'
+    Unauthorized:
+      description: Missing, expired or invalid credentials
+      content:
+        application/problem+json:
+          schema:
+            $ref: '#/components/schemas/Problem'
+    Conflict:
+      description: Resource already exists
+      content:
+        application/problem+json:
+          schema:
+            $ref: '#/components/schemas/Problem'
+    UnprocessableEntity:
+      description: Idempotency-Key reused with a different payload
+      content:
+        application/problem+json:
+          schema:
+            $ref: '#/components/schemas/Problem'
+    TooManyRequests:
+      description: Rate limit exceeded
+      content:
+        application/problem+json:
+          schema:
+            $ref: '#/components/schemas/Problem'

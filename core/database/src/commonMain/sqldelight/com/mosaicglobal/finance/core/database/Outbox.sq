@@ -1,0 +1,39 @@
+-- Local write-ahead log: every offline mutation lands here first and is pushed by the SyncEngine.
+CREATE TABLE outbox (
+    id TEXT NOT NULL PRIMARY KEY,
+    entity TEXT NOT NULL,
+    op TEXT NOT NULL,
+    payload TEXT NOT NULL,
+    idempotency_key TEXT NOT NULL,
+    created_at INTEGER NOT NULL,
+    attempts INTEGER NOT NULL DEFAULT 0,
+    last_error TEXT
+);
+
+CREATE INDEX outbox_created_at_idx ON outbox(created_at);
+
+insert:
+INSERT INTO outbox(id, entity, op, payload, idempotency_key, created_at, attempts, last_error)
+VALUES (?, ?, ?, ?, ?, ?, 0, NULL);
+
+selectPending:
+SELECT * FROM outbox
+ORDER BY created_at ASC, id ASC
+LIMIT ?;
+
+selectById:
+SELECT * FROM outbox WHERE id = ?;
+
+countAll:
+SELECT COUNT(*) FROM outbox;
+
+markAttempt:
+UPDATE outbox
+SET attempts = attempts + 1, last_error = ?
+WHERE id = ?;
+
+deleteById:
+DELETE FROM outbox WHERE id = ?;
+
+deleteAll:
+DELETE FROM outbox;

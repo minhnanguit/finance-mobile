@@ -1,0 +1,17 @@
+-- Server-issued delta cursor per sync scope (e.g. "transactions", "accounts").
+CREATE TABLE sync_cursor (
+    scope TEXT NOT NULL PRIMARY KEY,
+    cursor TEXT
+);
+
+selectByScope:
+SELECT cursor FROM sync_cursor WHERE scope = ?;
+
+upsert:
+INSERT OR REPLACE INTO sync_cursor(scope, cursor) VALUES (?, ?);
+
+deleteByScope:
+DELETE FROM sync_cursor WHERE scope = ?;
+
+deleteAll:
+DELETE FROM sync_cursor;
