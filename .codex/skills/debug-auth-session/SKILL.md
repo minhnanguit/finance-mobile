@@ -41,8 +41,10 @@ Refresh hỏng → tokenProvider.clear() → observeSession() emit null → NavH
 - Backend thật:
 
 ```bash
-cd ../finance-backend && docker compose -f deploy/docker-compose.yml up -d && ./gradlew bootRun
+cd ../finance-backend && make up run
 ```
+
+- Log app đang chạy trên máy ảo: `make log` (chỉ log của app) hoặc `make crash` (chỉ warning + crash).
 
 Base URL do `defaultApiBaseUrl()` quyết định (expect ở `composeApp/src/commonMain/.../di/AppModule.kt`):
 

@@ -1,6 +1,6 @@
 # Rule — Ranh giới kiến trúc (KMP + Clean Architecture)
 
-Luôn áp dụng. Vi phạm là **fail** ở `./gradlew :architecture-test:test` (Konsist), không phải góp ý review.
+Luôn áp dụng. Vi phạm là **fail** ở `make arch` (Konsist), không phải góp ý review.
 
 ## Chiều phụ thuộc
 

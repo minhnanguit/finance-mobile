@@ -33,7 +33,7 @@ echo "1.1.0" > api/VERSION          # đúng bằng info.version của spec
 ## 3. Regenerate
 
 ```bash
-./gradlew :core:network:openApiGenerate :core:network:assemble
+make api
 ```
 
 Output: `core/network/build/generated/openapi/src/commonMain/kotlin/.../generated/` (tất cả `internal`).
@@ -54,9 +54,9 @@ Lưu ý riêng: `HttpClientFactory` có `RefreshRequestBody` / `TokenPairBody` *
 ## 5. Verify
 
 ```bash
-./gradlew testDebugUnitTest
-./gradlew :architecture-test:test
-./gradlew :composeApp:assembleDebug
+make test
+make arch
+make apk
 ```
 
 Konsist sẽ bắt ngay nếu có file ngoài `core/network` lỡ import package generated.
@@ -64,7 +64,7 @@ Konsist sẽ bắt ngay nếu có file ngoài `core/network` lỡ import package
 Chạy thử với backend thật:
 
 ```bash
-cd ../finance-backend && docker compose -f deploy/docker-compose.yml up -d && ./gradlew bootRun
+cd ../finance-backend && make up run
 ```
 
 Android emulator gọi host qua `http://10.0.2.2:8080` ở build debug (`defaultApiBaseUrl()`).

@@ -112,4 +112,4 @@ Rồi đăng ký ở `composeApp/src/commonMain/kotlin/.../di/` (đọc `KoinIni
 - [ ] Đúng **một** property public `…FeatureModule` ở package `di`
 - [ ] `*ViewModel` internal ở `presentation`, `*UseCase` ở `domain` có đúng một `operator fun invoke`, `*RepositoryImpl` internal ở `data`
 - [ ] Không import feature khác
-- [ ] `./gradlew testDebugUnitTest :architecture-test:test :composeApp:assembleDebug` xanh
+- [ ] `make test arch apk` xanh

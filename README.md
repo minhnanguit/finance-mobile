@@ -24,9 +24,13 @@ sdk.dir=/Users/<you>/Library/Android/sdk
 
 ## Run
 
+Every routine command is a `make` target — run `make` with no argument to list them all.
+
 ```sh
 # Android (emulator reaches the host backend via http://10.0.2.2:8080 in debug builds)
-./gradlew :composeApp:installDebug          # or open the project in Android Studio and run composeApp
+make emulator wait    # boot the AVD (default Pixel_8) and wait until it is ready
+make install open     # build + install the debug APK, then launch it
+make log              # stream logcat for this app only
 
 # iOS (macOS with Xcode)
 cd iosApp && xcodegen generate && open iosApp.xcodeproj   # scheme "iosApp", any iOS 16+ simulator
@@ -38,9 +42,10 @@ The iOS build phase runs `./gradlew :composeApp:embedAndSignAppleFrameworkForXco
 ## Verify
 
 ```sh
-./gradlew :composeApp:assembleDebug     # Android app
-./gradlew testDebugUnitTest             # unit tests of every KMP module (run on the host JVM)
-./gradlew :architecture-test:test       # Konsist architecture rules
+make apk      # Android APK only, no install
+make test     # unit tests of every KMP module (run on the host JVM)
+make arch     # Konsist architecture rules
+make ios      # compile the iOS klib — no Xcode needed
 ```
 
 ## Module map
@@ -98,7 +103,7 @@ may import it. Upgrading the contract is a deliberate PR — procedure in `api/R
 
 ## Known limitations of this core
 
-- iOS: all modules compile to Kotlin/Native klibs for `iosArm64` / `iosSimulatorArm64` (`./gradlew compileKotlinIosSimulatorArm64`)
+- iOS: all modules compile to Kotlin/Native klibs for `iosArm64` / `iosSimulatorArm64` (`make ios`)
   without Xcode, but linking the `ComposeApp` framework and running the app require Xcode (see CI `ios` job).
 - `core/sync` remote data source is a no-op: the v1 contract has no `/sync` endpoints yet.
 - Strings are English literals resolved through `UiText`; a Compose resources catalog can replace `UiText.Key` later.

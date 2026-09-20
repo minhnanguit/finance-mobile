@@ -2,9 +2,9 @@
 
 | Lệnh | Chạy gì | Cần gì |
 |---|---|---|
-| `./gradlew testDebugUnitTest` | Unit test mọi module KMP (target Android/JVM, chạy trên host) | JDK + Android SDK |
-| `./gradlew :architecture-test:test` | 15 luật Konsist (đọc **source**, không phải bytecode) | JDK |
-| `./gradlew :composeApp:assembleDebug` | Build APK — smoke test biên dịch | Android SDK |
+| `make test` | Unit test mọi module KMP (target Android/JVM, chạy trên host) | JDK + Android SDK |
+| `make arch` | 15 luật Konsist (đọc **source**, không phải bytecode) | JDK |
+| `make apk` | Build APK — smoke test biên dịch | Android SDK |
 
 CI chạy cả ba (job `android`) + build iOS (job `ios`, cần macOS + Xcode).
 
@@ -33,11 +33,11 @@ CI chạy cả ba (job `android`) + build iOS (job `ios`, cần macOS + Xcode).
 Trước khi báo hoàn thành:
 
 ```bash
-./gradlew testDebugUnitTest
-./gradlew :architecture-test:test
-./gradlew :composeApp:assembleDebug     # nếu đụng UI / DI / build config
+make test
+make arch
+make apk     # nếu đụng UI / DI / build config
 ```
 
-Đụng code iOS-specific mà máy không có Xcode ⇒ tối thiểu `./gradlew compileKotlinIosSimulatorArm64`, và nói rõ phần link framework **chưa verify được**.
+Đụng code iOS-specific mà máy không có Xcode ⇒ tối thiểu `make ios`, và nói rõ phần link framework **chưa verify được**.
 
 Báo cáo trung thực: lệnh nào chưa chạy thì nói là chưa chạy.

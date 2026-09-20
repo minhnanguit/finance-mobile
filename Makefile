@@ -17,7 +17,7 @@ PKG         := com.mosaicglobal.finance
 ACTIVITY    := $(PKG)/.app.MainActivity
 
 .DEFAULT_GOAL := help
-.PHONY: help emulator wait devices install open stop uninstall log crash apk test arch lint clean
+.PHONY: help emulator wait devices install open stop uninstall log crash api ios apk test arch lint clean
 
 help: ## Liệt kê mọi lệnh make của repo này
 	@echo "finance-mobile — các lệnh có sẵn:"
@@ -63,6 +63,12 @@ crash: ## Chỉ theo dõi cảnh báo và crash, bỏ qua log rác của hệ th
 	@$(ADBD) logcat '*:W' | grep -i --line-buffered 'finance\|AndroidRuntime'
 
 # ---------- Build & kiểm thử ----------
+
+api: ## Sinh lại Kotlin client từ api/openapi.yaml rồi biên dịch core/network
+	$(GRADLE) :core:network:openApiGenerate :core:network:assemble
+
+ios: ## Biên dịch klib iOS để kiểm tra code iosMain (KHÔNG cần Xcode)
+	$(GRADLE) compileKotlinIosSimulatorArm64
 
 apk: ## Chỉ build file APK debug, KHÔNG cài vào máy ảo
 	$(GRADLE) :composeApp:assembleDebug

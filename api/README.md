@@ -25,10 +25,10 @@ and keep this folder as documentation of the pinned version.
    cp ../finance-backend/api/openapi.yaml api/openapi.yaml
    echo "1.1.0" > api/VERSION
    ```
-3. Regenerate and compile: `./gradlew :core:network:openApiGenerate :core:network:assemble`.
+3. Regenerate and compile: `make api`.
 4. Fix the adapters in `core/network/src/commonMain/kotlin/.../network/api/` (they are the only
    code allowed to import the generated `...core.network.generated.*` packages; an architecture test
    enforces this) and any feature mappers.
-5. Run the full check: `./gradlew testDebugUnitTest :architecture-test:test`.
+5. Run the full check: `make test arch`.
 6. Open a PR titled `api: pin contract <old> -> <new>`. Never edit `openapi.yaml` by hand in this
    repo; API changes start in the backend repo.

@@ -21,20 +21,22 @@ Thiếu Xcode thì **nói rõ với user** phần iOS chưa verify được, đ�
 
 | Bạn đã sửa | Chạy tối thiểu |
 |---|---|
-| Domain / use case / repository | `./gradlew testDebugUnitTest` |
-| Bất cứ thứ gì về cấu trúc, đặt tên, import | `+ ./gradlew :architecture-test:test` |
-| UI, DI, navigation, build config | `+ ./gradlew :composeApp:assembleDebug` |
-| Code iOS-specific (`iosMain`) | `+ ./gradlew compileKotlinIosSimulatorArm64` (không cần Xcode) |
-| `api/openapi.yaml` | `+ ./gradlew :core:network:openApiGenerate :core:network:assemble` |
+| Domain / use case / repository | `make test` |
+| Bất cứ thứ gì về cấu trúc, đặt tên, import | `+ make arch` |
+| UI, DI, navigation, build config | `+ make apk` |
+| Code iOS-specific (`iosMain`) | `+ make ios` (không cần Xcode) |
+| `api/openapi.yaml` | `+ make api` |
 | Trước PR | Cả bốn lệnh đầu |
 
-`./gradlew testDebugUnitTest` chạy unit test của **mọi** module KMP trên host JVM (target Android/debug), không cần emulator.
+`make test` chạy unit test của **mọi** module KMP trên host JVM (target Android/debug), không cần emulator.
 
 ## Chạy app
 
 ```bash
 # Android
-./gradlew :composeApp:installDebug          # hoặc mở project trong Android Studio, run composeApp
+make emulator wait    # mở máy ảo và chờ boot (bỏ qua nếu máy ảo đã chạy)
+make install open     # build + cài APK debug rồi mở app
+make log              # logcat realtime của riêng app
 
 # iOS (cần Xcode)
 cd iosApp && xcodegen generate && open iosApp.xcodeproj   # scheme "iosApp", simulator iOS 16+
@@ -47,9 +49,9 @@ Build phase của Xcode gọi `./gradlew :composeApp:embedAndSignAppleFrameworkF
 | Lỗi | Xử lý |
 |---|---|
 | `SDK location not found` | Tạo `local.properties` với `sdk.dir=/Users/<you>/Library/Android/sdk`. **Không commit** |
-| Task iOS link fail | Thiếu Xcode. Báo user; `compileKotlinIosSimulatorArm64` vẫn chạy được để kiểm tra biên dịch |
+| Task iOS link fail | Thiếu Xcode. Báo user; `make ios` vẫn chạy được để kiểm tra biên dịch |
 | Konsist fail | Đọc tên test để biết luật nào vỡ (`LayerDependencyRulesTest` / `NamingAndPlacementRulesTest`), sửa **code** chứ không sửa luật |
-| Class generated không tìm thấy | `./gradlew :core:network:openApiGenerate` rồi build lại |
+| Class generated không tìm thấy | `make api` rồi build lại |
 | Xung đột version sau khi nâng thư viện | Đọc comment trong `gradle/libs.versions.toml` — vài version mới hơn **cố ý** bị chặn (Compose 1.12 cần AGP ≥ 9.1; Coil 3.5+ cần Kotlin 2.4) |
 
 ## Báo cáo
@@ -61,4 +63,4 @@ Nói thật về những gì đã chạy: lệnh nào chưa chạy (thiếu SDK,
 ## Dọn dẹp
 
 - `build/`, `.gradle/`, `.kotlin/`, `bin/`, `iosApp/*.xcodeproj` là output, đã gitignore — đừng commit, đừng sửa.
-- `./gradlew clean` hiếm khi cần; ưu tiên task cụ thể của module.
+- `make clean` hiếm khi cần; ưu tiên task cụ thể của module.

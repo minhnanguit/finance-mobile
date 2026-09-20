@@ -68,11 +68,11 @@ Quy tắc:
 ## Verify
 
 ```bash
-./gradlew :composeApp:assembleDebug
-./gradlew testDebugUnitTest :architecture-test:test
+make apk
+make test arch
 ```
 
-Xem thật trên máy: `./gradlew :composeApp:installDebug` (Android). iOS cần Xcode — máy dev hiện tại không có, nói rõ với user.
+Xem thật trên máy: `make install` (Android). iOS cần Xcode — máy dev hiện tại không có, nói rõ với user.
 
 ## Checklist
 

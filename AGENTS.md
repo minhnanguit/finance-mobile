@@ -13,16 +13,29 @@ Client Kotlin Multiplatform (Android + iOS) dùng **Compose Multiplatform UI chu
 
 ## 2. Commands
 
+Mọi lệnh thường dùng đều là target trong `Makefile`. Gõ `make` để xem danh sách đầy đủ.
+
 | Lệnh | Chạy gì |
 |---|---|
-| `./gradlew :composeApp:assembleDebug` | Build APK debug |
-| `./gradlew :composeApp:installDebug` | Cài lên emulator/thiết bị |
-| `./gradlew testDebugUnitTest` | Unit test **mọi module KMP** (chạy trên host JVM) |
-| `./gradlew :architecture-test:test` | 15 luật Konsist |
-| `./gradlew :core:network:openApiGenerate` | Sinh lại Kotlin client từ `api/openapi.yaml` |
-| `./gradlew compileKotlinIosSimulatorArm64` | Compile klib iOS **không cần Xcode** |
+| `make` | Liệt kê mọi target (mặc định = `make help`) |
+| `make emulator` | Mở máy ảo Android chạy nền (mặc định AVD `Pixel_8`) |
+| `make wait` | Chờ máy ảo boot xong |
+| `make install` | Build code mới + cài đè APK debug lên máy ảo |
+| `make open` | Mở app trên máy ảo (không build lại) |
+| `make stop` | Force-stop app |
+| `make log` | Logcat realtime của riêng app |
+| `make crash` | Chỉ theo dõi warning + crash |
+| `make apk` | Build APK debug, không cài |
+| `make test` | Unit test **mọi module KMP** (chạy trên host JVM) |
+| `make arch` | 15 luật Konsist |
+| `make lint` | Android Lint cho `composeApp` |
+| `make api` | Sinh lại Kotlin client từ `api/openapi.yaml` |
+| `make ios` | Compile klib iOS **không cần Xcode** |
 | `./gradlew :composeApp:linkDebugFrameworkIosSimulatorArm64` | Link framework iOS (**cần Xcode**) |
 | `cd iosApp && xcodegen generate && open iosApp.xcodeproj` | Mở project iOS (cần `brew install xcodegen`) |
+
+Chạy nối tiếp nhiều việc: `make emulator wait install open`, `make test arch apk`.
+Máy ảo được tự dò qua `adb devices`; chỉ định tay bằng `make log DEVICE=emulator-5556`.
 
 Không có ktlint/detekt/spotless trong repo. **Konsist là lint kiến trúc** — đó là cổng chất lượng chính.
 CI (`.github/workflows/`): job `android` (ubuntu, APK + `testDebugUnitTest` + Konsist) và job `ios` (macOS, link framework + xcodegen + `xcodebuild`).
