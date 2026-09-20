@@ -59,5 +59,5 @@ Host release là placeholder trong repo — **verify before use** trước khi d
 
 - Không log token, refresh token, password, email đầy đủ.
 - Refresh token là **một lần dùng**: backend rotate và revoke token cũ; dùng lại token đã rotate ⇒ backend revoke **toàn bộ session của device**. Đừng cache/thử lại refresh token cũ.
-- Access token TTL 15 phút là thiết kế backend (ADR-004), không "sửa" ở client.
+- Access token TTL 5 phút do **Keycloak** quản (ADR-004), không "sửa" ở client.
 - `logout` là best-effort: gọi server, dù lỗi mạng vẫn phải `sessionStore.clear()` + `tokenCache.invalidate()` — giữ nguyên hành vi này.
