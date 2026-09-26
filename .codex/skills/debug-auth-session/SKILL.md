@@ -36,6 +36,9 @@ Logout → OidcClient.endSession(refresh_token) (không mở browser) → luôn 
 
 | Triệu chứng | Nghi ngờ |
 |---|---|
+| Banner "No connection" ngay khi bấm Sign in, browser không mở | Android chặn `http://`. APK phải có `usesCleartextTraffic=true` ở debug — kiểm bằng `aapt2 dump xmltree --file AndroidManifest.xml <apk>`. Cờ này đặt qua `manifestPlaceholders` trong `composeApp/build.gradle.kts`; **đừng** chuyển về `src/androidDebug/AndroidManifest.xml`, file đó không được merge trong setup KMP này |
+| Keycloak báo `Invalid parameter: redirect_uri` ngay sau khi đổi package / redirect URI | `realm-finance.json` chỉ được import khi realm **chưa tồn tại**. Sửa JSON rồi thì phải đồng bộ Keycloak đang chạy: `make reset && make up` (mất dữ liệu) hoặc cập nhật client qua Admin API |
+| Form đăng ký không có ô mật khẩu | Đúng hành vi Keycloak 26.7 khi realm bật `verifyEmail`: đăng ký chỉ hỏi email + tên → mail xác thực (Mailpit) → đặt mật khẩu → quay lại app đăng nhập |
 | Bấm Sign in không có gì xảy ra, lỗi chung chung | Discovery fail. Log Kermit `issuer không khớp` ⇒ `defaultOidcIssuer()` ≠ `KC_HOSTNAME` của Keycloak. Android debug phải là `http://10.0.2.2:8081/realms/finance` |
 | Browser mở nhưng Keycloak báo `Invalid parameter: redirect_uri` | `OIDC_REDIRECT_URI` lệch `redirectUris` trong `finance-backend/deploy/keycloak/realm-finance.json` |
 | Login xong browser không quay về app (Android) | Intent-filter của `RedirectReceiverActivity` trong `composeApp/.../AndroidManifest.xml` lệch scheme/host/path của redirect URI |
@@ -51,7 +54,7 @@ Logout → OidcClient.endSession(refresh_token) (không mở browser) → luôn 
 ## Công cụ
 
 - Log HTTP của **backend client**: `NetworkConfig(logHttp = true)` — debug build đã bật. Header `Authorization`/`Cookie` **đã sanitize**; đừng gỡ.
-- OIDC client (`core/auth`) cố ý **không** có logging: body của token endpoint chứa token.
+- OIDC client (`core/auth`) không log HTTP (body chứa token), nhưng `oidcCall` log **mọi exception** kèm class + message: `make log`, lọc `OIDC call thất bại`.
 - Test để đọc/chạy: `core/auth/src/commonTest/` (PKCE theo vector RFC 7636, state/iss/redirect, refresh), `core/network/.../HttpClientFactoryTest.kt`, `feature/auth/.../AuthRepositoryImplTest.kt`, `SignedOutViewModelTest.kt`.
 - Backend + Keycloak thật: `cd ../finance-backend && make up run`, Admin Console `make kc`, mail verify `make mail`.
 - Log app trên máy ảo: `make log` hoặc `make crash`.

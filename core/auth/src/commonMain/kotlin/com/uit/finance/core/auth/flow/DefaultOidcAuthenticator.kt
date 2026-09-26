@@ -1,5 +1,6 @@
 package com.uit.finance.core.auth.flow
 
+import co.touchlab.kermit.Logger
 import com.uit.finance.core.auth.AuthorizationOutcome
 import com.uit.finance.core.auth.AuthorizationPrompt
 import com.uit.finance.core.auth.OidcAuthenticator
@@ -19,9 +20,10 @@ internal class DefaultOidcAuthenticator(
     private val launcher: AuthorizationLauncher,
     private val pkceGenerator: PkceGenerator,
     private val config: OidcConfig,
+    private val logger: Logger,
 ) : OidcAuthenticator {
 
-    override suspend fun authorize(prompt: AuthorizationPrompt): AppResult<AuthorizationOutcome> = oidcCall {
+    override suspend fun authorize(prompt: AuthorizationPrompt): AppResult<AuthorizationOutcome> = oidcCall(logger) {
         val discovery = client.discovery()
         val pkce = pkceGenerator.pkce()
         val state = pkceGenerator.state()
@@ -34,7 +36,7 @@ internal class DefaultOidcAuthenticator(
         }
     }
 
-    override suspend fun endSession(refreshToken: String): AppResult<Unit> = oidcCall {
+    override suspend fun endSession(refreshToken: String): AppResult<Unit> = oidcCall(logger) {
         client.endSession(refreshToken)
     }
 

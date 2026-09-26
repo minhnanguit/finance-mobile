@@ -22,4 +22,11 @@ android {
     buildFeatures {
         buildConfig = true
     }
+    buildTypes {
+        // Debug gọi backend + Keycloak local qua http (10.0.2.2). Dùng placeholder thay vì manifest
+        // riêng ở src/androidDebug: trong setup KMP này file đó KHÔNG được merge (đã kiểm bằng
+        // manifest-merger report), nên cờ cleartext chưa bao giờ có hiệu lực.
+        getByName("debug") { manifestPlaceholders["usesCleartextTraffic"] = "true" }
+        getByName("release") { manifestPlaceholders["usesCleartextTraffic"] = "false" }
+    }
 }

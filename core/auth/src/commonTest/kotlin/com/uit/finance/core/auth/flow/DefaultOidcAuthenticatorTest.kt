@@ -29,7 +29,7 @@ class DefaultOidcAuthenticatorTest {
     private val launcher = FakeAuthorizationLauncher()
     private val pkce = PkceGenerator()
 
-    private fun authenticator() = DefaultOidcAuthenticator(keycloak.client(), launcher, pkce, testConfig)
+    private fun authenticator() = DefaultOidcAuthenticator(keycloak.client(), launcher, pkce, testConfig, co.touchlab.kermit.Logger.withTag("test"))
 
     /** Giả lập Keycloak redirect về đúng `state` nó nhận được, kèm [extra]. */
     private fun redirectEchoingState(extra: String = "code=auth-code-1"): (String) -> LaunchResult = { url ->

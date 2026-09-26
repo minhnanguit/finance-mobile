@@ -16,7 +16,7 @@ internal class OidcTokenRefresher(
 ) : TokenRefresher {
 
     override suspend fun refresh(refreshToken: String): RefreshOutcome =
-        when (val result = oidcCall { client.refresh(refreshToken).toAuthTokens(fallbackRefreshToken = refreshToken) }) {
+        when (val result = oidcCall(logger) { client.refresh(refreshToken).toAuthTokens(fallbackRefreshToken = refreshToken) }) {
             is AppResult.Success -> RefreshOutcome.Refreshed(result.value)
             is AppResult.Failure -> result.error.toOutcome()
         }

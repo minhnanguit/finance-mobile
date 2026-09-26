@@ -44,6 +44,7 @@ Compiler flag đang bật: `-Xexpect-actual-classes` (expect/actual class vẫn 
 
 ## Build & version
 
+- **Cấu hình manifest theo build type dùng `manifestPlaceholders`** (xem `usesCleartextTraffic` trong `composeApp/build.gradle.kts`). File `src/androidDebug/AndroidManifest.xml` KHÔNG được merge trong setup KMP này — đã kiểm bằng manifest-merger report.
 - **Mọi version nằm ở `gradle/libs.versions.toml`.** Không hardcode version trong `build.gradle.kts`.
 - File build mỗi module chỉ nên 5–25 dòng nhờ convention plugin:
 

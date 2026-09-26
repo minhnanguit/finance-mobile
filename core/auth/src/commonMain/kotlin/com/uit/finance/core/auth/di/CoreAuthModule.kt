@@ -22,7 +22,7 @@ val coreAuthModule: Module = module {
     single { OidcClient(http = createOidcHttpClient(engine = get()), config = get()) }
     single { PkceGenerator() }
     single<OidcAuthenticator> {
-        DefaultOidcAuthenticator(client = get(), launcher = get(), pkceGenerator = get(), config = get())
+        DefaultOidcAuthenticator(client = get(), launcher = get(), pkceGenerator = get(), config = get(), logger = get())
     }
     single<TokenRefresher> { OidcTokenRefresher(client = get(), logger = get()) }
 }
