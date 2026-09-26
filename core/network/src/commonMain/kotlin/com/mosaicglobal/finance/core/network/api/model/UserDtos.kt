@@ -6,6 +6,7 @@ import kotlin.time.ExperimentalTime
 import kotlin.time.Instant
 
 data class UserProfileDto(
+    /** Internal id của backend, không phải `sub` của Keycloak. */
     val id: String,
     val email: String,
     val displayName: String,

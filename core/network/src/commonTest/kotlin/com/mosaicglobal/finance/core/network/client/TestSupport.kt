@@ -2,8 +2,9 @@ package com.mosaicglobal.finance.core.network.client
 
 import co.touchlab.kermit.Logger
 import com.mosaicglobal.finance.core.network.auth.AuthTokens
-import com.mosaicglobal.finance.core.network.auth.DeviceIdProvider
+import com.mosaicglobal.finance.core.network.auth.RefreshOutcome
 import com.mosaicglobal.finance.core.network.auth.TokenProvider
+import com.mosaicglobal.finance.core.network.auth.TokenRefresher
 import com.mosaicglobal.finance.core.testing.FakeUuidGenerator
 import io.ktor.client.HttpClient
 import io.ktor.client.engine.mock.MockEngine
@@ -24,10 +25,20 @@ internal class FakeTokenProvider(initial: AuthTokens? = null) : TokenProvider {
     override suspend fun clear() { stored = null; clearCalls += 1 }
 }
 
+/** Trả [outcome] cố định và ghi lại refresh token được đưa vào. */
+internal class FakeTokenRefresher(var outcome: RefreshOutcome = RefreshOutcome.Rejected) : TokenRefresher {
+    val presented = mutableListOf<String>()
+    override suspend fun refresh(refreshToken: String): RefreshOutcome {
+        presented += refreshToken
+        return outcome
+    }
+}
+
 internal const val TEST_BASE_URL = "http://test.local"
 
 internal fun testClient(
     tokenProvider: TokenProvider = FakeTokenProvider(),
+    tokenRefresher: TokenRefresher = FakeTokenRefresher(),
     uuidGenerator: FakeUuidGenerator = FakeUuidGenerator(),
     handler: suspend MockRequestHandleScope.(HttpRequestData) -> HttpResponseData,
 ): HttpClient = createHttpClient(
@@ -35,7 +46,7 @@ internal fun testClient(
     config = NetworkConfig(baseUrl = TEST_BASE_URL),
     json = defaultJson(),
     tokenProvider = tokenProvider,
-    deviceIdProvider = DeviceIdProvider { "device-1234" },
+    tokenRefresher = tokenRefresher,
     uuidGenerator = uuidGenerator,
     logger = Logger.withTag("test"),
 )
@@ -46,5 +57,5 @@ internal fun MockRequestHandleScope.jsonResponse(body: String, status: HttpStatu
 internal fun MockRequestHandleScope.problemResponse(status: HttpStatusCode, body: String): HttpResponseData =
     respond(body, status, headersOf(HttpHeaders.ContentType, "application/problem+json"))
 
-internal fun tokenPairJson(access: String, refresh: String, expiresIn: Int = 900): String =
-    """{"accessToken":"$access","refreshToken":"$refresh","tokenType":"Bearer","expiresIn":$expiresIn}"""
+internal const val UNAUTHORIZED_PROBLEM =
+    """{"type":"about:blank","title":"Unauthorized","status":401,"code":"auth.unauthenticated"}"""

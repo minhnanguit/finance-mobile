@@ -1,12 +1,11 @@
 package com.mosaicglobal.finance.core.network.client
 
 import com.mosaicglobal.finance.core.common.id.UuidGenerator
-import com.mosaicglobal.finance.core.network.auth.AuthTokens
-import com.mosaicglobal.finance.core.network.auth.DeviceIdProvider
+import com.mosaicglobal.finance.core.network.auth.RefreshOutcome
 import com.mosaicglobal.finance.core.network.auth.TokenCache
 import com.mosaicglobal.finance.core.network.auth.TokenProvider
+import com.mosaicglobal.finance.core.network.auth.TokenRefresher
 import io.ktor.client.HttpClient
-import io.ktor.client.call.body
 import io.ktor.client.engine.HttpClientEngine
 import io.ktor.client.plugins.HttpResponseValidator
 import io.ktor.client.plugins.HttpTimeout
@@ -20,40 +19,36 @@ import io.ktor.client.plugins.defaultRequest
 import io.ktor.client.plugins.logging.LogLevel
 import io.ktor.client.plugins.logging.Logging
 import io.ktor.client.plugins.logging.Logger as KtorLogger
-import io.ktor.client.request.post
-import io.ktor.client.request.setBody
-import io.ktor.http.ContentType
 import io.ktor.http.HttpHeaders
-import io.ktor.http.contentType
-import io.ktor.http.encodedPath
+import io.ktor.http.Url
 import io.ktor.http.isSuccess
 import io.ktor.serialization.kotlinx.json.json
-import kotlinx.serialization.SerialName
-import kotlinx.serialization.Serializable
+import kotlinx.coroutines.CancellationException
 import kotlinx.serialization.json.Json
 import co.touchlab.kermit.Logger as KermitLogger
 
-internal const val AUTH_PATH_PREFIX = "/api/v1/auth/"
-internal const val REFRESH_PATH = "/api/v1/auth/refresh"
-
 /**
- * One configured [HttpClient] for the whole app:
- * ContentNegotiation(kotlinx json) · Kermit logging · timeouts · base URL ·
- * bearer auth with refresh-token rotation · automatic `Idempotency-Key` · RFC 7807 -> [com.mosaicglobal.finance.core.network.api.ApiException].
+ * Một [HttpClient] cấu hình sẵn cho toàn app, chỉ để gọi backend: ContentNegotiation · logging đã
+ * sanitize · timeout · base URL · bearer token có refresh · `Idempotency-Key` tự động · RFC 7807 →
+ * [com.mosaicglobal.finance.core.network.api.ApiException].
+ *
+ * Refresh token KHÔNG đi qua client này: [TokenRefresher] gọi thẳng Keycloak bằng client riêng, nên
+ * không có vòng lặp 401 → refresh → 401 và access token không bao giờ bị gửi tới Keycloak.
  */
 internal fun createHttpClient(
     engine: HttpClientEngine,
     config: NetworkConfig,
     json: Json,
     tokenProvider: TokenProvider,
-    deviceIdProvider: DeviceIdProvider,
+    tokenRefresher: TokenRefresher,
     uuidGenerator: UuidGenerator,
     logger: KermitLogger,
 ): HttpClient {
-    // Kotlin resolves a bare `logger` / `uuidGenerator` inside the config lambdas below to THESE parameters
-    // (locals win over implicit receivers), so the config properties are assigned with an explicit `this.`.
+    // Trong các config lambda bên dưới, `logger` / `uuidGenerator` trơn sẽ resolve về CHÍNH các parameter
+    // này (local thắng implicit receiver), nên property của config phải gán bằng `this.` tường minh.
     val kermit = logger
     val ids = uuidGenerator
+    val apiHost = Url(config.baseUrl).host
     return HttpClient(engine) {
         expectSuccess = false
 
@@ -85,9 +80,9 @@ internal fun createHttpClient(
             this.uuidGenerator = ids
         }
 
-        // Non-2xx -> ApiException. Installed by the client before user plugins, so its HttpSend interceptor
-        // wraps the Auth plugin's: a 401 is first offered to Auth for a refresh + retry, and only the final
-        // response is validated here.
+        // Non-2xx → ApiException. Client cài validator này trước user plugin, nên interceptor HttpSend
+        // của nó bọc ngoài Auth plugin: 401 được đưa cho Auth refresh + retry trước, chỉ response cuối
+        // cùng mới bị validate ở đây.
         HttpResponseValidator {
             validateResponse { response ->
                 if (!response.status.isSuccess()) {
@@ -103,61 +98,47 @@ internal fun createHttpClient(
                 }
                 refreshTokens {
                     val refreshToken = oldTokens?.refreshToken ?: tokenProvider.tokens()?.refreshToken
-                    if (refreshToken == null) {
-                        null
-                    } else {
-                        rotate(refreshToken, deviceIdProvider, tokenProvider, kermit)
-                    }
+                    refreshToken?.let { refresh(it, tokenRefresher, tokenProvider, kermit) }
                 }
-                // Send the token proactively on every non-auth endpoint instead of waiting for a 401 challenge.
-                sendWithoutRequest { request ->
-                    !request.url.encodedPath.startsWith(AUTH_PATH_PREFIX)
-                }
+                // Gửi token chủ động, nhưng CHỈ tới host của backend — token không được lọt sang host khác.
+                sendWithoutRequest { request -> request.url.host == apiHost }
             }
         }
     }
 }
 
 /**
- * Calls `POST /api/v1/auth/refresh`. The presented refresh token is revoked server-side and replaced
- * (rotation); the new pair is persisted through [TokenProvider]. Any failure ends the session.
+ * Ktor bearer plugin đã serialize các lần refresh đồng thời, nên hàm này chỉ chạy một lần cho mỗi đợt
+ * 401. Trả `null` nghĩa là không có token mới: request gốc giữ nguyên 401.
  */
-private suspend fun io.ktor.client.plugins.auth.providers.RefreshTokensParams.rotate(
+private suspend fun refresh(
     refreshToken: String,
-    deviceIdProvider: DeviceIdProvider,
+    tokenRefresher: TokenRefresher,
     tokenProvider: TokenProvider,
     logger: KermitLogger,
 ): BearerTokens? = try {
-    val response = client.post(REFRESH_PATH) {
-        markAsRefreshTokenRequest()
-        contentType(ContentType.Application.Json)
-        setBody(RefreshRequestBody(refreshToken = refreshToken, deviceId = deviceIdProvider.deviceId()))
+    when (val outcome = tokenRefresher.refresh(refreshToken)) {
+        is RefreshOutcome.Refreshed -> {
+            tokenProvider.update(outcome.tokens)
+            BearerTokens(outcome.tokens.accessToken, outcome.tokens.refreshToken)
+        }
+        RefreshOutcome.Rejected -> {
+            logger.i { "Refresh token bị IdP reject; clear session" }
+            tokenProvider.clear()
+            null
+        }
+        RefreshOutcome.Unavailable -> {
+            logger.w { "IdP tạm không reachable; giữ session, request này fail" }
+            null
+        }
     }
-    val pair = response.body<TokenPairBody>()
-    tokenProvider.update(AuthTokens(pair.accessToken, pair.refreshToken, pair.expiresIn))
-    BearerTokens(pair.accessToken, pair.refreshToken)
-} catch (e: kotlinx.coroutines.CancellationException) {
+} catch (e: CancellationException) {
     throw e
 } catch (e: Exception) {
-    logger.w(e) { "Refresh token rotation failed; clearing session" }
-    tokenProvider.clear()
+    // Lỗi không lường trước: coi như Unavailable. Không clear session vì chưa chắc refresh token đã chết.
+    logger.w(e) { "Refresh lỗi bất thường; giữ session" }
     null
 }
-
-/** Wire shapes of `RefreshRequest` / `TokenPair` used by the refresh interceptor only. */
-@Serializable
-internal data class RefreshRequestBody(
-    @SerialName("refreshToken") val refreshToken: String,
-    @SerialName("deviceId") val deviceId: String,
-)
-
-@Serializable
-internal data class TokenPairBody(
-    @SerialName("accessToken") val accessToken: String,
-    @SerialName("refreshToken") val refreshToken: String,
-    @SerialName("tokenType") val tokenType: String = "Bearer",
-    @SerialName("expiresIn") val expiresIn: Int,
-)
 
 internal class KtorTokenCache(private val client: HttpClient) : TokenCache {
     override fun invalidate() {

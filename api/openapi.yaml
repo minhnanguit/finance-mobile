@@ -1,127 +1,42 @@
 openapi: 3.0.3
 info:
   title: Finance API
-  version: 1.0.0
+  version: 2.0.0
   description: |
-    Contract-first API of the Finance backend. This file is the single source of truth:
-    the backend generates its server interfaces from it and the mobile app generates its client.
+    API contract của finance-backend, là single source of truth: backend generate server interface,
+    app mobile generate client từ file này.
 
-    Conventions
-    - All write endpoints (POST / PUT / PATCH) require an `Idempotency-Key` header (UUID). Replaying the same key
-      with the same payload returns the original response; a different payload returns 422.
-    - Errors follow RFC 7807 `application/problem+json` with an additional machine-readable `code`.
-    - Money is never a float: amounts are integers in minor units plus an ISO-4217 currency code.
+    Authentication
+    - Token do Keycloak issue (Authorization Code + PKCE). API này không có endpoint login,
+      register hay refresh token — tất cả diễn ra ở Keycloak (ADR-004).
+    - Gửi access token qua `Authorization: Bearer <token>`. Claim `aud` phải chứa `finance-api`.
+
+    Quy ước
+    - Mọi write endpoint (POST / PUT / PATCH) bắt buộc header `Idempotency-Key` (UUID). Gửi lại cùng key
+      và cùng payload thì nhận lại response cũ; khác payload thì 422.
+    - Error theo RFC 7807 `application/problem+json`, kèm `code` ổn định, machine-readable.
+    - Tiền không bao giờ là float: integer theo minor units + currency code ISO-4217.
+
+    Breaking changes so với 1.0.0
+    - Xoá `/api/v1/auth/register`, `/login`, `/refresh`, `/logout` cùng các schema đi kèm.
+    - `UserProfile.id` là internal id, không phải `sub` của Keycloak.
 servers:
   - url: http://localhost:8080
-    description: Local development
+    description: Môi trường local
 tags:
-  - name: auth
-    description: Registration, login and session lifecycle
   - name: me
     description: Current user
+# Chỉ khai http bearer. KHÔNG thêm scheme `openIdConnect`: generator Kotlin multiplatform 7.14 sinh code
+# sai cú pháp cho scheme đó (`mapOf(, ...`), làm gãy build của finance-mobile.
 security:
   - bearerAuth: []
 paths:
-  /api/v1/auth/register:
-    post:
-      tags: [auth]
-      operationId: register
-      summary: Register a new user and open a session on this device
-      security: []
-      parameters:
-        - $ref: '#/components/parameters/IdempotencyKey'
-      requestBody:
-        required: true
-        content:
-          application/json:
-            schema:
-              $ref: '#/components/schemas/RegisterRequest'
-      responses:
-        '201':
-          description: User created, session opened
-          content:
-            application/json:
-              schema:
-                $ref: '#/components/schemas/TokenPair'
-        '400': { $ref: '#/components/responses/BadRequest' }
-        '409': { $ref: '#/components/responses/Conflict' }
-        '422': { $ref: '#/components/responses/UnprocessableEntity' }
-        '429': { $ref: '#/components/responses/TooManyRequests' }
-  /api/v1/auth/login:
-    post:
-      tags: [auth]
-      operationId: login
-      summary: Authenticate with email and password and open a session on this device
-      security: []
-      parameters:
-        - $ref: '#/components/parameters/IdempotencyKey'
-      requestBody:
-        required: true
-        content:
-          application/json:
-            schema:
-              $ref: '#/components/schemas/LoginRequest'
-      responses:
-        '200':
-          description: Session opened
-          content:
-            application/json:
-              schema:
-                $ref: '#/components/schemas/TokenPair'
-        '400': { $ref: '#/components/responses/BadRequest' }
-        '401': { $ref: '#/components/responses/Unauthorized' }
-        '422': { $ref: '#/components/responses/UnprocessableEntity' }
-        '429': { $ref: '#/components/responses/TooManyRequests' }
-  /api/v1/auth/refresh:
-    post:
-      tags: [auth]
-      operationId: refresh
-      summary: Rotate the refresh token and issue a new access token
-      description: |
-        The presented refresh token is revoked and replaced. Presenting an already-rotated token is treated
-        as a reuse attack: every session of that device is revoked and 401 is returned.
-      security: []
-      parameters:
-        - $ref: '#/components/parameters/IdempotencyKey'
-      requestBody:
-        required: true
-        content:
-          application/json:
-            schema:
-              $ref: '#/components/schemas/RefreshRequest'
-      responses:
-        '200':
-          description: New token pair
-          content:
-            application/json:
-              schema:
-                $ref: '#/components/schemas/TokenPair'
-        '400': { $ref: '#/components/responses/BadRequest' }
-        '401': { $ref: '#/components/responses/Unauthorized' }
-        '422': { $ref: '#/components/responses/UnprocessableEntity' }
-  /api/v1/auth/logout:
-    post:
-      tags: [auth]
-      operationId: logout
-      summary: Revoke the session of this device
-      parameters:
-        - $ref: '#/components/parameters/IdempotencyKey'
-      requestBody:
-        required: true
-        content:
-          application/json:
-            schema:
-              $ref: '#/components/schemas/LogoutRequest'
-      responses:
-        '204':
-          description: Session revoked (also returned when the token was already invalid)
-        '400': { $ref: '#/components/responses/BadRequest' }
-        '401': { $ref: '#/components/responses/Unauthorized' }
   /api/v1/me:
     get:
       tags: [me]
       operationId: getCurrentUser
-      summary: Profile of the authenticated user
+      summary: Profile của user đang login
+      description: Lần gọi đầu tiên với một account Keycloak mới sẽ tự provision local account.
       responses:
         '200':
           description: Current user
@@ -136,98 +51,19 @@ components:
       type: http
       scheme: bearer
       bearerFormat: JWT
+      description: |
+        Access token do Keycloak issue cho client `finance-mobile`.
+        Discovery (local): http://localhost:8081/realms/finance/.well-known/openid-configuration
   parameters:
     IdempotencyKey:
       name: Idempotency-Key
       in: header
       required: true
-      description: Client-generated UUID, unique per logical operation. Reused verbatim on retries.
+      description: UUID do client generate, unique cho mỗi thao tác. Khi retry thì gửi lại y nguyên.
       schema:
         type: string
         format: uuid
   schemas:
-    DeviceInfo:
-      type: object
-      required: [deviceId, deviceName, platform]
-      properties:
-        deviceId:
-          type: string
-          description: Stable installation identifier generated by the app on first launch
-          minLength: 8
-          maxLength: 128
-        deviceName:
-          type: string
-          maxLength: 100
-          example: Pixel 9
-        platform:
-          type: string
-          enum: [ANDROID, IOS]
-    RegisterRequest:
-      type: object
-      required: [email, password, displayName, device]
-      properties:
-        email:
-          type: string
-          format: email
-          maxLength: 254
-        password:
-          type: string
-          format: password
-          minLength: 8
-          maxLength: 72
-        displayName:
-          type: string
-          minLength: 1
-          maxLength: 100
-        device:
-          $ref: '#/components/schemas/DeviceInfo'
-    LoginRequest:
-      type: object
-      required: [email, password, device]
-      properties:
-        email:
-          type: string
-          format: email
-          maxLength: 254
-        password:
-          type: string
-          format: password
-          maxLength: 72
-        device:
-          $ref: '#/components/schemas/DeviceInfo'
-    RefreshRequest:
-      type: object
-      required: [refreshToken, deviceId]
-      properties:
-        refreshToken:
-          type: string
-        deviceId:
-          type: string
-          minLength: 8
-          maxLength: 128
-    LogoutRequest:
-      type: object
-      required: [refreshToken]
-      properties:
-        refreshToken:
-          type: string
-    TokenPair:
-      type: object
-      required: [accessToken, refreshToken, tokenType, expiresIn]
-      properties:
-        accessToken:
-          type: string
-          description: Short-lived JWT
-        refreshToken:
-          type: string
-          description: Opaque, single-use, bound to the device
-        tokenType:
-          type: string
-          example: Bearer
-        expiresIn:
-          type: integer
-          format: int32
-          description: Access token lifetime in seconds
     UserProfile:
       type: object
       required: [id, email, displayName, createdAt]
@@ -235,14 +71,17 @@ components:
         id:
           type: string
           format: uuid
+          description: Internal id, là key của mọi business data. Không phải `sub` của Keycloak.
         email:
           type: string
           format: email
+          description: Bản copy từ Keycloak, sync trễ tối đa vài phút sau khi đổi.
         displayName:
           type: string
         createdAt:
           type: string
           format: date-time
+          description: Thời điểm local account được tạo (lần đầu gọi API), không phải lúc register trên Keycloak.
     FieldError:
       type: object
       required: [field, message]
@@ -253,7 +92,7 @@ components:
           type: string
     Problem:
       type: object
-      description: RFC 7807 Problem Details extended with a stable machine-readable `code`
+      description: RFC 7807 Problem Details, thêm `code` ổn định, machine-readable
       required: [type, title, status, code]
       properties:
         type:
@@ -272,8 +111,8 @@ components:
           format: uri
         code:
           type: string
-          description: Stable error code, e.g. `identity.email_taken`
-          example: identity.email_taken
+          description: Error code ổn định, ví dụ `auth.unauthenticated`
+          example: auth.unauthenticated
         traceId:
           type: string
         errors:
@@ -282,31 +121,25 @@ components:
             $ref: '#/components/schemas/FieldError'
   responses:
     BadRequest:
-      description: Malformed request or validation failure
+      description: Request malformed hoặc không pass validation
       content:
         application/problem+json:
           schema:
             $ref: '#/components/schemas/Problem'
     Unauthorized:
-      description: Missing, expired or invalid credentials
+      description: Thiếu token, token expired, hoặc sai signature / issuer / audience
       content:
         application/problem+json:
           schema:
             $ref: '#/components/schemas/Problem'
     Conflict:
-      description: Resource already exists
+      description: Resource đã tồn tại
       content:
         application/problem+json:
           schema:
             $ref: '#/components/schemas/Problem'
     UnprocessableEntity:
-      description: Idempotency-Key reused with a different payload
-      content:
-        application/problem+json:
-          schema:
-            $ref: '#/components/schemas/Problem'
-    TooManyRequests:
-      description: Rate limit exceeded
+      description: Dùng lại Idempotency-Key với payload khác
       content:
         application/problem+json:
           schema:

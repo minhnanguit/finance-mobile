@@ -6,9 +6,9 @@ import com.mosaicglobal.finance.core.common.result.FieldError
 import com.mosaicglobal.finance.core.network.api.ApiException
 import com.mosaicglobal.finance.core.network.api.apiCall
 import com.mosaicglobal.finance.core.network.auth.AuthTokens
+import com.mosaicglobal.finance.core.network.auth.RefreshOutcome
 import io.ktor.client.call.body
 import io.ktor.client.engine.mock.respondError
-import io.ktor.client.engine.mock.toByteArray
 import io.ktor.client.request.get
 import io.ktor.client.request.post
 import io.ktor.client.statement.bodyAsText
@@ -20,13 +20,12 @@ import kotlin.test.assertEquals
 import kotlin.test.assertFailsWith
 import kotlin.test.assertIs
 import kotlin.test.assertNull
-import kotlin.test.assertTrue
 
 class HttpClientFactoryTest {
 
     @Test
-    fun sendsBearerTokenProactivelyOnProtectedEndpoints() = runTest {
-        val tokens = FakeTokenProvider(AuthTokens("access-1", "refresh-1", 900))
+    fun sendsBearerTokenOnlyToTheApiHost() = runTest {
+        val tokens = FakeTokenProvider(AuthTokens("access-1", "refresh-1", 300))
         val authHeaders = mutableListOf<String?>()
         val client = testClient(tokenProvider = tokens) { request ->
             authHeaders += request.headers[HttpHeaders.Authorization]
@@ -34,60 +33,39 @@ class HttpClientFactoryTest {
         }
 
         client.get("/api/v1/me")
-        client.post("/api/v1/auth/login")
+        client.get("https://somewhere-else.example/resource")
 
         assertEquals("Bearer access-1", authHeaders[0])
-        assertNull(authHeaders[1], "auth endpoints must not receive a stale bearer token")
+        assertNull(authHeaders[1], "token không được gửi sang host khác backend")
     }
 
     @Test
-    fun rotatesRefreshTokenOn401AndRetriesOriginalRequest() = runTest {
-        val tokens = FakeTokenProvider(AuthTokens("expired", "refresh-1", 900))
+    fun refreshesOn401ThenRetriesOriginalRequest() = runTest {
+        val tokens = FakeTokenProvider(AuthTokens("expired", "refresh-1", 300))
+        val refresher = FakeTokenRefresher(RefreshOutcome.Refreshed(AuthTokens("access-2", "refresh-2", 300)))
         val calls = mutableListOf<String>()
-        var refreshBody: String? = null
-        val client = testClient(tokenProvider = tokens) { request ->
-            calls += "${request.method.value} ${request.url.encodedPath} ${request.headers[HttpHeaders.Authorization]}"
-            when {
-                request.url.encodedPath == REFRESH_PATH -> {
-                    refreshBody = request.body.toByteArray().decodeToString()
-                    jsonResponse(tokenPairJson("access-2", "refresh-2"))
-                }
-                request.headers[HttpHeaders.Authorization] == "Bearer access-2" -> jsonResponse("""{"id":"u1"}""")
-                else -> problemResponse(
-                    HttpStatusCode.Unauthorized,
-                    """{"type":"about:blank","title":"Unauthorized","status":401,"code":"identity.token_expired"}""",
-                )
+        val client = testClient(tokenProvider = tokens, tokenRefresher = refresher) { request ->
+            calls += "${request.url.encodedPath} ${request.headers[HttpHeaders.Authorization]}"
+            if (request.headers[HttpHeaders.Authorization] == "Bearer access-2") {
+                jsonResponse("""{"id":"u1"}""")
+            } else {
+                problemResponse(HttpStatusCode.Unauthorized, UNAUTHORIZED_PROBLEM)
             }
         }
 
         val body = client.get("/api/v1/me").bodyAsText()
 
         assertEquals("""{"id":"u1"}""", body)
-        assertEquals(
-            listOf(
-                "GET /api/v1/me Bearer expired",
-                "POST $REFRESH_PATH null",
-                "GET /api/v1/me Bearer access-2",
-            ),
-            calls,
-        )
-        assertTrue(refreshBody?.contains("\"refreshToken\":\"refresh-1\"") == true)
-        assertTrue(refreshBody?.contains("\"deviceId\":\"device-1234\"") == true)
-        assertEquals(AuthTokens("access-2", "refresh-2", 900), tokens.stored, "rotated pair must be persisted")
+        assertEquals(listOf("/api/v1/me Bearer expired", "/api/v1/me Bearer access-2"), calls)
+        assertEquals(listOf("refresh-1"), refresher.presented)
+        assertEquals(AuthTokens("access-2", "refresh-2", 300), tokens.stored, "token đã rotate phải được lưu")
     }
 
     @Test
-    fun clearsSessionWhenRefreshIsRejected() = runTest {
-        val tokens = FakeTokenProvider(AuthTokens("expired", "reused-refresh", 900))
-        val client = testClient(tokenProvider = tokens) { request ->
-            problemResponse(
-                HttpStatusCode.Unauthorized,
-                if (request.url.encodedPath == REFRESH_PATH) {
-                    """{"type":"about:blank","title":"Unauthorized","status":401,"code":"identity.refresh_reused"}"""
-                } else {
-                    """{"type":"about:blank","title":"Unauthorized","status":401,"code":"identity.token_expired"}"""
-                },
-            )
+    fun clearsSessionWhenIdpRejectsTheRefreshToken() = runTest {
+        val tokens = FakeTokenProvider(AuthTokens("expired", "revoked-refresh", 300))
+        val client = testClient(tokenProvider = tokens, tokenRefresher = FakeTokenRefresher(RefreshOutcome.Rejected)) {
+            problemResponse(HttpStatusCode.Unauthorized, UNAUTHORIZED_PROBLEM)
         }
 
         val result = apiCall { client.get("/api/v1/me").body<String>() }
@@ -95,6 +73,21 @@ class HttpClientFactoryTest {
         assertEquals(AppResult.Failure(AppError.Unauthorized), result)
         assertNull(tokens.stored)
         assertEquals(1, tokens.clearCalls)
+    }
+
+    @Test
+    fun keepsSessionWhenIdpIsUnreachable() = runTest {
+        val original = AuthTokens("expired", "still-valid-refresh", 300)
+        val tokens = FakeTokenProvider(original)
+        val client = testClient(tokenProvider = tokens, tokenRefresher = FakeTokenRefresher(RefreshOutcome.Unavailable)) {
+            problemResponse(HttpStatusCode.Unauthorized, UNAUTHORIZED_PROBLEM)
+        }
+
+        val result = apiCall { client.get("/api/v1/me").body<String>() }
+
+        assertEquals(AppResult.Failure(AppError.Unauthorized), result)
+        assertEquals(original, tokens.stored, "offline-first: mất mạng tới IdP không được đá user ra ngoài")
+        assertEquals(0, tokens.clearCalls)
     }
 
     @Test
@@ -110,7 +103,7 @@ class HttpClientFactoryTest {
             )
         }
 
-        val exception = assertFailsWith<ApiException> { client.post("/api/v1/auth/register") }
+        val exception = assertFailsWith<ApiException> { client.post("/api/v1/anything") }
 
         assertEquals(409, exception.status)
         assertEquals("identity.email_taken", exception.code)
@@ -129,7 +122,7 @@ class HttpClientFactoryTest {
             )
         }
 
-        val result = apiCall { client.post("/api/v1/auth/login").body<String>() }
+        val result = apiCall { client.post("/api/v1/anything").body<String>() }
 
         val error = assertIs<AppResult.Failure>(result).error
         assertEquals(AppError.Api(422, "idempotency.payload_mismatch", "Unprocessable Entity", null), error)

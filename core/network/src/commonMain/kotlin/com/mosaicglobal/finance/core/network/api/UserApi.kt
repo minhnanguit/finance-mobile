@@ -2,7 +2,10 @@ package com.mosaicglobal.finance.core.network.api
 
 import com.mosaicglobal.finance.core.network.api.model.UserProfileDto
 
-/** `me` tag of the contract. */
+/**
+ * Tag `me` của contract. Implementation throw [ApiException] khi non-2xx; bọc lời gọi bằng [apiCall]
+ * để nhận `AppResult`.
+ */
 interface UserApi {
     suspend fun getCurrentUser(): UserProfileDto
 }
