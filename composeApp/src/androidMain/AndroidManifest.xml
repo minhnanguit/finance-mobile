@@ -23,7 +23,27 @@
             </intent-filter>
         </activity>
 
-        <!-- WorkManager is initialised by Koin (workManagerFactory) so SyncWorker can be injected. -->
+        <!--
+            Nhận redirect của Keycloak sau khi login (ADR-004). Scheme/host/path phải khớp OIDC_REDIRECT_URI
+            trong AppModule.kt và redirectUris của client finance-mobile trong realm-finance.json.
+            Activity này nằm ở core/auth; app khai báo ở đây vì app mới là chủ của scheme.
+        -->
+        <activity
+            android:name="com.mosaicglobal.finance.core.auth.launcher.RedirectReceiverActivity"
+            android:exported="true"
+            android:theme="@android:style/Theme.Translucent.NoTitleBar">
+            <intent-filter>
+                <action android:name="android.intent.action.VIEW" />
+                <category android:name="android.intent.category.DEFAULT" />
+                <category android:name="android.intent.category.BROWSABLE" />
+                <data
+                    android:host="oauth"
+                    android:path="/callback"
+                    android:scheme="com.mosaicglobal.finance" />
+            </intent-filter>
+        </activity>
+
+        <!-- WorkManager được Koin khởi tạo (workManagerFactory) để inject được SyncWorker. -->
         <provider
             android:name="androidx.startup.InitializationProvider"
             android:authorities="${applicationId}.androidx-startup"

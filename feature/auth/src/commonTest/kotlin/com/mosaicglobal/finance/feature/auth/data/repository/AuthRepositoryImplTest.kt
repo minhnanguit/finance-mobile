@@ -4,27 +4,24 @@ package com.mosaicglobal.finance.feature.auth.data.repository
 
 import app.cash.turbine.test
 import co.touchlab.kermit.Logger
-import com.mosaicglobal.finance.core.common.platform.Platform
+import com.mosaicglobal.finance.core.auth.AuthorizationOutcome
+import com.mosaicglobal.finance.core.auth.AuthorizationPrompt
+import com.mosaicglobal.finance.core.auth.OidcAuthenticator
 import com.mosaicglobal.finance.core.common.result.AppError
 import com.mosaicglobal.finance.core.common.result.AppResult
 import com.mosaicglobal.finance.core.datastore.session.SessionStore
 import com.mosaicglobal.finance.core.datastore.session.StoredSession
 import com.mosaicglobal.finance.core.network.api.ApiException
-import com.mosaicglobal.finance.core.network.api.AuthApi
 import com.mosaicglobal.finance.core.network.api.UserApi
-import com.mosaicglobal.finance.core.network.api.model.DevicePlatformDto
-import com.mosaicglobal.finance.core.network.api.model.LoginRequestDto
-import com.mosaicglobal.finance.core.network.api.model.LogoutRequestDto
-import com.mosaicglobal.finance.core.network.api.model.RefreshRequestDto
-import com.mosaicglobal.finance.core.network.api.model.RegisterRequestDto
-import com.mosaicglobal.finance.core.network.api.model.TokenPairDto
 import com.mosaicglobal.finance.core.network.api.model.UserProfileDto
+import com.mosaicglobal.finance.core.network.auth.AuthTokens
 import com.mosaicglobal.finance.core.network.auth.TokenCache
 import com.mosaicglobal.finance.core.testing.TestClock
-import com.mosaicglobal.finance.feature.auth.data.remote.AuthRemoteDataSource
-import com.mosaicglobal.finance.feature.auth.domain.model.Credentials
-import com.mosaicglobal.finance.feature.auth.domain.model.DeviceInfo
-import com.mosaicglobal.finance.feature.auth.domain.model.Registration
+import com.mosaicglobal.finance.feature.auth.data.remote.UserRemoteDataSource
+import com.mosaicglobal.finance.feature.auth.domain.model.Session
+import com.mosaicglobal.finance.feature.auth.domain.model.SignInMode
+import com.mosaicglobal.finance.feature.auth.domain.model.SignInResult
+import com.mosaicglobal.finance.feature.auth.domain.model.UserProfile
 import kotlinx.coroutines.flow.Flow
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.test.runTest
@@ -37,30 +34,21 @@ import kotlin.time.Instant
 
 class AuthRepositoryImplTest {
 
-    private class FakeAuthApi : AuthApi {
-        var tokenPair = TokenPairDto("access-1", "refresh-1", "Bearer", 900)
-        var failWith: ApiException? = null
-        val loginRequests = mutableListOf<LoginRequestDto>()
-        val registerRequests = mutableListOf<RegisterRequestDto>()
-        val logoutRequests = mutableListOf<LogoutRequestDto>()
+    private class FakeAuthenticator : OidcAuthenticator {
+        var outcome: AppResult<AuthorizationOutcome> =
+            AppResult.Success(AuthorizationOutcome.Authorized(AuthTokens("access-1", "refresh-1", 300)))
+        var endSessionResult: AppResult<Unit> = AppResult.Success(Unit)
+        val prompts = mutableListOf<AuthorizationPrompt>()
+        val endedSessions = mutableListOf<String>()
 
-        override suspend fun register(request: RegisterRequestDto): TokenPairDto {
-            registerRequests += request
-            failWith?.let { throw it }
-            return tokenPair
+        override suspend fun authorize(prompt: AuthorizationPrompt): AppResult<AuthorizationOutcome> {
+            prompts += prompt
+            return outcome
         }
 
-        override suspend fun login(request: LoginRequestDto): TokenPairDto {
-            loginRequests += request
-            failWith?.let { throw it }
-            return tokenPair
-        }
-
-        override suspend fun refresh(request: RefreshRequestDto): TokenPairDto = tokenPair
-
-        override suspend fun logout(request: LogoutRequestDto) {
-            logoutRequests += request
-            failWith?.let { throw it }
+        override suspend fun endSession(refreshToken: String): AppResult<Unit> {
+            endedSessions += refreshToken
+            return endSessionResult
         }
     }
 
@@ -87,85 +75,69 @@ class AuthRepositoryImplTest {
         override fun invalidate() { invalidations += 1 }
     }
 
-    private val authApi = FakeAuthApi()
+    private val authenticator = FakeAuthenticator()
     private val userApi = FakeUserApi()
     private val sessionStore = FakeSessionStore()
     private val tokenCache = RecordingTokenCache()
     private val clock = TestClock(Instant.fromEpochSeconds(1_000))
-    private val device = DeviceInfo("install-1234", "Pixel 9", Platform.ANDROID)
 
     private fun repository() = AuthRepositoryImpl(
-        remote = AuthRemoteDataSource(authApi, userApi),
+        authenticator = authenticator,
+        userRemote = UserRemoteDataSource(userApi),
         sessionStore = sessionStore,
         tokenCache = tokenCache,
-        deviceInfoProvider = { device },
         clock = clock,
         logger = Logger.withTag("test"),
     )
 
     @Test
-    fun loginStoresSessionWithDeviceAndExpiry() = runTest {
-        val result = repository().login(Credentials("user@example.com", "hunter22"))
+    fun signInStoresTheKeycloakTokensWithTheirExpiry() = runTest {
+        val result = repository().signIn(SignInMode.SignIn)
 
-        val session = assertIs<AppResult.Success<*>>(result).value
-        assertEquals(Instant.fromEpochSeconds(1_900), (session as com.mosaicglobal.finance.feature.auth.domain.model.Session).accessTokenExpiresAt)
-        assertNull(session.userId)
-
-        val stored = sessionStore.state.value
-        assertEquals("access-1", stored?.accessToken)
-        assertEquals("refresh-1", stored?.refreshToken)
-        assertEquals(1_900L, stored?.accessTokenExpiresAtEpochSeconds)
-        assertEquals(1, tokenCache.invalidations)
-
-        val request = authApi.loginRequests.single()
-        assertEquals("install-1234", request.device.deviceId)
-        assertEquals(DevicePlatformDto.ANDROID, request.device.platform)
+        assertEquals(AppResult.Success(SignInResult.SignedIn(Session(null, Instant.fromEpochSeconds(1_300)))), result)
+        assertEquals(StoredSession("access-1", "refresh-1", 1_300L, userId = null), sessionStore.state.value)
+        assertEquals(1, tokenCache.invalidations, "Ktor phải đọc lại token mới")
+        assertEquals(listOf(AuthorizationPrompt.SignIn), authenticator.prompts)
     }
 
     @Test
-    fun registerMapsAllFields() = runTest {
-        repository().register(Registration("new@example.com", "hunter22", "Nam"))
+    fun signUpAsksForTheRegistrationForm() = runTest {
+        repository().signIn(SignInMode.SignUp)
 
-        val request = authApi.registerRequests.single()
-        assertEquals("new@example.com", request.email)
-        assertEquals("Nam", request.displayName)
-        assertEquals("Pixel 9", request.device.deviceName)
+        assertEquals(listOf(AuthorizationPrompt.SignUp), authenticator.prompts)
     }
 
     @Test
-    fun apiProblemBecomesAppErrorWithoutThrowing() = runTest {
-        authApi.failWith = ApiException(status = 409, code = "identity.email_taken", title = "Conflict", detail = "Email already registered")
+    fun cancellingLeavesNoSessionBehind() = runTest {
+        authenticator.outcome = AppResult.Success(AuthorizationOutcome.Cancelled)
 
-        val result = repository().register(Registration("dup@example.com", "hunter22", "Nam"))
-
-        val error = assertIs<AppResult.Failure>(result).error
-        assertEquals(AppError.Api(409, "identity.email_taken", "Conflict", "Email already registered"), error)
+        assertEquals(AppResult.Success(SignInResult.Cancelled), repository().signIn(SignInMode.SignIn))
         assertNull(sessionStore.state.value)
         assertEquals(0, tokenCache.invalidations)
     }
 
     @Test
-    fun unauthorizedIsDistinctError() = runTest {
-        authApi.failWith = ApiException(status = 401, code = "identity.bad_credentials", title = "Unauthorized", detail = null)
-        val result = repository().login(Credentials("user@example.com", "wrong"))
-        assertEquals(AppError.Unauthorized, assertIs<AppResult.Failure>(result).error)
+    fun aFailedSignInLeavesNoSessionBehind() = runTest {
+        authenticator.outcome = AppResult.Failure(AppError.Network("offline"))
+
+        assertEquals(AppResult.Failure(AppError.Network("offline")), repository().signIn(SignInMode.SignIn))
+        assertNull(sessionStore.state.value)
     }
 
     @Test
-    fun currentUserAttachesUserIdToSession() = runTest {
+    fun currentUserAttachesTheInternalIdToTheSession() = runTest {
         sessionStore.save(StoredSession("a", "r", 5_000L))
 
-        val result = repository().currentUser()
+        val profile = assertIs<AppResult.Success<UserProfile>>(repository().currentUser()).value
 
-        val profile = assertIs<AppResult.Success<*>>(result).value as com.mosaicglobal.finance.feature.auth.domain.model.UserProfile
         assertEquals("user-1", profile.id)
         assertEquals("user-1", sessionStore.state.value?.userId)
     }
 
     @Test
-    fun logoutClearsLocallyEvenWhenServerFails() = runTest {
+    fun logoutClearsLocallyEvenWhenKeycloakFails() = runTest {
         sessionStore.save(StoredSession("a", "refresh-old", 5_000L, userId = "u"))
-        authApi.failWith = ApiException(status = 500, code = null, title = "Internal Server Error", detail = null)
+        authenticator.endSessionResult = AppResult.Failure(AppError.Network("offline"))
         val repo = repository()
 
         repo.observeSession().test {
@@ -173,7 +145,14 @@ class AuthRepositoryImplTest {
             assertEquals(AppResult.Success(Unit), repo.logout())
             assertNull(awaitItem())
         }
-        assertEquals("refresh-old", authApi.logoutRequests.single().refreshToken)
+        assertEquals(listOf("refresh-old"), authenticator.endedSessions)
         assertEquals(1, tokenCache.invalidations)
+    }
+
+    @Test
+    fun logoutWithoutASessionDoesNotCallKeycloak() = runTest {
+        assertEquals(AppResult.Success(Unit), repository().logout())
+
+        assertEquals(emptyList(), authenticator.endedSessions)
     }
 }

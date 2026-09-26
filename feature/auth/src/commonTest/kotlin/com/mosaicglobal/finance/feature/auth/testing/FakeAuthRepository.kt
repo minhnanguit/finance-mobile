@@ -1,9 +1,10 @@
 package com.mosaicglobal.finance.feature.auth.testing
 
+import com.mosaicglobal.finance.core.common.result.AppError
 import com.mosaicglobal.finance.core.common.result.AppResult
-import com.mosaicglobal.finance.feature.auth.domain.model.Credentials
-import com.mosaicglobal.finance.feature.auth.domain.model.Registration
 import com.mosaicglobal.finance.feature.auth.domain.model.Session
+import com.mosaicglobal.finance.feature.auth.domain.model.SignInMode
+import com.mosaicglobal.finance.feature.auth.domain.model.SignInResult
 import com.mosaicglobal.finance.feature.auth.domain.model.UserProfile
 import com.mosaicglobal.finance.feature.auth.domain.repository.AuthRepository
 import kotlinx.coroutines.CompletableDeferred
@@ -12,27 +13,20 @@ import kotlinx.coroutines.flow.MutableStateFlow
 
 internal class FakeAuthRepository : AuthRepository {
     val sessions = MutableStateFlow<Session?>(null)
-    var loginResult: AppResult<Session> = AppResult.Failure(com.mosaicglobal.finance.core.common.result.AppError.Unknown("not configured"))
-    var registerResult: AppResult<Session> = loginResult
-    var currentUserResult: AppResult<UserProfile> = AppResult.Failure(com.mosaicglobal.finance.core.common.result.AppError.Unknown("not configured"))
+    var signInResult: AppResult<SignInResult> = AppResult.Failure(AppError.Unknown("chưa cấu hình"))
+    var currentUserResult: AppResult<UserProfile> = AppResult.Failure(AppError.Unknown("chưa cấu hình"))
     var logoutResult: AppResult<Unit> = AppResult.Success(Unit)
 
-    val loginCalls = mutableListOf<Credentials>()
-    val registerCalls = mutableListOf<Registration>()
+    val signInCalls = mutableListOf<SignInMode>()
     var logoutCalls = 0
 
-    /** When set, `login` suspends until completed so tests can observe the submitting state. */
-    var loginGate: CompletableDeferred<Unit>? = null
+    /** Gán vào thì `signIn` treo tới khi complete — để test thấy được trạng thái đang chờ browser. */
+    var signInGate: CompletableDeferred<Unit>? = null
 
-    override suspend fun register(registration: Registration): AppResult<Session> {
-        registerCalls += registration
-        return registerResult
-    }
-
-    override suspend fun login(credentials: Credentials): AppResult<Session> {
-        loginCalls += credentials
-        loginGate?.await()
-        return loginResult
+    override suspend fun signIn(mode: SignInMode): AppResult<SignInResult> {
+        signInCalls += mode
+        signInGate?.await()
+        return signInResult
     }
 
     override suspend fun logout(): AppResult<Unit> {

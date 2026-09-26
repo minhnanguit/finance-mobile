@@ -12,9 +12,8 @@ import androidx.navigation.NavHostController
 import androidx.navigation.NavDestination.Companion.hasRoute
 import com.mosaicglobal.finance.core.designsystem.component.LoadingIndicator
 import com.mosaicglobal.finance.feature.auth.domain.usecase.ObserveSessionUseCase
-import com.mosaicglobal.finance.feature.auth.presentation.navigation.LoginDestination
 import com.mosaicglobal.finance.feature.auth.presentation.navigation.ProfileDestination
-import com.mosaicglobal.finance.feature.auth.presentation.navigation.RegisterDestination
+import com.mosaicglobal.finance.feature.auth.presentation.navigation.SignedOutDestination
 import com.mosaicglobal.finance.feature.auth.presentation.navigation.authNavGraph
 import kotlinx.coroutines.flow.map
 import org.koin.compose.koinInject
@@ -35,24 +34,22 @@ internal fun FinanceNavHost() {
         SessionUiState.Loading -> LoadingIndicator()
         is SessionUiState.Ready -> {
             val navController = rememberNavController()
-            // Decided once per NavHost; later transitions are explicit navigation calls.
-            val startDestination: Any = remember { if (current.isAuthenticated) ProfileDestination else LoginDestination }
+            // Chỉ quyết định một lần cho mỗi NavHost; các lần chuyển sau đều là lệnh navigate tường minh.
+            val startDestination: Any = remember { if (current.isAuthenticated) ProfileDestination else SignedOutDestination }
 
             NavHost(navController = navController, startDestination = startDestination) {
                 authNavGraph(
-                    onNavigateToRegister = { navController.navigate(RegisterDestination) },
-                    onNavigateToLogin = { navController.popBackStack() },
                     onAuthenticated = { navController.navigateClearingBackStack(ProfileDestination) },
-                    onLoggedOut = { navController.navigateClearingBackStack(LoginDestination) },
+                    onLoggedOut = { navController.navigateClearingBackStack(SignedOutDestination) },
                 )
             }
 
-            // Token refresh failed in the background -> session cleared -> leave protected screens.
+            // Refresh token bị Keycloak reject ở background → session bị clear → rời màn hình cần đăng nhập.
             val backStackEntry by navController.currentBackStackEntryAsState()
             LaunchedEffect(current.isAuthenticated, backStackEntry) {
                 val onProtectedScreen = backStackEntry?.destination?.hasRoute<ProfileDestination>() == true
                 if (!current.isAuthenticated && onProtectedScreen) {
-                    navController.navigateClearingBackStack(LoginDestination)
+                    navController.navigateClearingBackStack(SignedOutDestination)
                 }
             }
         }

@@ -1,4 +1,4 @@
-package com.mosaicglobal.finance.feature.auth.presentation.login
+package com.mosaicglobal.finance.feature.auth.presentation.signedout
 
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Column
@@ -14,40 +14,37 @@ import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.getValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
-import androidx.compose.ui.text.input.ImeAction
-import androidx.compose.ui.text.input.KeyboardType
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import com.mosaicglobal.finance.core.designsystem.component.ErrorBanner
-import com.mosaicglobal.finance.core.designsystem.component.FinanceTextField
 import com.mosaicglobal.finance.core.designsystem.component.PrimaryButton
 import com.mosaicglobal.finance.core.designsystem.component.SecondaryTextButton
 import com.mosaicglobal.finance.core.designsystem.theme.FinanceTheme
+import com.mosaicglobal.finance.feature.auth.domain.model.SignInMode
 import org.koin.compose.viewmodel.koinViewModel
 
 @Composable
-internal fun LoginRoute(
-    onNavigateToRegister: () -> Unit,
-    onLoggedIn: () -> Unit,
-    viewModel: LoginViewModel = koinViewModel(),
+internal fun SignedOutRoute(
+    onSignedIn: () -> Unit,
+    viewModel: SignedOutViewModel = koinViewModel(),
 ) {
     val state by viewModel.state.collectAsStateWithLifecycle()
 
     LaunchedEffect(viewModel) {
         viewModel.effects.collect { effect ->
             when (effect) {
-                LoginEffect.NavigateToHome -> onLoggedIn()
-                LoginEffect.NavigateToRegister -> onNavigateToRegister()
+                SignedOutEffect.NavigateToHome -> onSignedIn()
             }
         }
     }
 
-    LoginScreen(state = state, onIntent = viewModel::onIntent)
+    SignedOutScreen(state = state, onIntent = viewModel::onIntent)
 }
 
+/** Form đăng nhập / đăng ký nằm trên Keycloak (system browser); màn này chỉ có hai nút mở nó. */
 @Composable
-internal fun LoginScreen(
-    state: LoginState,
-    onIntent: (LoginIntent) -> Unit,
+internal fun SignedOutScreen(
+    state: SignedOutState,
+    onIntent: (SignedOutIntent) -> Unit,
     modifier: Modifier = Modifier,
 ) {
     val spacing = FinanceTheme.spacing
@@ -59,51 +56,31 @@ internal fun LoginScreen(
         verticalArrangement = Arrangement.Center,
         horizontalAlignment = Alignment.CenterHorizontally,
     ) {
-        Text(text = "Welcome back", style = MaterialTheme.typography.headlineMedium)
+        Text(text = "Finance", style = MaterialTheme.typography.headlineMedium)
         Spacer(Modifier.height(spacing.xs))
         Text(
-            text = "Sign in to your finance account",
+            text = "Track every expense, even offline",
             style = MaterialTheme.typography.bodyMedium,
             color = MaterialTheme.colorScheme.onSurfaceVariant,
         )
         Spacer(Modifier.height(spacing.xl))
 
         state.error?.let { error ->
-            ErrorBanner(message = error, onDismiss = { onIntent(LoginIntent.ErrorDismissed) })
+            ErrorBanner(message = error, onDismiss = { onIntent(SignedOutIntent.ErrorDismissed) })
             Spacer(Modifier.height(spacing.md))
         }
 
-        FinanceTextField(
-            value = state.email,
-            onValueChange = { onIntent(LoginIntent.EmailChanged(it)) },
-            label = "Email",
-            errorText = state.emailError?.resolve(),
-            enabled = !state.isSubmitting,
-            keyboardType = KeyboardType.Email,
-        )
-        Spacer(Modifier.height(spacing.md))
-        FinanceTextField(
-            value = state.password,
-            onValueChange = { onIntent(LoginIntent.PasswordChanged(it)) },
-            label = "Password",
-            errorText = state.passwordError?.resolve(),
-            enabled = !state.isSubmitting,
-            isPassword = true,
-            imeAction = ImeAction.Done,
-        )
-        Spacer(Modifier.height(spacing.lg))
-
         PrimaryButton(
             text = "Sign in",
-            onClick = { onIntent(LoginIntent.Submit) },
-            enabled = state.canSubmit,
-            loading = state.isSubmitting,
+            onClick = { onIntent(SignedOutIntent.SignInClicked) },
+            enabled = !state.isBusy,
+            loading = state.inProgress == SignInMode.SignIn,
         )
         Spacer(Modifier.height(spacing.sm))
         SecondaryTextButton(
             text = "Create an account",
-            onClick = { onIntent(LoginIntent.RegisterClicked) },
-            enabled = !state.isSubmitting,
+            onClick = { onIntent(SignedOutIntent.SignUpClicked) },
+            enabled = !state.isBusy,
         )
     }
 }
