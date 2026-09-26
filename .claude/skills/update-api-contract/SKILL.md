@@ -45,11 +45,13 @@ Chỉ hai chỗ được đụng tới client generated:
 | File | Việc |
 |---|---|
 | `core/network/.../api/internal/GeneratedApiAdapters.kt` | Nơi **duy nhất** import `…core.network.generated.*` — cập nhật signature |
-| `core/network/.../api/AuthApi.kt`, `UserApi.kt`, `api/model/*Dtos.kt` | Interface + DTO mà feature nhìn thấy |
+| `core/network/.../api/UserApi.kt`, `api/model/*Dtos.kt` | Interface + DTO mà feature nhìn thấy |
 
 Sau đó sửa mapper trong `feature/*/data/mapper/`. Nếu field mới cần hiển thị → cập nhật domain model + State.
 
-Lưu ý riêng: `HttpClientFactory` có `RefreshRequestBody` / `TokenPairBody` **viết tay** (dùng bởi interceptor refresh, không qua client generated). Contract đổi shape của `/auth/refresh` ⇒ phải sửa cả hai chỗ.
+Lưu ý riêng: refresh token KHÔNG thuộc contract backend nữa — `core/auth` gọi thẳng token endpoint của Keycloak. Đổi contract không ảnh hưởng luồng refresh.
+
+⚠️ Generator `kotlin`/`multiplatform` 7.14 sinh code sai cú pháp cho security scheme `openIdConnect` (`mapOf(, ...`). Spec phải chỉ dùng `http bearer`; thấy lỗi này thì sửa spec ở backend.
 
 ## 5. Verify
 
@@ -84,6 +86,5 @@ Tiêu đề theo quy ước repo: `api: pin contract <old> -> <new>`.
 - [ ] `api/openapi.yaml` là copy nguyên văn, không sửa tay
 - [ ] `api/VERSION` khớp `info.version` trong spec
 - [ ] Chỉ `GeneratedApiAdapters.kt` import package generated
-- [ ] `RefreshRequestBody`/`TokenPairBody` vẫn khớp contract
 - [ ] 3 lệnh verify xanh
 - [ ] PR riêng, đặt tên `api: pin contract <old> -> <new>`

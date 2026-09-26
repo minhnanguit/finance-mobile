@@ -23,6 +23,8 @@ Dùng khi và chỉ khi hành vi khác nhau theo nền tảng. Mẫu có sẵn:
 | `PlatformInfo` | `.android.kt` | `.ios.kt` |
 | `platformEngine()` | OkHttp | Darwin |
 | `SyncScheduler` | WorkManager | BGTaskScheduler |
+| `AuthorizationLauncher` (interface + Koin platform module, `core/auth`) | Custom Tabs qua `AuthorizationActivity` + `RedirectReceiverActivity` | `ASWebAuthenticationSession` (ephemeral) |
+| `secureRandomBytes()`, `sha256()` (`core/auth/pkce`) | `SecureRandom`, `MessageDigest` | `SecRandomCopyBytes`, `CC_SHA256` |
 | `defaultApiBaseUrl()`, `isDebugBuild` (composeApp) | `10.0.2.2:8080` khi debug | loopback simulator |
 
 Đặt tên file: `X.kt` (expect) / `X.android.kt` / `X.ios.kt`.
@@ -47,7 +49,7 @@ Compiler flag đang bật: `-Xexpect-actual-classes` (expect/actual class vẫn 
 
 | Plugin | Dùng cho |
 |---|---|
-| `finance.kmp.library` | core module thuần (common, network, database, datastore, sync, presentation, testing) |
+| `finance.kmp.library` | core module thuần (common, network, auth, database, datastore, sync, presentation, testing) |
 | `finance.kmp.compose` | module có UI Compose (designsystem) |
 | `finance.kmp.feature` | feature module (Compose + Koin + lifecycle + navigation + serialization đã kèm sẵn) |
 | `finance.compose.application` | `composeApp` |

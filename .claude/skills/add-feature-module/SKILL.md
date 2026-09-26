@@ -68,7 +68,7 @@ internal class XRepositoryImpl(private val remote: XRemoteDataSource, ...) : XRe
 }
 ```
 
-- Remote data source bọc `AuthApi`/`UserApi`… của `core/network`, mỗi call trong `apiCall { }`.
+- Remote data source bọc `UserApi`… của `core/network`, mỗi call trong `apiCall { }`.
 - Mapper DTO ↔ domain viết tay ở `data/mapper/`.
 - Mọi class ở `data` là `internal`.
 

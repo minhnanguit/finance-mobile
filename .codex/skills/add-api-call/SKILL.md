@@ -22,8 +22,8 @@ cat api/VERSION
 
 `core/network/src/commonMain/kotlin/.../api/`:
 
-- Interface thủ công `AuthApi` / `UserApi`… — đây là thứ feature nhìn thấy.
-- DTO ở `api/model/` (`AuthDtos.kt`, `UserDtos.kt`).
+- Interface thủ công `UserApi`… — đây là thứ feature nhìn thấy.
+- DTO ở `api/model/` (`UserDtos.kt`).
 - Implement bằng adapter ở `api/internal/GeneratedApiAdapters.kt` — **nơi duy nhất** được import `…core.network.generated.*`.
 - Đăng ký trong `core/network/di/CoreNetworkModule.kt`.
 
@@ -32,7 +32,7 @@ Những thứ **tự động**, đừng làm tay:
 | Thứ | Ai lo |
 |---|---|
 | `Authorization: Bearer` | Ktor `Auth` plugin (gửi proactively cho path không bắt đầu bằng `/api/v1/auth/`) |
-| Refresh khi 401 + retry | `Auth` plugin → `POST /api/v1/auth/refresh`, rotate, lưu qua `TokenProvider` |
+| Refresh khi 401 + retry | `Auth` plugin → `TokenRefresher` (core/auth) → token endpoint Keycloak, rotate, lưu qua `TokenProvider` |
 | `Idempotency-Key` | `IdempotencyKeyPlugin` |
 | Base URL, timeout, JSON | `HttpClientFactory` + `NetworkConfig` |
 | Non-2xx → `ApiException` | `HttpResponseValidator` + `ProblemDetails` |

@@ -7,8 +7,8 @@ Client Kotlin Multiplatform (Android + iOS) dùng **Compose Multiplatform UI chu
 
 - Package gốc: `com.mosaicglobal.finance` · compileSdk 36 · minSdk 26 · targetSdk 36
 - Kiến trúc đã **chốt** ở `../ARCHITECTURE.md` (repo-level, tiếng Việt). Không tự đổi.
-- Hợp đồng API: `api/openapi.yaml` là bản **copy nguyên văn** từ `finance-backend`, pin theo `api/VERSION` (hiện `1.0.0`). **Không sửa tay file này.**
-- Feature hiện có: `feature/auth` (reference feature: Login / Register / Profile).
+- Hợp đồng API: `api/openapi.yaml` là bản **copy nguyên văn** từ `finance-backend`, pin theo `api/VERSION` (hiện `2.0.0`). **Không sửa tay file này.**
+- Feature hiện có: `feature/auth` (reference feature: SignedOut / Profile). Login/register diễn ra trên **Keycloak** qua system browser (ADR-004).
 - `finance-backend` là repo riêng — **không sửa từ đây**.
 
 ## 2. Commands
@@ -27,7 +27,7 @@ Mọi lệnh thường dùng đều là target trong `Makefile`. Gõ `make` đ�
 | `make crash` | Chỉ theo dõi warning + crash |
 | `make apk` | Build APK debug, không cài |
 | `make test` | Unit test **mọi module KMP** (chạy trên host JVM) |
-| `make arch` | 15 luật Konsist |
+| `make arch` | 17 luật Konsist |
 | `make lint` | Android Lint cho `composeApp` |
 | `make api` | Sinh lại Kotlin client từ `api/openapi.yaml` |
 | `make ios` | Compile klib iOS **không cần Xcode** |
@@ -54,14 +54,16 @@ core/common           AppResult / AppError / FieldError, Money (Long minor units
                       UuidGenerator, Clock, PlatformInfo. Kotlin thuần
 core/presentation     MviViewModel<State, Intent, Effect>, UiText + AppError.toUiText()
 core/network          Ktor client (ContentNegotiation, logging sanitize, timeout, bearer + refresh rotation,
-                      IdempotencyKeyPlugin, RFC 7807 → ApiException), AuthApi/UserApi, TokenProvider
+                      IdempotencyKeyPlugin, RFC 7807 → ApiException), UserApi, port TokenProvider + TokenRefresher
+core/auth             OIDC client Keycloak: PKCE S256, discovery, token/refresh/logout, AuthorizationLauncher
+                      (Android Custom Tabs · iOS ASWebAuthenticationSession), implement TokenRefresher
 core/database         SQLDelight FinanceDatabase (outbox, sync_cursor) + DatabaseDriverFactory expect/actual
 core/datastore        SecureStorage (Android Keystore AES/GCM · iOS Keychain), AppSettings, SessionStore
 core/sync             SyncEngine, OutboxRepository, SyncCursorStore, ConflictPolicy, SyncScheduler
 core/designsystem     FinanceTheme, Spacing (4dp grid), PrimaryButton, FinanceTextField, LoadingIndicator, ErrorBanner
 core/testing          TestDispatcherProvider, TestClock, FakeUuidGenerator, MainDispatcherRule
 feature/auth          domain / data / presentation trong CÙNG một Gradle module
-architecture-test     15 luật Konsist (JVM)
+architecture-test     17 luật Konsist (JVM)
 ```
 
 Chiều phụ thuộc: **`presentation → domain ← data`**. Feature không phụ thuộc feature. Core không phụ thuộc feature.
@@ -73,7 +75,7 @@ Mỗi Gradle module expose **đúng một** Koin module public (`coreNetworkModu
 
 | File | Nội dung |
 |---|---|
-| `architecture-boundaries.md` | presentation ↛ data, domain thuần, feature isolation, 15 luật Konsist |
+| `architecture-boundaries.md` | presentation ↛ data, domain thuần, feature isolation, 17 luật Konsist |
 | `mvi-and-state.md` | MviViewModel, State/Intent/Effect, Route vs Screen |
 | `kmp-and-platform.md` | source set, expect/actual, Dispatchers, giới hạn iOS |
 | `contract-pinning.md` | `api/openapi.yaml` pin, generated client chỉ ở `core/network` |
