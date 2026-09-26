@@ -79,6 +79,24 @@ class LayerDependencyRulesTest {
             }
     }
 
+    // ADR-004: mọi thứ liên quan system browser nằm gọn trong core/auth, feature không tự mở browser.
+    @Test
+    fun `only core-auth touches the system browser APIs - Custom Tabs and ASWebAuthenticationSession`() {
+        productionScope.files
+            .filter { !it.packageName.startsWith("$ROOT.core.auth") }
+            .assertFalse { file ->
+                file.hasImport { it.name.startsWith("androidx.browser.") || it.name.startsWith("platform.AuthenticationServices.") }
+            }
+    }
+
+    // RFC 8252 + ADR-004: WebView cho phép app đọc được mật khẩu user gõ vào — cấm tuyệt đối.
+    @Test
+    fun `WebView is banned - sign-in must go through the system browser`() {
+        productionScope.files.assertFalse { file ->
+            file.hasImport { it.name.startsWith("android.webkit.") || it.name.startsWith("platform.WebKit.") }
+        }
+    }
+
     @Test
     fun `GlobalScope is banned`() {
         productionScope.files.assertFalse { it.hasImport { import -> import.name == "kotlinx.coroutines.GlobalScope" } }

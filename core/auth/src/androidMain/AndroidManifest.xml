@@ -1,0 +1,17 @@
+<?xml version="1.0" encoding="utf-8"?>
+<manifest xmlns:android="http://schemas.android.com/apk/res/android">
+
+    <application>
+        <!--
+            Activity trung gian, không có UI: mở Custom Tab và nhận redirect quay về.
+            singleTask + configChanges để không bị recreate giữa chừng (mất trạng thái "đã mở browser").
+            Activity nhận redirect URI (RedirectReceiverActivity) do app khai báo, vì app sở hữu scheme.
+        -->
+        <activity
+            android:name="com.mosaicglobal.finance.core.auth.launcher.AuthorizationActivity"
+            android:configChanges="orientation|screenSize|screenLayout|smallestScreenSize|keyboardHidden|uiMode"
+            android:exported="false"
+            android:launchMode="singleTask"
+            android:theme="@android:style/Theme.Translucent.NoTitleBar" />
+    </application>
+</manifest>
