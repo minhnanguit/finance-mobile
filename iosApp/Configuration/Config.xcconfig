@@ -1,4 +1,4 @@
 // Per-developer values. Override locally with Config.local.xcconfig (git-ignored) if needed.
 TEAM_ID=
-BUNDLE_ID=com.mosaicglobal.finance
+BUNDLE_ID=com.uit.finance
 APP_NAME=Finance

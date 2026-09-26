@@ -6,7 +6,7 @@ plugins {
 sqldelight {
     databases {
         create("FinanceDatabase") {
-            packageName.set("com.mosaicglobal.finance.core.database")
+            packageName.set("com.uit.finance.core.database")
             schemaOutputDirectory.set(file("src/commonMain/sqldelight/schema"))
             verifyMigrations.set(false)
         }

@@ -13,7 +13,7 @@ AVD         ?= Pixel_8
 # Muốn chỉ định tay: make log DEVICE=emulator-5556
 DEVICE      ?= $(shell $(ANDROID_SDK)/platform-tools/adb devices 2>/dev/null | awk '/^emulator-[0-9]+[ \t]+device/{print $$1; exit}')
 ADBD         = $(ADB) $(if $(DEVICE),-s $(DEVICE),-e)
-PKG         := com.mosaicglobal.finance
+PKG         := com.uit.finance
 ACTIVITY    := $(PKG)/.app.MainActivity
 
 .DEFAULT_GOAL := help

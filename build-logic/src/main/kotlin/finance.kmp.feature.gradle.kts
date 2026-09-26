@@ -1,4 +1,4 @@
-import com.mosaicglobal.finance.buildlogic.libs
+import com.uit.finance.buildlogic.libs
 import org.jetbrains.kotlin.gradle.dsl.KotlinMultiplatformExtension
 
 /**

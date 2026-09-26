@@ -1,8 +1,8 @@
 import com.android.build.api.dsl.ApplicationExtension
-import com.mosaicglobal.finance.buildlogic.BASE_PACKAGE
-import com.mosaicglobal.finance.buildlogic.configureAndroid
-import com.mosaicglobal.finance.buildlogic.configureKotlinMultiplatform
-import com.mosaicglobal.finance.buildlogic.libs
+import com.uit.finance.buildlogic.BASE_PACKAGE
+import com.uit.finance.buildlogic.configureAndroid
+import com.uit.finance.buildlogic.configureKotlinMultiplatform
+import com.uit.finance.buildlogic.libs
 import org.jetbrains.kotlin.gradle.dsl.KotlinMultiplatformExtension
 
 /**

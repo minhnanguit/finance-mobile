@@ -6,7 +6,7 @@ plugins {
     alias(libs.plugins.openapi.generator)
 }
 
-val generatedPackage = "com.mosaicglobal.finance.core.network.generated"
+val generatedPackage = "com.uit.finance.core.network.generated"
 val generatedDir = layout.buildDirectory.dir("generated/openapi")
 
 // Contract-first: Kotlin client được generate từ spec đã pin trong /api ở mỗi lần build.

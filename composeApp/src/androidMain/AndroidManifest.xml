@@ -29,7 +29,7 @@
             Activity này nằm ở core/auth; app khai báo ở đây vì app mới là chủ của scheme.
         -->
         <activity
-            android:name="com.mosaicglobal.finance.core.auth.launcher.RedirectReceiverActivity"
+            android:name="com.uit.finance.core.auth.launcher.RedirectReceiverActivity"
             android:exported="true"
             android:theme="@android:style/Theme.Translucent.NoTitleBar">
             <intent-filter>
@@ -39,7 +39,7 @@
                 <data
                     android:host="oauth"
                     android:path="/callback"
-                    android:scheme="com.mosaicglobal.finance" />
+                    android:scheme="com.uit.finance" />
             </intent-filter>
         </activity>
 

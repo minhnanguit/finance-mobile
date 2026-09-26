@@ -5,7 +5,7 @@
 Client Kotlin Multiplatform (Android + iOS) dùng **Compose Multiplatform UI chung**, cho app Finance.
 **Kotlin 2.3.21 · AGP 8.13.2 · Compose Multiplatform 1.11.1 (Material3 1.9.0) · Gradle 9.3 · Ktor 3.5.2 · SQLDelight 2.3.2 · Koin 4.2.2.**
 
-- Package gốc: `com.mosaicglobal.finance` · compileSdk 36 · minSdk 26 · targetSdk 36
+- Package gốc: `com.uit.finance` · compileSdk 36 · minSdk 26 · targetSdk 36
 - Kiến trúc đã **chốt** ở `../ARCHITECTURE.md` (repo-level, tiếng Việt). Không tự đổi.
 - Hợp đồng API: `api/openapi.yaml` là bản **copy nguyên văn** từ `finance-backend`, pin theo `api/VERSION` (hiện `2.0.0`). **Không sửa tay file này.**
 - Feature hiện có: `feature/auth` (reference feature: SignedOut / Profile). Login/register diễn ra trên **Keycloak** qua system browser (ADR-004).
@@ -86,7 +86,7 @@ Tóm tắt không được vi phạm:
 1. `presentation` không import `data`; `domain` chỉ Kotlin thuần (không Ktor/SQLDelight/Compose/Koin/Android/serialization).
 2. Không import `kotlinx.coroutines.Dispatchers` ở đâu ngoài `DispatcherProvider` và `core/testing` — inject `DispatcherProvider`.
 3. `GlobalScope` bị cấm tuyệt đối.
-4. Class generated (`com.mosaicglobal.finance.core.network.generated.*`) chỉ được import trong `core/network`.
+4. Class generated (`com.uit.finance.core.network.generated.*`) chỉ được import trong `core/network`.
 5. `*ViewModel` phải `internal` và nằm trong `..presentation..`; `*UseCase` nằm trong `..domain..` và có đúng một `operator fun invoke`.
 6. `*State` trong presentation phải là `data class` với toàn bộ property `val`.
 7. Không sửa tay `api/openapi.yaml` — thay đổi API bắt đầu từ repo backend.

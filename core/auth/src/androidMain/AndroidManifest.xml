@@ -8,7 +8,7 @@
             Activity nhận redirect URI (RedirectReceiverActivity) do app khai báo, vì app sở hữu scheme.
         -->
         <activity
-            android:name="com.mosaicglobal.finance.core.auth.launcher.AuthorizationActivity"
+            android:name="com.uit.finance.core.auth.launcher.AuthorizationActivity"
             android:configChanges="orientation|screenSize|screenLayout|smallestScreenSize|keyboardHidden|uiMode"
             android:exported="false"
             android:launchMode="singleTask"

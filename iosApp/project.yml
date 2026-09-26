@@ -1,7 +1,7 @@
 # XcodeGen spec. Generate the project with:  brew install xcodegen && xcodegen generate
 name: iosApp
 options:
-  bundleIdPrefix: com.mosaicglobal.finance
+  bundleIdPrefix: com.uit.finance
   deploymentTarget:
     iOS: "16.0"
   createIntermediateGroups: true
