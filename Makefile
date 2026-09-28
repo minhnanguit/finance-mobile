@@ -13,11 +13,11 @@ AVD         ?= Pixel_8
 # Muốn chỉ định tay: make log DEVICE=emulator-5556
 DEVICE      ?= $(shell $(ANDROID_SDK)/platform-tools/adb devices 2>/dev/null | awk '/^emulator-[0-9]+[ \t]+device/{print $$1; exit}')
 ADBD         = $(ADB) $(if $(DEVICE),-s $(DEVICE),-e)
-PKG         := com.mosaicglobal.finance
+PKG         := com.uit.finance
 ACTIVITY    := $(PKG)/.app.MainActivity
 
 .DEFAULT_GOAL := help
-.PHONY: help emulator wait devices install open stop uninstall log crash api ios apk test arch lint clean
+.PHONY: help emulator wait devices install open stop uninstall log crash api ios apk test arch lint tunnel tunnel-off clean
 
 help: ## Liệt kê mọi lệnh make của repo này
 	@echo "finance-mobile — các lệnh có sẵn:"
@@ -37,6 +37,21 @@ wait: ## Chờ tới khi máy ảo boot xong và sẵn sàng nhận lệnh
 
 devices: ## Liệt kê mọi máy ảo/máy thật mà adb đang thấy
 	@$(ADB) devices -l
+
+# ---------- Backend public qua Cloudflare Tunnel ----------
+# URL lấy từ `make tunnel` bên finance-backend. Ghi vào local.properties (git-ignored), rồi `make install`.
+
+tunnel: ## Trỏ app debug tới URL HTTPS của tunnel: make tunnel URL=https://xxx.trycloudflare.com
+	@test -n "$(URL)" || { echo "Thiếu URL. Dùng: make tunnel URL=https://xxx.trycloudflare.com"; exit 1; }
+	@case "$(URL)" in https://*) ;; *) echo "URL phải là https://"; exit 1;; esac
+	@touch local.properties; grep -v '^finance.publicBaseUrl=' local.properties > local.properties.tmp || true
+	@echo "finance.publicBaseUrl=$(URL)" >> local.properties.tmp && mv local.properties.tmp local.properties
+	@echo "✅ Debug build sẽ gọi $(URL). Chạy 'make install' để build lại."
+
+tunnel-off: ## Quay về loopback của emulator (http://10.0.2.2)
+	@touch local.properties; grep -v '^finance.publicBaseUrl=' local.properties > local.properties.tmp || true
+	@mv local.properties.tmp local.properties
+	@echo "✅ Đã bỏ URL tunnel. Chạy 'make install' để build lại."
 
 # ---------- Vòng lặp sửa code ----------
 

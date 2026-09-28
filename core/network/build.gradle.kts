@@ -6,15 +6,18 @@ plugins {
     alias(libs.plugins.openapi.generator)
 }
 
-val generatedPackage = "com.mosaicglobal.finance.core.network.generated"
+val generatedPackage = "com.uit.finance.core.network.generated"
 val generatedDir = layout.buildDirectory.dir("generated/openapi")
 
-// Contract-first: the Kotlin client is generated from the pinned spec in /api on every build.
+// Contract-first: Kotlin client được generate từ spec đã pin trong /api ở mỗi lần build.
 val openApiGenerate = tasks.named<GenerateTask>("openApiGenerate") {
     generatorName.set("kotlin")
     library.set("multiplatform")
     inputSpec.set(rootProject.layout.projectDirectory.file("api/openapi.yaml").asFile.absolutePath)
     outputDir.set(generatedDir.map { it.asFile.absolutePath })
+    // Xoá output cũ trước khi generate: không có dòng này thì class của path đã bị gỡ khỏi spec
+    // (ví dụ AuthApi sau contract 2.0.0) vẫn nằm lại và vẫn compile.
+    cleanupOutput.set(true)
     packageName.set(generatedPackage)
     apiPackage.set("$generatedPackage.api")
     modelPackage.set("$generatedPackage.model")
@@ -23,8 +26,8 @@ val openApiGenerate = tasks.named<GenerateTask>("openApiGenerate") {
     generateModelDocumentation.set(false)
     generateApiTests.set(false)
     generateModelTests.set(false)
-    // kotlinx-datetime 0.7+ moved Instant into the stdlib (kotlin.time.Instant), which kotlinx-serialization
-    // 1.9+ serialises natively; keep the spec's date-time fields typed instead of falling back to String.
+    // kotlinx-datetime 0.7+ đã chuyển Instant vào stdlib (kotlin.time.Instant), kotlinx-serialization 1.9+
+    // serialize được trực tiếp; map để field date-time giữ đúng type thay vì rơi về String.
     typeMappings.set(
         mapOf(
             "date-time" to "kotlin.time.Instant",
@@ -33,11 +36,11 @@ val openApiGenerate = tasks.named<GenerateTask>("openApiGenerate") {
     )
     configOptions.set(
         mapOf(
-            // NOTE: do not set serializationLibrary here: library=multiplatform already implies
-            // kotlinx-serialization and setting it explicitly makes the template emit @Serializable twice.
+            // Không set serializationLibrary: library=multiplatform đã ngụ ý kotlinx-serialization,
+            // set thêm thì template sinh @Serializable hai lần.
             "dateLibrary" to "kotlinx-datetime",
             "enumPropertyNaming" to "UPPERCASE",
-            "nonPublicApi" to "true", // generated types are `internal`: features cannot import them
+            "nonPublicApi" to "true", // generated type là `internal`: feature không import được
             "omitGradleWrapper" to "true",
             "omitGradlePluginVersions" to "true",
             "sourceFolder" to "src/commonMain/kotlin",
@@ -48,7 +51,7 @@ val openApiGenerate = tasks.named<GenerateTask>("openApiGenerate") {
 kotlin {
     sourceSets {
         commonMain {
-            // Wires the generator output into compilation and makes every compile task depend on it.
+            // Đưa output của generator vào compile và bắt mọi compile task phụ thuộc vào nó.
             kotlin.srcDir(openApiGenerate.map { generatedDir.get().dir("src/commonMain/kotlin") })
             dependencies {
                 api(projects.core.common)

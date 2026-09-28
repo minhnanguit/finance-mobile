@@ -2,7 +2,7 @@ plugins {
     `kotlin-dsl`
 }
 
-group = "com.mosaicglobal.finance.buildlogic"
+group = "com.uit.finance.buildlogic"
 
 java {
     sourceCompatibility = JavaVersion.VERSION_17

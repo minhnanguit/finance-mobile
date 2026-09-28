@@ -3,7 +3,7 @@
 | Lệnh | Chạy gì | Cần gì |
 |---|---|---|
 | `make test` | Unit test mọi module KMP (target Android/JVM, chạy trên host) | JDK + Android SDK |
-| `make arch` | 15 luật Konsist (đọc **source**, không phải bytecode) | JDK |
+| `make arch` | 17 luật Konsist (đọc **source**, không phải bytecode) | JDK |
 | `make apk` | Build APK — smoke test biên dịch | Android SDK |
 
 CI chạy cả ba (job `android`) + build iOS (job `ios`, cần macOS + Xcode).
@@ -14,8 +14,9 @@ CI chạy cả ba (job `android`) + build iOS (job `ios`, cần macOS + Xcode).
 |---|---|---|
 | Domain model, use case | `<module>/src/commonTest/…/domain/` | `kotlin.test` + fake repository (mẫu `FakeAuthRepository` trong `feature/auth/src/commonTest/…/testing/`) |
 | Repository (data) | `commonTest/…/data/repository/` | Fake remote + fake `SessionStore` (mẫu `AuthRepositoryImplTest`) |
-| ViewModel | `commonTest/…/presentation/` | **Turbine** cho `state`/`effects` (mẫu `LoginViewModelTest`), `TestDispatcherProvider` |
+| ViewModel | `commonTest/…/presentation/` | **Turbine** cho `state`/`effects` (mẫu `SignedOutViewModelTest`), `TestDispatcherProvider` |
 | Ktor client, plugin | `core/network/src/commonTest/` | `ktor-client-mock` (mẫu `HttpClientFactoryTest`, `IdempotencyKeyPluginTest`, `TestSupport.kt`) |
+| OIDC / Keycloak | `core/auth/src/commonTest/` | `FakeKeycloak` (MockEngine) + `FakeAuthorizationLauncher`. PKCE kiểm bằng vector RFC 7636 |
 | Thứ chỉ chạy trên JVM/Android | `src/androidUnitTest/` | Mẫu `SqlDelightOutboxRepositoryTest` |
 | Luật kiến trúc | `architecture-test/` | Konsist — chỉ sửa khi user đồng ý |
 

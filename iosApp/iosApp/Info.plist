@@ -38,7 +38,7 @@
 	</array>
 	<key>BGTaskSchedulerPermittedIdentifiers</key>
 	<array>
-		<string>com.mosaicglobal.finance.sync.refresh</string>
+		<string>com.uit.finance.sync.refresh</string>
 	</array>
 	<key>NSAppTransportSecurity</key>
 	<dict>

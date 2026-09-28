@@ -20,6 +20,8 @@ jetbrains-navigation = "2.9.2"
 # --- AndroidX (Android only) ---
 androidx-activity-compose = "1.12.4"
 androidx-work = "2.11.2"
+# Custom Tabs cho màn login Keycloak (RFC 8252: dùng system browser, không WebView)
+androidx-browser = "1.10.0"
 
 # --- KotlinX ---
 kotlinx-coroutines = "1.11.0"
@@ -94,6 +96,7 @@ jetbrains-navigation-compose = { module = "org.jetbrains.androidx.navigation:nav
 # AndroidX
 androidx-activity-compose = { module = "androidx.activity:activity-compose", version.ref = "androidx-activity-compose" }
 androidx-work-runtime = { module = "androidx.work:work-runtime-ktx", version.ref = "androidx-work" }
+androidx-browser = { module = "androidx.browser:browser", version.ref = "androidx-browser" }
 
 # Misc
 multiplatform-settings = { module = "com.russhwolf:multiplatform-settings", version.ref = "multiplatform-settings" }

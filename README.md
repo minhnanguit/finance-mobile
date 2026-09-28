@@ -61,8 +61,11 @@ core/common           AppResult / AppError, Money (minor units, same-currency ar
                       UuidGenerator, Clock, PlatformInfo. Pure Kotlin + coroutines/datetime/Kermit.
 core/presentation     MviViewModel<State, Intent, Effect> base, UiText + AppError -> UiText mapping.
 core/network          Ktor HttpClient factory (ContentNegotiation, Kermit logging, timeouts, base URL,
-                      bearer auth + refresh-token rotation, Idempotency-Key plugin, RFC 7807 -> ApiException),
-                      generated OpenAPI client hidden behind AuthApi / UserApi, TokenProvider port.
+                      bearer auth (API host only) + refresh via TokenRefresher port, Idempotency-Key plugin,
+                      RFC 7807 -> ApiException), generated OpenAPI client hidden behind UserApi.
+core/auth             Keycloak OIDC client (ADR-004): discovery, Authorization Code + PKCE S256, state / iss /
+                      redirect checks, token refresh with rotation, server-side logout. Platform launcher:
+                      Android Custom Tabs, iOS ASWebAuthenticationSession. Implements TokenRefresher.
 core/database         SQLDelight FinanceDatabase (outbox, sync_cursor) + DatabaseDriverFactory expect/actual.
 core/datastore        SecureStorage (Android Keystore AES/GCM + SharedPreferences · iOS Keychain),
                       AppSettings (multiplatform-settings), SessionStore (implements TokenProvider).
@@ -73,8 +76,8 @@ core/designsystem     FinanceTheme (light/dark), typography, spacing, PrimaryBut
 core/testing          TestDispatcherProvider, TestClock, FakeUuidGenerator, MainDispatcherRule (JUnit4).
 
 feature/auth          Reference feature. Packages domain / data / presentation inside one Gradle module:
-                      AuthRepository + use cases, AuthRepositoryImpl (AuthApi + SessionStore + mappers),
-                      Login / Register / Profile screens with MVI ViewModels, authNavGraph(...) contract.
+                      AuthRepository + use cases, AuthRepositoryImpl (OidcAuthenticator + SessionStore),
+                      SignedOut / Profile screens with MVI ViewModels, authNavGraph(...) contract.
 architecture-test     Konsist rules (JVM): presentation !-> data, pure domain, feature isolation, generated
                       client confined to core/network, *UseCase in domain, *ViewModel in presentation, ...
 ```
@@ -92,12 +95,13 @@ may import it. Upgrading the contract is a deliberate PR — procedure in `api/R
 
 ## Auth flow at runtime
 
-1. `LoginViewModel` -> `LoginUseCase` (validation) -> `AuthRepositoryImpl` -> `AuthApi.login` (+ device info,
-   `Idempotency-Key`).
+1. `SignedOutViewModel` -> `SignInUseCase` -> `AuthRepositoryImpl` -> `OidcAuthenticator.authorize()`: the
+   Keycloak login / sign-up page opens in the system browser (never a WebView); the redirect is checked
+   (redirect URI, `state`, `iss`) and the code is exchanged with its PKCE verifier.
 2. Tokens are stored through `SessionStore` (Keystore / Keychain); `TokenCache.invalidate()` makes Ktor reload them.
-3. Every protected call carries `Authorization: Bearer`. On 401 the Ktor `Auth` plugin calls
-   `POST /api/v1/auth/refresh`, persists the rotated pair and retries once. If the refresh is rejected the
-   session is cleared, `observeSession()` emits `null` and the NavHost returns to Login.
+3. Calls to the backend host carry `Authorization: Bearer`. On 401 the Ktor `Auth` plugin asks the
+   `TokenRefresher` (Keycloak token endpoint), persists the rotated pair and retries once. A rejected refresh
+   clears the session and the NavHost returns to SignedOut; an unreachable Keycloak keeps the session (offline-first).
 4. Non-2xx responses are parsed as RFC 7807 into `ApiException` and converted to `AppError` by `apiCall {}`;
    no exception crosses a layer boundary.
 

@@ -28,9 +28,9 @@ Combinator có sẵn (`core/common/result/AppResult.kt`): `map`, `flatMap`, `map
 
 | Layer | Trách nhiệm |
 |---|---|
-| `core/network` | Nơi **duy nhất** biến HTTP/transport exception thành `AppError`. `apiCall { }` bắt `ApiException`, timeout, `IOException`, `SerializationException`; `CancellationException` được **rethrow** |
+| `core/network`, `core/auth` | Nơi **duy nhất** biến HTTP/transport exception thành `AppError` (`core/auth` dùng `oidcCall` cho lỗi OAuth của Keycloak). `apiCall { }` bắt `ApiException`, timeout, `IOException`, `SerializationException`; `CancellationException` được **rethrow** |
 | `data` (repository) | Bọc **mọi** lời gọi remote bằng `apiCall { }`. Được import `ApiException` (chỉ package `data` và `core/network` được phép) |
-| `domain` (use case) | Validate input trước khi gọi repository, trả `AppResult.Failure(AppError.Validation(...))` — mẫu `LoginUseCase` + `CredentialRules` |
+| `domain` (use case) | Validate input trước khi gọi repository, trả `AppResult.Failure(AppError.Validation(...))` |
 | `presentation` | `fold` kết quả, map `AppError` → `UiText` qua `toUiText()` hoặc extension `withError(...)` của màn hình |
 
 ## Cấm
@@ -43,4 +43,4 @@ Combinator có sẵn (`core/common/result/AppResult.kt`): `map`, `flatMap`, `map
 
 ## Validation
 
-Rule validate của client phải **khớp** hợp đồng backend (mẫu `feature/auth/domain/validation/CredentialRules.kt`). Validate sớm để tiết kiệm round-trip, nhưng server vẫn là người quyết định cuối; lỗi 400/422 từ server phải map ra `fieldErrors` và hiển thị đúng field.
+Rule validate của client phải **khớp** hợp đồng backend. (Auth không còn validate ở client: form login/register và password policy nằm trên Keycloak.) Validate sớm để tiết kiệm round-trip, nhưng server vẫn là người quyết định cuối; lỗi 400/422 từ server phải map ra `fieldErrors` và hiển thị đúng field.

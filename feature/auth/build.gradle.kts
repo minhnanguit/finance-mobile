@@ -5,7 +5,8 @@ plugins {
 kotlin {
     sourceSets {
         commonMain.dependencies {
-            // data layer only; presentation/domain must not touch these (enforced by architecture tests)
+            // Chỉ data layer dùng; presentation/domain không được đụng (architecture test chặn)
+            implementation(projects.core.auth)
             implementation(projects.core.network)
             implementation(projects.core.datastore)
         }

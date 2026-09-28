@@ -2,7 +2,7 @@
 
 ## Nguyên tắc
 
-`api/openapi.yaml` là **bản copy nguyên văn** hợp đồng của `finance-backend`. `api/VERSION` giữ semver đang pin (hiện `1.0.0` = `info.version` của spec).
+`api/openapi.yaml` là **bản copy nguyên văn** hợp đồng của `finance-backend`. `api/VERSION` giữ semver đang pin (hiện `2.0.0` = `info.version` của spec).
 
 **Không bao giờ sửa tay `api/openapi.yaml` trong repo này.** Mọi thay đổi API bắt đầu ở repo backend, rồi mới re-pin ở đây.
 
@@ -11,7 +11,8 @@
 - `:core:network:openApiGenerate` sinh Kotlin client (openapi-generator 7.14, generator `kotlin`, library `multiplatform`, kotlinx-serialization) vào `core/network/build/generated/openapi`, package `com.mosaicglobal.finance.core.network.generated.*`.
 - `nonPublicApi=true` ⇒ mọi type generated là `internal`.
 - **Chỉ** `core/network/src/commonMain/kotlin/.../api/internal/GeneratedApiAdapters.kt` được import package generated. Konsist chặn phần còn lại của repo.
-- Feature nhìn thấy: `AuthApi`, `UserApi` (interface viết tay trong `core/network/api/`) + DTO trong `core/network/api/model/`. Không gì khác.
+- Feature nhìn thấy: `UserApi` (interface viết tay trong `core/network/api/`) + DTO trong `core/network/api/model/`. Không gì khác.
+- Contract 2.0.0 không còn `/auth/*`: login, register, refresh token đều đi thẳng tới Keycloak qua `core/auth`, **không** qua generated client.
 
 ## Đừng đụng các cấu hình sau nếu không có lý do rõ ràng
 

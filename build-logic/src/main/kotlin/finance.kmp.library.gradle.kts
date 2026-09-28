@@ -1,7 +1,7 @@
 import com.android.build.api.dsl.LibraryExtension
-import com.mosaicglobal.finance.buildlogic.androidNamespace
-import com.mosaicglobal.finance.buildlogic.configureAndroid
-import com.mosaicglobal.finance.buildlogic.configureKotlinMultiplatform
+import com.uit.finance.buildlogic.androidNamespace
+import com.uit.finance.buildlogic.configureAndroid
+import com.uit.finance.buildlogic.configureKotlinMultiplatform
 import org.jetbrains.kotlin.gradle.dsl.KotlinMultiplatformExtension
 
 /**

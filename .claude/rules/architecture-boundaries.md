@@ -15,7 +15,7 @@ presentation ──► domain ◄── data
 
 Một feature = **một Gradle module** chứa cả ba package `domain/`, `data/`, `presentation/` (+ `di/`). Không tách thành 3 Gradle module.
 
-## 15 luật Konsist (file `architecture-test/src/test/kotlin/…`)
+## 17 luật Konsist (file `architecture-test/src/test/kotlin/…`)
 
 ### `LayerDependencyRulesTest`
 
@@ -28,6 +28,8 @@ Một feature = **một Gradle module** chứa cả ba package `domain/`, `data/
 | generated client bị nhốt | `…core.network.generated.*` chỉ được import trong `…core.network` |
 | ApiException bị nhốt | Ngoài `core/network`, chỉ package `data` được import `ApiException` |
 | Dispatchers bị nhốt | `kotlinx.coroutines.Dispatchers` / `IO` chỉ trong `DispatcherProvider.kt` và `core/testing` |
+| Browser API bị nhốt | Chỉ `core/auth` được import `androidx.browser.` / `platform.AuthenticationServices.` (ADR-004) |
+| Cấm WebView | `android.webkit.` / `platform.WebKit.` bị cấm mọi nơi — login phải qua system browser (RFC 8252) |
 | Cấm `GlobalScope` | Tuyệt đối, mọi module |
 
 ### `NamingAndPlacementRulesTest`
