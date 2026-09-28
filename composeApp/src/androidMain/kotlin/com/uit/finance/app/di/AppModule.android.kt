@@ -1,12 +1,15 @@
 package com.uit.finance.app.di
 
 import com.uit.finance.BuildConfig
+import com.uit.finance.app.config.AppEnvironment
 
-/** 10.0.2.2 là host loopback nhìn từ Android emulator. */
+// Debug: ưu tiên URL HTTPS của tunnel (một host cho cả API lẫn Keycloak, Caddy chia theo path);
+// không có thì dùng 10.0.2.2 — host loopback nhìn từ Android emulator.
+
 actual fun defaultApiBaseUrl(): String =
-    if (BuildConfig.DEBUG) "http://10.0.2.2:8080" else "https://api.finance.example.com"
+    if (BuildConfig.DEBUG) AppEnvironment.publicBaseUrl ?: "http://10.0.2.2:8080" else RELEASE_API_BASE_URL
 
 actual fun defaultOidcIssuer(): String =
-    if (BuildConfig.DEBUG) "http://10.0.2.2:8081/realms/finance" else "https://login.finance.example.com/realms/finance"
+    if (BuildConfig.DEBUG) (AppEnvironment.publicBaseUrl ?: "http://10.0.2.2:8081") + OIDC_REALM_PATH else RELEASE_OIDC_ISSUER
 
 actual val isDebugBuild: Boolean = BuildConfig.DEBUG

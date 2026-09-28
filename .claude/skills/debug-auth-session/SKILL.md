@@ -49,7 +49,8 @@ Logout → OidcClient.endSession(refresh_token) (không mở browser) → luôn 
 | 401 nhưng không thấy refresh chạy | `HttpResponseValidator` được cài trước plugin user nên 401 tới tay `Auth` trước — đổi thứ tự cài plugin là hỏng. Đừng đổi |
 | Bị đá về SignedOut khi đang ở Profile | Đúng thiết kế: `LaunchedEffect` trong `FinanceNavHost` theo dõi `isAuthenticated`; session bị clear ở background |
 | Token mất sau khi kill app | `SecureStorage` theo nền tảng: `AndroidKeystoreSecureStorage` / `KeychainSecureStorage` |
-| iOS simulator login luôn fail | Giới hạn đã biết: `KC_HOSTNAME=10.0.2.2` chỉ đúng cho Android emulator, simulator gọi `localhost` ⇒ issuer lệch. Xem comment ở `KoinIos.kt` |
+| iOS simulator login luôn fail | Chưa bật tunnel: `KC_HOSTNAME=10.0.2.2` chỉ đúng cho Android emulator. Bật `make tunnel` (backend) + `make tunnel URL=...` (mobile) |
+| Mọi thứ đột nhiên 401 / "Sign-in did not complete" sau khi bật lại tunnel | Quick Tunnel đã đổi URL ⇒ issuer đổi. Chạy lại `make tunnel` bên backend, `make run`, rồi `make tunnel URL=<url mới> && make install` |
 
 ## Công cụ
 
@@ -58,6 +59,9 @@ Logout → OidcClient.endSession(refresh_token) (không mở browser) → luôn 
 - Test để đọc/chạy: `core/auth/src/commonTest/` (PKCE theo vector RFC 7636, state/iss/redirect, refresh), `core/network/.../HttpClientFactoryTest.kt`, `feature/auth/.../AuthRepositoryImplTest.kt`, `SignedOutViewModelTest.kt`.
 - Backend + Keycloak thật: `cd ../finance-backend && make up run`, Admin Console `make kc`, mail verify `make mail`.
 - Log app trên máy ảo: `make log` hoặc `make crash`.
+
+`finance.publicBaseUrl` (local.properties, `make tunnel URL=...`) có giá trị thì **cả API lẫn issuer** dùng URL HTTPS đó
+(`<url>` và `<url>/realms/finance`) cho mọi nền tảng — iOS simulator cũng login được. Bảng dưới là khi KHÔNG có tunnel.
 
 | Cấu hình | Debug Android | Debug iOS | Release |
 |---|---|---|---|

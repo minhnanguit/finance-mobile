@@ -1,5 +1,6 @@
 package com.uit.finance.app.di
 
+import com.uit.finance.app.config.AppEnvironment
 import com.uit.finance.core.sync.scheduler.SyncScheduler
 import kotlin.experimental.ExperimentalNativeApi
 
@@ -15,15 +16,14 @@ fun startKoinIos() {
 }
 
 actual fun defaultApiBaseUrl(): String =
-    if (isDebugBuild) "http://localhost:8080" else "https://api.finance.example.com"
+    if (isDebugBuild) AppEnvironment.publicBaseUrl ?: "http://localhost:8080" else RELEASE_API_BASE_URL
 
 /**
- * ⚠️ Local dev trên iOS simulator CHƯA chạy được: Keycloak cố định `KC_HOSTNAME=10.0.2.2` cho Android
- * emulator, nên discovery trả issuer `10.0.2.2` ≠ `localhost` và sign-in bị reject (đúng thiết kế).
- * Cần một hostname mà cả emulator lẫn simulator cùng tới được — xem Phase 6 của plan.
+ * Simulator chỉ login được khi có tunnel (`make tunnel URL=...`): Keycloak local mặc định phát issuer
+ * `10.0.2.2` cho Android emulator, còn simulator gọi `localhost` ⇒ issuer lệch, bị reject (đúng thiết kế).
  */
 actual fun defaultOidcIssuer(): String =
-    if (isDebugBuild) "http://localhost:8081/realms/finance" else "https://login.finance.example.com/realms/finance"
+    if (isDebugBuild) (AppEnvironment.publicBaseUrl ?: "http://localhost:8081") + OIDC_REALM_PATH else RELEASE_OIDC_ISSUER
 
 @OptIn(ExperimentalNativeApi::class)
 actual val isDebugBuild: Boolean = kotlin.native.Platform.isDebugBinary

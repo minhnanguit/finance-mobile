@@ -29,6 +29,8 @@ Mọi lệnh thường dùng đều là target trong `Makefile`. Gõ `make` đ�
 | `make test` | Unit test **mọi module KMP** (chạy trên host JVM) |
 | `make arch` | 17 luật Konsist |
 | `make lint` | Android Lint cho `composeApp` |
+| `make tunnel URL=https://…` | Trỏ build debug tới URL HTTPS của `make tunnel` bên backend (ghi `finance.publicBaseUrl` vào `local.properties`). Có URL thì APK **tắt** cleartext |
+| `make tunnel-off` | Quay về loopback `10.0.2.2` / `localhost` (http) |
 | `make api` | Sinh lại Kotlin client từ `api/openapi.yaml` |
 | `make ios` | Compile klib iOS **không cần Xcode** |
 | `./gradlew :composeApp:linkDebugFrameworkIosSimulatorArm64` | Link framework iOS (**cần Xcode**) |

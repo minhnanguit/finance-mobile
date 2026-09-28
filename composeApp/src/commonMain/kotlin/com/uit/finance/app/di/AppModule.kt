@@ -17,6 +17,10 @@ expect val isDebugBuild: Boolean
  * Phải khớp cả ba nơi: `redirectUris` của client `finance-mobile` trong `realm-finance.json`,
  * intent-filter của `RedirectReceiverActivity` trong AndroidManifest, và scheme mà iOS dùng.
  */
+internal const val OIDC_REALM_PATH = "/realms/finance"
+internal const val RELEASE_API_BASE_URL = "https://api.finance.example.com"
+internal const val RELEASE_OIDC_ISSUER = "https://login.finance.example.com$OIDC_REALM_PATH"
+
 internal const val OIDC_REDIRECT_URI = "com.uit.finance://oauth/callback"
 internal const val OIDC_CLIENT_ID = "finance-mobile"
 
