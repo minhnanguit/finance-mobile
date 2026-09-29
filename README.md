@@ -14,7 +14,7 @@ MVI per feature, offline-first with SQLDelight + outbox, contract-first API).
 | XcodeGen | `brew install xcodegen` (iOS only) |
 | Backend | `finance-backend/deploy/docker-compose.yml` on `localhost:8080` |
 
-Gradle 9.3 wrapper, Kotlin 2.3.21, AGP 8.13.2, Compose Multiplatform 1.11.1 (Material3 1.9.0) — all versions live in
+Gradle 8.13 wrapper, Kotlin 2.3.21, AGP 8.13.2, Compose Multiplatform 1.11.1 (Material3 1.9.0) — all versions live in
 `gradle/libs.versions.toml`.
 
 ```properties

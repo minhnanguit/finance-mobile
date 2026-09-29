@@ -1,5 +1,5 @@
 [versions]
-# --- Toolchain (pinned; verified together on Gradle 9.3.0) ---
+# --- Toolchain (pinned; verified together on Gradle 8.13) ---
 kotlin = "2.3.21"
 agp = "8.13.2"
 # 1.12.0 maps to androidx.compose 1.12.x whose AARs demand AGP >= 9.1 and compileSdk 37; 1.11.1 (androidx 1.11.2)

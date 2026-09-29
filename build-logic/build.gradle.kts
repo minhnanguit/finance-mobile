@@ -22,3 +22,24 @@ dependencies {
     implementation(libs.android.gradle.plugin)
     implementation(libs.compose.gradle.plugin)
 }
+
+gradlePlugin {
+    plugins {
+        register("financeKmpLibrary") {
+            id = "finance.kmp.library"
+            implementationClass = "com.uit.finance.buildlogic.KmpLibraryPlugin"
+        }
+        register("financeKmpCompose") {
+            id = "finance.kmp.compose"
+            implementationClass = "com.uit.finance.buildlogic.KmpComposePlugin"
+        }
+        register("financeKmpFeature") {
+            id = "finance.kmp.feature"
+            implementationClass = "com.uit.finance.buildlogic.KmpFeaturePlugin"
+        }
+        register("financeComposeApplication") {
+            id = "finance.compose.application"
+            implementationClass = "com.uit.finance.buildlogic.ComposeApplicationPlugin"
+        }
+    }
+}
