@@ -3,7 +3,7 @@
 ## 1. Repo này là gì
 
 Client Kotlin Multiplatform (Android + iOS) dùng **Compose Multiplatform UI chung**, cho app Finance.
-**Kotlin 2.3.21 · AGP 8.13.2 · Compose Multiplatform 1.11.1 (Material3 1.9.0) · Gradle 9.3 · Ktor 3.5.2 · SQLDelight 2.3.2 · Koin 4.2.2.**
+**Kotlin 2.3.21 · AGP 8.13.2 · Compose Multiplatform 1.11.1 (Material3 1.9.0) · Gradle 8.13 · Ktor 3.5.2 · SQLDelight 2.3.2 · Koin 4.2.2.**
 
 - Package gốc: `com.uit.finance` · compileSdk 36 · minSdk 26 · targetSdk 36
 - Kiến trúc đã **chốt** ở `../ARCHITECTURE.md` (repo-level, tiếng Việt). Không tự đổi.

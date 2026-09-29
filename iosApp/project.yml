@@ -33,9 +33,12 @@ targets:
         CURRENT_PROJECT_VERSION: "1"
         MARKETING_VERSION: "0.1.0"
         TARGETED_DEVICE_FAMILY: "1"
+        # KMP only declares iosSimulatorArm64 (no iosX64), so never build the Intel simulator slice.
+        "EXCLUDED_ARCHS[sdk=iphonesimulator*]": x86_64
         # The Kotlin framework is produced by the Gradle build phase below.
         FRAMEWORK_SEARCH_PATHS: $(inherited) $(SRCROOT)/../composeApp/build/xcode-frameworks/$(CONFIGURATION)/$(SDK_NAME)
-        OTHER_LDFLAGS: $(inherited) -framework ComposeApp
+        # ComposeApp is a static framework, so its native deps (SQLDelight's NativeSqliteDriver → sqlite3) must be linked here.
+        OTHER_LDFLAGS: $(inherited) -framework ComposeApp -lsqlite3
     preBuildScripts:
       - name: Compile Kotlin Framework
         basedOnDependencyAnalysis: false
