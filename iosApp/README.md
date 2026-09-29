@@ -15,4 +15,4 @@ build phase calls `./gradlew :composeApp:embedAndSignAppleFrameworkForXcode`, wh
 
 - Signing: set `TEAM_ID` in `Configuration/Config.xcconfig` (or a git-ignored `Config.local.xcconfig`).
 - The debug build talks to `http://localhost:8080` (backend `docker-compose` on the same Mac).
-- Requires Xcode 16+; the Kotlin/Native toolchain is downloaded by Gradle on first build.
+- Requires Xcode 26+ (Kotlin 2.3 / Compose 1.11 link against the iOS 26 SDK); the Kotlin/Native toolchain is downloaded by Gradle on first build.
