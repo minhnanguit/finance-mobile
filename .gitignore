@@ -4,7 +4,8 @@ build/
 bin/
 !gradle/wrapper/gradle-wrapper.jar
 .kotlin/
-.agwnts/
+.agents/
+.codex/
 # Local machine config (never commit SDK paths or secrets)
 local.properties
 *.keystore
