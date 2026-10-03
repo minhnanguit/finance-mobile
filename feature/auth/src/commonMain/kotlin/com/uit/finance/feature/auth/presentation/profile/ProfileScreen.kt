@@ -2,14 +2,15 @@ package com.uit.finance.feature.auth.presentation.profile
 
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Column
-import androidx.compose.foundation.layout.Spacer
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.fillMaxWidth
-import androidx.compose.foundation.layout.height
+import androidx.compose.foundation.layout.heightIn
 import androidx.compose.foundation.layout.padding
-import androidx.compose.foundation.layout.safeDrawingPadding
+import androidx.compose.foundation.rememberScrollState
+import androidx.compose.foundation.verticalScroll
 import androidx.compose.material3.Card
 import androidx.compose.material3.MaterialTheme
+import androidx.compose.material3.OutlinedButton
 import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.LaunchedEffect
@@ -18,7 +19,6 @@ import androidx.compose.ui.Modifier
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import com.uit.finance.core.designsystem.component.ErrorBanner
 import com.uit.finance.core.designsystem.component.LoadingIndicator
-import com.uit.finance.core.designsystem.component.PrimaryButton
 import com.uit.finance.core.designsystem.theme.FinanceTheme
 import kotlinx.datetime.TimeZone
 import kotlinx.datetime.toLocalDateTime
@@ -56,43 +56,48 @@ internal fun ProfileScreen(
     Column(
         modifier = modifier
             .fillMaxSize()
-            .safeDrawingPadding()
+            .verticalScroll(rememberScrollState())
             .padding(spacing.lg),
-        verticalArrangement = Arrangement.Top,
+        verticalArrangement = Arrangement.spacedBy(spacing.lg),
     ) {
-        Text(text = "Profile", style = MaterialTheme.typography.headlineMedium)
-        Spacer(Modifier.height(spacing.lg))
+        Text(text = "Cá nhân", style = MaterialTheme.typography.headlineMedium)
 
         state.error?.let { error ->
-            ErrorBanner(message = error, onRetry = { onIntent(ProfileIntent.Retry) })
-            Spacer(Modifier.height(spacing.md))
+            ErrorBanner(
+                message = error,
+                onRetry = {
+                    onIntent(
+                        when (state.errorAction) {
+                            ProfileErrorAction.ReloadProfile -> ProfileIntent.Retry
+                            ProfileErrorAction.RetryLogout -> ProfileIntent.Logout
+                        },
+                    )
+                },
+            )
         }
 
         state.profile?.let { profile ->
             Card(modifier = Modifier.fillMaxWidth()) {
                 Column(modifier = Modifier.padding(spacing.md), verticalArrangement = Arrangement.spacedBy(spacing.sm)) {
+                    Text(text = "Thông tin tài khoản", style = MaterialTheme.typography.titleMedium)
                     Text(text = profile.displayName, style = MaterialTheme.typography.titleLarge)
                     Text(text = profile.email, style = MaterialTheme.typography.bodyLarge)
                     val joined = profile.createdAt.toLocalDateTime(TimeZone.currentSystemDefault()).date
                     Text(
-                        text = "Member since $joined",
+                        text = "Tham gia từ ${joined.dayOfMonth.toString().padStart(2, '0')}/${joined.monthNumber.toString().padStart(2, '0')}/${joined.year}",
                         style = MaterialTheme.typography.bodyMedium,
-                        color = MaterialTheme.colorScheme.onSurfaceVariant,
-                    )
-                    Text(
-                        text = "ID ${profile.id}",
-                        style = MaterialTheme.typography.labelSmall,
                         color = MaterialTheme.colorScheme.onSurfaceVariant,
                     )
                 }
             }
         }
 
-        Spacer(Modifier.weight(1f))
-        PrimaryButton(
-            text = "Sign out",
+        OutlinedButton(
             onClick = { onIntent(ProfileIntent.Logout) },
-            loading = state.isLoggingOut,
-        )
+            enabled = !state.isLoggingOut,
+            modifier = Modifier.fillMaxWidth().heightIn(min = spacing.xxl),
+        ) {
+            Text(if (state.isLoggingOut) "Đang đăng xuất..." else "Đăng xuất")
+        }
     }
 }

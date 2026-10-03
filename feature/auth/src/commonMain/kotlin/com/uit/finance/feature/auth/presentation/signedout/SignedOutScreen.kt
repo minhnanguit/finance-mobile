@@ -6,7 +6,6 @@ import androidx.compose.foundation.layout.Spacer
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.height
 import androidx.compose.foundation.layout.padding
-import androidx.compose.foundation.layout.safeDrawingPadding
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
@@ -51,7 +50,6 @@ internal fun SignedOutScreen(
     Column(
         modifier = modifier
             .fillMaxSize()
-            .safeDrawingPadding()
             .padding(horizontal = spacing.lg),
         verticalArrangement = Arrangement.Center,
         horizontalAlignment = Alignment.CenterHorizontally,
@@ -59,7 +57,7 @@ internal fun SignedOutScreen(
         Text(text = "Finance", style = MaterialTheme.typography.headlineMedium)
         Spacer(Modifier.height(spacing.xs))
         Text(
-            text = "Track every expense, even offline",
+            text = "Quản lý thu chi của bạn ở một nơi",
             style = MaterialTheme.typography.bodyMedium,
             color = MaterialTheme.colorScheme.onSurfaceVariant,
         )
@@ -71,14 +69,14 @@ internal fun SignedOutScreen(
         }
 
         PrimaryButton(
-            text = "Sign in",
+            text = "Đăng nhập",
             onClick = { onIntent(SignedOutIntent.SignInClicked) },
             enabled = !state.isBusy,
             loading = state.inProgress == SignInMode.SignIn,
         )
         Spacer(Modifier.height(spacing.sm))
         SecondaryTextButton(
-            text = "Create an account",
+            text = "Tạo tài khoản",
             onClick = { onIntent(SignedOutIntent.SignUpClicked) },
             enabled = !state.isBusy,
         )

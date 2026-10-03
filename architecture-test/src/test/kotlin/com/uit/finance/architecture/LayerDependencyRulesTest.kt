@@ -73,7 +73,10 @@ class LayerDependencyRulesTest {
     @Test
     fun `dispatchers are injected - kotlinx Dispatchers is only imported by DispatcherProvider and test support`() {
         productionScope.files
-            .filter { file -> !file.path.endsWith("/DispatcherProvider.kt") && !file.path.contains("/core/testing/") }
+            .filter { file ->
+                val path = file.path.replace('\\', '/')
+                !path.endsWith("/DispatcherProvider.kt") && !path.contains("/core/testing/")
+            }
             .assertFalse { file ->
                 file.hasImport { it.name == "kotlinx.coroutines.Dispatchers" || it.name == "kotlinx.coroutines.IO" }
             }

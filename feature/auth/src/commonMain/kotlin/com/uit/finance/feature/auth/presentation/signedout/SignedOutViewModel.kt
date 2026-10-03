@@ -41,6 +41,6 @@ internal class SignedOutViewModel(
 
 internal fun SignedOutState.withError(error: AppError): SignedOutState = when (error) {
     // Code hết hạn / bị dùng lại: người dùng chỉ cần thử lại.
-    AppError.Unauthorized -> copy(error = UiText.Key("auth.sign_in_failed", "Sign-in did not complete. Please try again."))
+    AppError.Unauthorized -> copy(error = UiText.Key("auth.sign_in_failed", "Đăng nhập chưa hoàn tất. Vui lòng thử lại."))
     else -> copy(error = error.toUiText())
 }
