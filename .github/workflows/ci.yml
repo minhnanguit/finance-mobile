@@ -17,40 +17,23 @@ jobs:
     name: Android build · unit tests · architecture tests
     runs-on: ubuntu-latest
     timeout-minutes: 45
-
     steps:
-      - name: Checkout
-        uses: actions/checkout@v4
+      - uses: actions/checkout@v4
 
-      - name: Set up JDK 17
-        uses: actions/setup-java@v4
+      - uses: actions/setup-java@v4
         with:
           distribution: temurin
-          java-version: "17"
+          java-version: 21
 
-      - name: Show Java environment
-        run: |
-          java -version
-          echo "JAVA_HOME=$JAVA_HOME"
-
-      - name: Set up Android SDK
-        uses: android-actions/setup-android@v3
+      - uses: android-actions/setup-android@v3
         with:
+          # Default is "tools platform-tools"; the legacy "tools" package no longer
+          # exists in recent cmdline-tools, which makes sdkmanager fail.
           packages: platform-tools
 
-      - name: Set up Gradle
-        uses: gradle/actions/setup-gradle@v4
+      - uses: gradle/actions/setup-gradle@v4
         with:
           cache-read-only: ${{ github.ref != 'refs/heads/main' }}
-
-      - name: Show Gradle environment
-        run: |
-          ./gradlew --version
-          echo "=== Gradle daemon JVM config ==="
-          cat gradle/gradle-daemon-jvm.properties 2>/dev/null || true
-          echo "=== Java-related Gradle properties ==="
-          grep -R "org.gradle.java.home\|toolchainVersion\|javaVersion" \
-            gradle.properties gradle 2>/dev/null || true
 
       - name: Assemble debug APK
         run: ./gradlew :composeApp:assembleDebug --stacktrace
@@ -79,51 +62,30 @@ jobs:
 
   ios:
     name: iOS framework · Xcode build (simulator)
+    # Requires Xcode: only macOS runners can compile Kotlin/Native Apple targets.
     runs-on: macos-15
     timeout-minutes: 60
     continue-on-error: false
-
     steps:
-      - name: Checkout
-        uses: actions/checkout@v4
+      - uses: actions/checkout@v4
 
-      - name: Set up JDK 17
-        uses: actions/setup-java@v4
+      - uses: actions/setup-java@v4
         with:
           distribution: temurin
-          java-version: "17"
+          java-version: 21
 
-      - name: Show Java environment
-        run: |
-          java -version
-          echo "JAVA_HOME=$JAVA_HOME"
-
-      - name: Set up Gradle
-        uses: gradle/actions/setup-gradle@v4
+      - uses: gradle/actions/setup-gradle@v4
         with:
           cache-read-only: true
 
-      - name: Show Gradle environment
-        run: |
-          ./gradlew --version
-          echo "=== Gradle daemon JVM config ==="
-          cat gradle/gradle-daemon-jvm.properties 2>/dev/null || true
-          echo "=== Java-related Gradle properties ==="
-          grep -R "org.gradle.java.home\|toolchainVersion\|javaVersion" \
-            gradle.properties gradle 2>/dev/null || true
-
-      # Kotlin / Compose Multiplatform project requires Xcode 26
-      # for the iOS 26 SDK APIs used during linking.
+      # Kotlin 2.3 / Compose Multiplatform 1.11 are built against the iOS 26 SDK
+      # (UIViewLayoutRegion, UIUtilities) — linking with Xcode 16.x fails.
       - name: Select Xcode 26
         run: |
           XCODE="$(ls -d /Applications/Xcode_26*.app 2>/dev/null | tail -1)"
-
           if [ -z "$XCODE" ]; then
-            echo "::error::No Xcode 26 on this runner"
-            ls -d /Applications/Xcode*.app
-            exit 1
+            echo "::error::No Xcode 26 on this runner"; ls -d /Applications/Xcode*.app; exit 1
           fi
-
           sudo xcode-select -s "$XCODE"
           xcodebuild -version
 
@@ -133,17 +95,14 @@ jobs:
       - name: Generate Xcode project
         run: |
           brew install xcodegen
-          cd iosApp
-          xcodegen generate
+          cd iosApp && xcodegen generate
 
       - name: Build iOS app (no signing)
         run: |
-          xcodebuild \
-            -project iosApp/iosApp.xcodeproj \
+          xcodebuild -project iosApp/iosApp.xcodeproj \
             -scheme iosApp \
             -configuration Debug \
             -sdk iphonesimulator \
             -destination 'generic/platform=iOS Simulator' \
-            CODE_SIGNING_ALLOWED=NO \
-            CODE_SIGNING_REQUIRED=NO \
+            CODE_SIGNING_ALLOWED=NO CODE_SIGNING_REQUIRED=NO \
             build
