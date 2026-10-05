@@ -1,21 +1,27 @@
 package com.uit.finance.feature.home.presentation.home
 
-/** Until finance endpoints exist, the home screen deliberately shows empty states. */
+import com.uit.finance.feature.home.presentation.navigation.HomeTarget
+
+/**
+ * `overview == null` nghĩa là chưa có nguồn số liệu: màn hình hiện trạng thái trống.
+ * Khi `core/ledger` xong (LEDGER-PLAN Phase 4), ViewModel observe số dư/thu chi rồi điền vào đây;
+ * Screen không phải sửa.
+ */
 data class HomeState(
-    val isLoading: Boolean = false,
+    val overview: HomeOverview? = null,
+)
+
+/** Số liệu đã format sẵn để hiển thị. Format tiền là việc của ViewModel, không phải Screen. */
+data class HomeOverview(
+    val totalBalance: String,
+    val monthIncome: String,
+    val monthExpense: String,
 )
 
 sealed interface HomeIntent {
-    data object AddTransaction : HomeIntent
-    data object OpenTransactions : HomeIntent
-    data object OpenWallets : HomeIntent
-    data object OpenBudgets : HomeIntent
-    data object OpenReports : HomeIntent
-    data object OpenBills : HomeIntent
+    data class Open(val target: HomeTarget) : HomeIntent
 }
 
 sealed interface HomeEffect {
     data class Navigate(val target: HomeTarget) : HomeEffect
 }
-
-enum class HomeTarget { AddTransaction, Transactions, Wallets, Budgets, Reports, Bills }

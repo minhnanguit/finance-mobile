@@ -4,15 +4,14 @@ import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.PaddingValues
 import androidx.compose.foundation.layout.Row
-import androidx.compose.foundation.layout.Spacer
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.fillMaxWidth
-import androidx.compose.foundation.layout.height
-import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.heightIn
+import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.lazy.LazyColumn
 import androidx.compose.material3.Card
 import androidx.compose.material3.CardDefaults
+import androidx.compose.material3.Icon
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.Text
 import androidx.compose.material3.TextButton
@@ -21,15 +20,18 @@ import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.getValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
+import androidx.compose.ui.graphics.vector.ImageVector
 import androidx.compose.ui.semantics.contentDescription
 import androidx.compose.ui.semantics.semantics
+import androidx.compose.ui.text.TextStyle
 import androidx.compose.ui.text.style.TextAlign
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
-import com.uit.finance.core.designsystem.component.LoadingIndicator
-import com.uit.finance.core.designsystem.component.FinanceIcon
-import com.uit.finance.core.designsystem.component.FinanceIconType
+import com.uit.finance.core.designsystem.icon.FinanceIcons
 import com.uit.finance.core.designsystem.theme.FinanceTheme
+import com.uit.finance.feature.home.presentation.navigation.HomeTarget
 import org.koin.compose.viewmodel.koinViewModel
+
+private const val NO_VALUE = "—"
 
 @Composable
 internal fun HomeRoute(
@@ -53,154 +55,89 @@ internal fun HomeScreen(
     onIntent: (HomeIntent) -> Unit,
     modifier: Modifier = Modifier,
 ) {
-    if (state.isLoading) {
-        LoadingIndicator(modifier)
-        return
-    }
     val spacing = FinanceTheme.spacing
+    val open: (HomeTarget) -> Unit = { onIntent(HomeIntent.Open(it)) }
+    val overview = state.overview
+
     LazyColumn(
         modifier = modifier.fillMaxSize(),
-        contentPadding = PaddingValues(horizontal = spacing.lg, vertical = spacing.lg),
+        contentPadding = PaddingValues(spacing.lg),
         verticalArrangement = Arrangement.spacedBy(spacing.lg),
     ) {
+        item { Header() }
+        item { BalanceCard(totalBalance = overview?.totalBalance, onClick = { open(HomeTarget.Accounts) }) }
+        item { QuickActions(onOpen = open) }
         item {
-            Column(verticalArrangement = Arrangement.spacedBy(spacing.xs)) {
-                Text(
-                    text = "TÀI CHÍNH CỦA BẠN",
-                    style = MaterialTheme.typography.labelLarge,
-                    color = MaterialTheme.colorScheme.primary,
-                )
-                Text(text = "Trang chủ", style = MaterialTheme.typography.headlineLarge)
-                Text(
-                    text = "Theo dõi mọi khoản tiền ở một nơi.",
-                    style = MaterialTheme.typography.bodyMedium,
-                    color = MaterialTheme.colorScheme.onSurfaceVariant,
-                )
-            }
-        }
-
-        item {
-            Card(
-                onClick = { onIntent(HomeIntent.OpenWallets) },
-                modifier = Modifier.fillMaxWidth(),
-                colors = CardDefaults.cardColors(containerColor = MaterialTheme.colorScheme.primaryContainer),
-            ) {
-                Column(
-                    modifier = Modifier.padding(spacing.lg),
-                    verticalArrangement = Arrangement.spacedBy(spacing.sm),
-                ) {
-                    Text(text = "Tổng số dư", style = MaterialTheme.typography.titleMedium)
-                    Text(
-                        text = "—",
-                        style = MaterialTheme.typography.headlineLarge,
-                        modifier = Modifier.semantics { contentDescription = "Chưa có dữ liệu số dư" },
-                    )
-                    Text(
-                        text = "Số dư sẽ hiển thị tại đây",
-                        style = MaterialTheme.typography.bodyMedium,
-                        color = MaterialTheme.colorScheme.onPrimaryContainer,
-                    )
-                    Row(verticalAlignment = Alignment.CenterVertically) {
-                        Text(
-                            text = "Xem các ví",
-                            style = MaterialTheme.typography.labelLarge,
-                            color = MaterialTheme.colorScheme.primary,
-                        )
-                        FinanceIcon(FinanceIconType.ChevronRight, color = MaterialTheme.colorScheme.primary)
-                    }
-                }
-            }
-        }
-
-        item {
-            Row(
-                modifier = Modifier.fillMaxWidth(),
-                horizontalArrangement = Arrangement.spacedBy(spacing.sm),
-            ) {
-                QuickAction(
-                    label = "Thêm thu chi",
-                    icon = FinanceIconType.Add,
-                    onClick = { onIntent(HomeIntent.AddTransaction) },
-                    modifier = Modifier.weight(1f),
-                )
-                QuickAction(
-                    label = "Giao dịch",
-                    icon = FinanceIconType.Transactions,
-                    onClick = { onIntent(HomeIntent.OpenTransactions) },
-                    modifier = Modifier.weight(1f),
-                )
-                QuickAction(
-                    label = "Báo cáo",
-                    icon = FinanceIconType.Reports,
-                    onClick = { onIntent(HomeIntent.OpenReports) },
-                    modifier = Modifier.weight(1f),
-                )
-            }
-        }
-
-        item {
-            Column(verticalArrangement = Arrangement.spacedBy(spacing.sm)) {
-                SectionHeading(title = "Tổng quan tháng này")
+            Section(title = "Tổng quan tháng này") {
                 Row(horizontalArrangement = Arrangement.spacedBy(spacing.sm)) {
-                    SummaryMetric(
-                        title = "Tiền vào",
-                        value = "—",
-                        modifier = Modifier.weight(1f),
-                    )
-                    SummaryMetric(
-                        title = "Tiền ra",
-                        value = "—",
-                        modifier = Modifier.weight(1f),
-                    )
+                    SummaryMetric("Tiền vào", overview?.monthIncome, Modifier.weight(1f))
+                    SummaryMetric("Tiền ra", overview?.monthExpense, Modifier.weight(1f))
                 }
             }
         }
-
         item {
-            Column(verticalArrangement = Arrangement.spacedBy(spacing.sm)) {
-                SectionHeading(title = "Lập kế hoạch")
-                FeatureEntry(
-                    title = "Ngân sách",
-                    detail = "Tiến độ ngân sách sẽ hiển thị tại đây",
-                    onClick = { onIntent(HomeIntent.OpenBudgets) },
-                )
-                FeatureEntry(
-                    title = "Khoản sắp đến hạn",
-                    detail = "Các khoản đến hạn sẽ hiển thị tại đây",
-                    onClick = { onIntent(HomeIntent.OpenBills) },
-                )
+            Section(title = "Lập kế hoạch") {
+                FeatureEntry("Ngân sách", "Tiến độ ngân sách sẽ hiển thị tại đây") { open(HomeTarget.Budgets) }
+                FeatureEntry("Khoản sắp đến hạn", "Các khoản đến hạn sẽ hiển thị tại đây") { open(HomeTarget.Bills) }
             }
         }
-
         item {
-            Column(verticalArrangement = Arrangement.spacedBy(spacing.sm)) {
-                SectionHeading(
-                    title = "Giao dịch gần đây",
-                    action = "Xem tất cả",
-                    onAction = { onIntent(HomeIntent.OpenTransactions) },
-                )
-                Card(modifier = Modifier.fillMaxWidth()) {
-                    Column(
-                        modifier = Modifier.fillMaxWidth().padding(spacing.lg),
-                        horizontalAlignment = Alignment.CenterHorizontally,
-                    ) {
-                        FinanceIcon(FinanceIconType.Transactions, color = MaterialTheme.colorScheme.primary)
-                        Spacer(Modifier.height(spacing.xs))
-                        Text(
-                            text = "Chưa có dữ liệu giao dịch để hiển thị",
-                            style = MaterialTheme.typography.bodyMedium,
-                            color = MaterialTheme.colorScheme.onSurfaceVariant,
-                            textAlign = TextAlign.Center,
-                        )
-                    }
-                }
+            Section(
+                title = "Giao dịch gần đây",
+                action = "Xem tất cả" to { open(HomeTarget.Transactions) },
+            ) {
+                EmptyCard(icon = FinanceIcons.Transactions, message = "Chưa có dữ liệu giao dịch để hiển thị")
             }
         }
     }
 }
 
 @Composable
-private fun QuickAction(label: String, icon: FinanceIconType, onClick: () -> Unit, modifier: Modifier = Modifier) {
+private fun Header() {
+    Column(verticalArrangement = Arrangement.spacedBy(FinanceTheme.spacing.xs)) {
+        Text("TÀI CHÍNH CỦA BẠN", style = MaterialTheme.typography.labelLarge, color = MaterialTheme.colorScheme.primary)
+        Text("Trang chủ", style = MaterialTheme.typography.headlineLarge)
+        Text(
+            "Theo dõi mọi khoản tiền ở một nơi.",
+            style = MaterialTheme.typography.bodyMedium,
+            color = MaterialTheme.colorScheme.onSurfaceVariant,
+        )
+    }
+}
+
+@Composable
+private fun BalanceCard(totalBalance: String?, onClick: () -> Unit) {
+    val spacing = FinanceTheme.spacing
+    Card(
+        onClick = onClick,
+        modifier = Modifier.fillMaxWidth(),
+        colors = CardDefaults.cardColors(containerColor = MaterialTheme.colorScheme.primaryContainer),
+    ) {
+        Column(Modifier.padding(spacing.lg), verticalArrangement = Arrangement.spacedBy(spacing.sm)) {
+            Text("Tổng số dư", style = MaterialTheme.typography.titleMedium)
+            ValueText(totalBalance, "Tổng số dư", MaterialTheme.typography.headlineLarge)
+            if (totalBalance == null) {
+                Text("Số dư sẽ hiển thị tại đây", style = MaterialTheme.typography.bodyMedium)
+            }
+            Row(verticalAlignment = Alignment.CenterVertically) {
+                Text("Xem các ví", style = MaterialTheme.typography.labelLarge)
+                Icon(FinanceIcons.ChevronRight, contentDescription = null)
+            }
+        }
+    }
+}
+
+@Composable
+private fun QuickActions(onOpen: (HomeTarget) -> Unit) {
+    Row(Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.spacedBy(FinanceTheme.spacing.sm)) {
+        QuickAction("Thêm thu chi", FinanceIcons.Add, Modifier.weight(1f)) { onOpen(HomeTarget.AddTransaction) }
+        QuickAction("Giao dịch", FinanceIcons.Transactions, Modifier.weight(1f)) { onOpen(HomeTarget.Transactions) }
+        QuickAction("Báo cáo", FinanceIcons.Reports, Modifier.weight(1f)) { onOpen(HomeTarget.Reports) }
+    }
+}
+
+@Composable
+private fun QuickAction(label: String, icon: ImageVector, modifier: Modifier = Modifier, onClick: () -> Unit) {
     val spacing = FinanceTheme.spacing
     Card(onClick = onClick, modifier = modifier.heightIn(min = spacing.xxl)) {
         Column(
@@ -208,33 +145,46 @@ private fun QuickAction(label: String, icon: FinanceIconType, onClick: () -> Uni
             horizontalAlignment = Alignment.CenterHorizontally,
             verticalArrangement = Arrangement.spacedBy(spacing.sm),
         ) {
-            FinanceIcon(icon, color = MaterialTheme.colorScheme.primary)
-            Text(text = label, style = MaterialTheme.typography.labelLarge, textAlign = TextAlign.Center)
+            Icon(icon, contentDescription = null, tint = MaterialTheme.colorScheme.primary)
+            Text(label, style = MaterialTheme.typography.labelLarge, textAlign = TextAlign.Center)
         }
     }
 }
 
 @Composable
-private fun SummaryMetric(title: String, value: String, modifier: Modifier = Modifier) {
+private fun Section(
+    title: String,
+    action: Pair<String, () -> Unit>? = null,
+    content: @Composable () -> Unit,
+) {
+    Column(verticalArrangement = Arrangement.spacedBy(FinanceTheme.spacing.sm)) {
+        Row(Modifier.fillMaxWidth(), verticalAlignment = Alignment.CenterVertically) {
+            Text(title, style = MaterialTheme.typography.titleLarge, modifier = Modifier.weight(1f))
+            action?.let { (label, onClick) -> TextButton(onClick = onClick) { Text(label) } }
+        }
+        content()
+    }
+}
+
+@Composable
+private fun SummaryMetric(title: String, value: String?, modifier: Modifier = Modifier) {
     val spacing = FinanceTheme.spacing
     Card(modifier = modifier) {
-        Column(modifier = Modifier.padding(spacing.md), verticalArrangement = Arrangement.spacedBy(spacing.sm)) {
-            Text(text = title, style = MaterialTheme.typography.bodyMedium, color = MaterialTheme.colorScheme.onSurfaceVariant)
-            Text(
-                text = value,
-                style = MaterialTheme.typography.titleLarge,
-                modifier = Modifier.semantics { contentDescription = "$title chưa có dữ liệu" },
-            )
+        Column(Modifier.padding(spacing.md), verticalArrangement = Arrangement.spacedBy(spacing.sm)) {
+            Text(title, style = MaterialTheme.typography.bodyMedium, color = MaterialTheme.colorScheme.onSurfaceVariant)
+            ValueText(value, title, MaterialTheme.typography.titleLarge)
         }
     }
 }
 
+/** Số liệu chưa có thì hiện "—", nhưng TalkBack/VoiceOver đọc "<label> chưa có dữ liệu" thay vì "gạch ngang". */
 @Composable
-private fun SectionHeading(title: String, action: String? = null, onAction: (() -> Unit)? = null) {
-    Row(modifier = Modifier.fillMaxWidth(), verticalAlignment = Alignment.CenterVertically) {
-        Text(text = title, style = MaterialTheme.typography.titleLarge, modifier = Modifier.weight(1f))
-        if (action != null && onAction != null) TextButton(onClick = onAction) { Text(action) }
-    }
+private fun ValueText(value: String?, label: String, style: TextStyle) {
+    Text(
+        text = value ?: NO_VALUE,
+        style = style,
+        modifier = if (value == null) Modifier.semantics { contentDescription = "$label chưa có dữ liệu" } else Modifier,
+    )
 }
 
 @Composable
@@ -246,11 +196,31 @@ private fun FeatureEntry(title: String, detail: String, onClick: () -> Unit) {
             horizontalArrangement = Arrangement.spacedBy(spacing.sm),
             verticalAlignment = Alignment.CenterVertically,
         ) {
-            Column(modifier = Modifier.weight(1f), verticalArrangement = Arrangement.spacedBy(spacing.xs)) {
-                Text(text = title, style = MaterialTheme.typography.titleMedium)
-                Text(text = detail, style = MaterialTheme.typography.bodyMedium, color = MaterialTheme.colorScheme.onSurfaceVariant)
+            Column(Modifier.weight(1f), verticalArrangement = Arrangement.spacedBy(spacing.xs)) {
+                Text(title, style = MaterialTheme.typography.titleMedium)
+                Text(detail, style = MaterialTheme.typography.bodyMedium, color = MaterialTheme.colorScheme.onSurfaceVariant)
             }
-            FinanceIcon(FinanceIconType.ChevronRight, color = MaterialTheme.colorScheme.primary)
+            Icon(FinanceIcons.ChevronRight, contentDescription = null, tint = MaterialTheme.colorScheme.primary)
+        }
+    }
+}
+
+@Composable
+private fun EmptyCard(icon: ImageVector, message: String) {
+    val spacing = FinanceTheme.spacing
+    Card(Modifier.fillMaxWidth()) {
+        Column(
+            modifier = Modifier.fillMaxWidth().padding(spacing.lg),
+            horizontalAlignment = Alignment.CenterHorizontally,
+            verticalArrangement = Arrangement.spacedBy(spacing.xs),
+        ) {
+            Icon(icon, contentDescription = null, tint = MaterialTheme.colorScheme.primary)
+            Text(
+                message,
+                style = MaterialTheme.typography.bodyMedium,
+                color = MaterialTheme.colorScheme.onSurfaceVariant,
+                textAlign = TextAlign.Center,
+            )
         }
     }
 }
