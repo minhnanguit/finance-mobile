@@ -20,7 +20,10 @@ import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import com.uit.finance.core.designsystem.component.ErrorBanner
 import com.uit.finance.core.designsystem.component.LoadingIndicator
 import com.uit.finance.core.designsystem.theme.FinanceTheme
+import kotlinx.datetime.LocalDate
 import kotlinx.datetime.TimeZone
+import kotlinx.datetime.format
+import kotlinx.datetime.format.char
 import kotlinx.datetime.toLocalDateTime
 import org.koin.compose.viewmodel.koinViewModel
 
@@ -84,7 +87,7 @@ internal fun ProfileScreen(
                     Text(text = profile.email, style = MaterialTheme.typography.bodyLarge)
                     val joined = profile.createdAt.toLocalDateTime(TimeZone.currentSystemDefault()).date
                     Text(
-                        text = "Tham gia từ ${joined.dayOfMonth.toString().padStart(2, '0')}/${joined.monthNumber.toString().padStart(2, '0')}/${joined.year}",
+                        text = "Tham gia từ ${joined.format(DisplayDate)}",
                         style = MaterialTheme.typography.bodyMedium,
                         color = MaterialTheme.colorScheme.onSurfaceVariant,
                     )
@@ -100,4 +103,13 @@ internal fun ProfileScreen(
             Text(if (state.isLoggingOut) "Đang đăng xuất..." else "Đăng xuất")
         }
     }
+}
+
+/** dd/MM/yyyy. */
+private val DisplayDate = LocalDate.Format {
+    day()
+    char('/')
+    monthNumber()
+    char('/')
+    year()
 }
