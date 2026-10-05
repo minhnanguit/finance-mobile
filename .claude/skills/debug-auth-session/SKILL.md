@@ -16,7 +16,7 @@ SignedOutViewModel → SignInUseCase → AuthRepositoryImpl → OidcAuthenticato
   → PKCE S256 + state
   → AuthorizationLauncher           Android: AuthorizationActivity → Custom Tab
                                     iOS:     ASWebAuthenticationSession (ephemeral)
-  ← redirect com.mosaicglobal.finance://oauth/callback?code&state[&iss]
+  ← redirect com.uit.finance://oauth/callback?code&state[&iss]
                                     Android: RedirectReceiverActivity → AuthorizationActivity.onNewIntent
   → kiểm redirect URI, state, iss   → sai bất kỳ cái nào thì dừng, KHÔNG đổi code
   → OidcClient.exchangeCode(code, code_verifier)

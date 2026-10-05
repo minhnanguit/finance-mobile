@@ -15,7 +15,7 @@ presentation ──► domain ◄── data
 
 Một feature = **một Gradle module** chứa cả ba package `domain/`, `data/`, `presentation/` (+ `di/`). Không tách thành 3 Gradle module.
 
-## 17 luật Konsist (file `architecture-test/src/test/kotlin/…`)
+## 19 luật Konsist (file `architecture-test/src/test/kotlin/…`)
 
 ### `LayerDependencyRulesTest`
 
@@ -41,6 +41,8 @@ Một feature = **một Gradle module** chứa cả ba package `domain/`, `data/
 | `*RepositoryImpl` | `internal` + ở `..data..` |
 | `*State` trong presentation | `data class`, mọi property là `val` |
 | Koin module | Property tên kết thúc `Module` phải ở package `..di..` |
+| `*Destination` | `@Serializable` và nằm trong package `..navigation..` (trừ enum `TopLevelDestination`) |
+| NavGraph entry point | Mỗi feature `x` expose **đúng một** hàm public `NavGraphBuilder.xNavGraph(...)` |
 
 ## Visibility
 
@@ -55,6 +57,9 @@ Một feature = **một Gradle module** chứa cả ba package `domain/`, `data/
 
 - Feature expose điểm vào navigation là **một hàm** `NavGraphBuilder.<feature>NavGraph(...)` nhận callback điều hướng; `composeApp` quyết định đi đâu, feature quyết định khi nào (mẫu `authNavGraph`).
 - Destination là `@Serializable data object/class` trong `presentation/navigation` của feature.
+- Feature **không** khai báo destination của feature khác. Muốn mở màn của feature khác thì expose ý định (callback hoặc enum kiểu `HomeTarget`), `composeApp` map sang destination thật.
+- Tab bottom bar khai báo ở `composeApp/.../navigation/TopLevelDestination.kt`. Chuyển tab bằng `navigateToTopLevel`, mở màn con bằng `navigateSingleTop` (`NavControllerExtensions.kt`). Bottom bar chỉ hiện ở màn là tab.
+- Feature chưa có module thì đặt destination + màn tạm ở `composeApp/.../navigation/placeholder/`; tạo feature thật xong thì xoá placeholder tương ứng.
 - `composeApp` là nơi duy nhất biết tất cả feature. Composition root là `initKoin()` trong `composeApp/src/commonMain/.../di/KoinInit.kt` — thêm Koin module mới ở đúng đây (Android gọi từ `FinanceApplication`, iOS từ `startKoinIos()`).
 
 ## Khi cần phá luật
