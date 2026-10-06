@@ -113,7 +113,7 @@ class SignedOutViewModelTest {
         vm.onIntent(SignedOutIntent.SignInClicked)
         dispatcher.scheduler.advanceUntilIdle()
 
-        assertEquals("Sign-in did not complete. Please try again.", vm.state.value.error?.resolve())
+        assertEquals("Đăng nhập chưa hoàn tất. Vui lòng thử lại.", vm.state.value.error?.resolve())
         assertNull(vm.state.value.inProgress)
     }
 

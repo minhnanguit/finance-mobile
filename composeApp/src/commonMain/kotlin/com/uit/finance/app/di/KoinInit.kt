@@ -7,6 +7,7 @@ import com.uit.finance.core.datastore.di.coreDatastoreModule
 import com.uit.finance.core.network.di.coreNetworkModule
 import com.uit.finance.core.sync.di.coreSyncModule
 import com.uit.finance.feature.auth.di.authFeatureModule
+import com.uit.finance.feature.home.di.homeFeatureModule
 import org.koin.core.KoinApplication
 import org.koin.core.context.startKoin
 import org.koin.dsl.KoinAppDeclaration
@@ -26,5 +27,6 @@ fun initKoin(platformDeclaration: KoinAppDeclaration = {}): KoinApplication = st
         coreDatastoreModule,
         coreSyncModule,
         authFeatureModule,
+        homeFeatureModule,
     )
 }

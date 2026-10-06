@@ -9,7 +9,7 @@ description: Build và verify finance-mobile trên Android/iOS trước khi bàn
 
 | Thứ | Yêu cầu | Trạng thái máy dev hiện tại |
 |---|---|---|
-| JDK | 17+ (README); CI dùng temurin 21 | JBR 25 làm `JAVA_HOME` — nếu lỗi toolchain thì **verify before use** |
+| JDK | 21 LTS; daemon pin Java 21 Adoptium (`gradle/gradle-daemon-jvm.properties`), CI dùng Temurin 21 | Kiểm tra `JAVA_HOME` và `./gradlew --version`; cần Temurin 21 đã cài, không dùng JBR 25 để chạy Gradle 8.13 |
 | Android SDK | compileSdk 36, `sdk.dir` trong `local.properties` (git-ignored) | Cần kiểm tra file tồn tại |
 | Xcode | 16+ **chỉ cho iOS** | **Không có** — mọi task link framework / `xcodebuild` sẽ fail |
 | XcodeGen | `brew install xcodegen` (chỉ iOS) | Cùng điều kiện trên |

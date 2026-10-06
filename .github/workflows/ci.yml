@@ -36,7 +36,11 @@ jobs:
           cache-read-only: ${{ github.ref != 'refs/heads/main' }}
 
       - name: Assemble debug APK
-        run: ./gradlew :composeApp:assembleDebug --stacktrace
+        # Show launcher/daemon JVM details before building to diagnose runtime mismatches.
+        # The daemon criteria in gradle/gradle-daemon-jvm.properties must stay on Java 21.
+        run: |
+          ./gradlew --version
+          ./gradlew :composeApp:assembleDebug --stacktrace
 
       - name: Unit tests (all KMP modules, Android/JVM target)
         run: ./gradlew testDebugUnitTest --continue --stacktrace
@@ -90,7 +94,9 @@ jobs:
           xcodebuild -version
 
       - name: Link Kotlin framework for the simulator
-        run: ./gradlew :composeApp:linkDebugFrameworkIosSimulatorArm64 --stacktrace
+        run: |
+          ./gradlew --version
+          ./gradlew :composeApp:linkDebugFrameworkIosSimulatorArm64 --stacktrace
 
       - name: Generate Xcode project
         run: |

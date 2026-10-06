@@ -8,7 +8,7 @@
 
 ## Client sinh ra bị nhốt
 
-- `:core:network:openApiGenerate` sinh Kotlin client (openapi-generator 7.14, generator `kotlin`, library `multiplatform`, kotlinx-serialization) vào `core/network/build/generated/openapi`, package `com.mosaicglobal.finance.core.network.generated.*`.
+- `:core:network:openApiGenerate` sinh Kotlin client (openapi-generator 7.14, generator `kotlin`, library `multiplatform`, kotlinx-serialization) vào `core/network/build/generated/openapi`, package `com.uit.finance.core.network.generated.*`.
 - `nonPublicApi=true` ⇒ mọi type generated là `internal`.
 - **Chỉ** `core/network/src/commonMain/kotlin/.../api/internal/GeneratedApiAdapters.kt` được import package generated. Konsist chặn phần còn lại của repo.
 - Feature nhìn thấy: `UserApi` (interface viết tay trong `core/network/api/`) + DTO trong `core/network/api/model/`. Không gì khác.

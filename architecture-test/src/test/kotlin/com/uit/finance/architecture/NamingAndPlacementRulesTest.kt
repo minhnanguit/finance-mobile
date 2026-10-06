@@ -3,6 +3,7 @@ package com.uit.finance.architecture
 import com.lemonappdev.konsist.api.ext.list.withNameEndingWith
 import com.lemonappdev.konsist.api.verify.assertTrue
 import kotlin.test.Test
+import kotlin.test.assertEquals
 
 class NamingAndPlacementRulesTest {
 
@@ -48,6 +49,27 @@ class NamingAndPlacementRulesTest {
             .withNameEndingWith("State")
             .filter { it.resideInPackage("..presentation..") }
             .assertTrue { state -> state.hasDataModifier && state.properties().all { it.isVal } }
+    }
+
+    @Test
+    fun `navigation destinations are serializable and live in a navigation package`() {
+        val destinations = productionScope.objects().withNameEndingWith("Destination") +
+            productionScope.classes().withNameEndingWith("Destination").filter { !it.hasEnumModifier }
+        destinations.assertTrue { it.hasAnnotationWithName("Serializable") && it.resideInPackage("..navigation..") }
+    }
+
+    @Test
+    fun `each feature exposes exactly one public NavGraph entry point`() {
+        val entryPoints = productionScope.functions()
+            .filter { it.isTopLevel && it.receiverType?.name == "NavGraphBuilder" && !it.hasInternalModifier && !it.hasPrivateModifier }
+            .filter { it.packagee?.name.orEmpty().startsWith(FEATURE_PREFIX) }
+            .groupBy { featureOf(it.packagee!!.name) }
+        val features = productionScope.files.mapNotNull { featureOf(it.packageName) }.toSet()
+
+        features.forEach { feature ->
+            val names = entryPoints[feature].orEmpty().map { it.name }
+            assertEquals(listOf("${feature}NavGraph"), names, "feature '$feature' must expose exactly ${feature}NavGraph")
+        }
     }
 
     @Test

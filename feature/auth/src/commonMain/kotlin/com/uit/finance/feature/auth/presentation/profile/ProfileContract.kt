@@ -8,7 +8,10 @@ data class ProfileState(
     val isLoggingOut: Boolean = false,
     val profile: UserProfile? = null,
     val error: UiText? = null,
+    val errorAction: ProfileErrorAction = ProfileErrorAction.ReloadProfile,
 )
+
+enum class ProfileErrorAction { ReloadProfile, RetryLogout }
 
 sealed interface ProfileIntent {
     data object Retry : ProfileIntent

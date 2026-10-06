@@ -8,7 +8,7 @@ MVI per feature, offline-first with SQLDelight + outbox, contract-first API).
 
 | Tool | Version |
 |---|---|
-| JDK | 17+ (the build uses Android Studio's bundled JBR if `JAVA_HOME` points at it) |
+| JDK | 21 LTS (Temurin recommended; the same major version as CI) |
 | Android SDK | compileSdk 36; set `sdk.dir` in `local.properties` (git-ignored) |
 | Xcode | 16+ **only for iOS** – Kotlin/Native and the `iosApp` wrapper need it |
 | XcodeGen | `brew install xcodegen` (iOS only) |
@@ -16,6 +16,20 @@ MVI per feature, offline-first with SQLDelight + outbox, contract-first API).
 
 Gradle 8.13 wrapper, Kotlin 2.3.21, AGP 8.13.2, Compose Multiplatform 1.11.1 (Material3 1.9.0) — all versions live in
 `gradle/libs.versions.toml`.
+
+### Gradle JDK (local and CI)
+
+`gradle/gradle-daemon-jvm.properties` pins the Gradle daemon to **Java 21, vendor Adoptium (Temurin)**. Install JDK 21 and set
+`JAVA_HOME` to its installation directory. CI installs Temurin 21 for both Android and iOS. The daemon
+uses an installed JDK; this repo does not configure automatic JDK downloads.
+
+In Android Studio, open **Settings > Build, Execution, Deployment > Build Tools > Gradle** and select
+your installed JDK 21 under **Gradle JDK**, then sync the project. Android Studio itself can continue
+using its bundled runtime. Do not change the daemon criteria to match a newer bundled JBR: Gradle
+8.13 cannot run on Java 25.
+
+Check the runtime with `./gradlew --version` (`.\gradlew.bat --version` in Windows PowerShell).
+The daemon JVM should report Java 21. This is the build runtime; Android bytecode still targets Java 17.
 
 ```properties
 # local.properties (not committed)
@@ -52,7 +66,8 @@ make ios      # compile the iOS klib — no Xcode needed
 
 ```
 composeApp/           App(), FinanceTheme + NavHost, Koin composition root (initKoin / startKoinIos),
-                      MainActivity, FinanceApplication, MainViewController() for iOS
+                      MainActivity, FinanceApplication, MainViewController() for iOS. navigation/: bottom-bar
+                      tabs (TopLevelDestination), nav helpers, placeholder/ screens for features not built yet
 iosApp/               XcodeGen project.yml + SwiftUI shell (generated .xcodeproj is git-ignored)
 api/                  Pinned OpenAPI contract (openapi.yaml + VERSION) – see api/README.md
 build-logic/          Convention plugins: finance.kmp.library / .kmp.compose / .kmp.feature / .compose.application
@@ -72,12 +87,13 @@ core/datastore        SecureStorage (Android Keystore AES/GCM + SharedPreference
 core/sync             SyncEngine, OutboxRepository, SyncCursorStore, ConflictPolicy (last-write-wins),
                       SyncScheduler (WorkManager · BGTaskScheduler). Remote side is a no-op until /sync exists.
 core/designsystem     FinanceTheme (light/dark), typography, spacing, PrimaryButton, FinanceTextField,
-                      LoadingIndicator, ErrorBanner.
+                      LoadingIndicator, ErrorBanner, FinanceIcons (ImageVector line icons).
 core/testing          TestDispatcherProvider, TestClock, FakeUuidGenerator, MainDispatcherRule (JUnit4).
 
 feature/auth          Reference feature. Packages domain / data / presentation inside one Gradle module:
                       AuthRepository + use cases, AuthRepositoryImpl (OidcAuthenticator + SessionStore),
                       SignedOut / Profile screens with MVI ViewModels, authNavGraph(...) contract.
+feature/home          Home dashboard (presentation only until core/ledger lands), homeNavGraph(...) contract.
 architecture-test     Konsist rules (JVM): presentation !-> data, pure domain, feature isolation, generated
                       client confined to core/network, *UseCase in domain, *ViewModel in presentation, ...
 ```

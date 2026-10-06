@@ -8,7 +8,7 @@ Client Kotlin Multiplatform (Android + iOS) dùng **Compose Multiplatform UI chu
 - Package gốc: `com.uit.finance` · compileSdk 36 · minSdk 26 · targetSdk 36
 - Kiến trúc đã **chốt** ở `../ARCHITECTURE.md` (repo-level, tiếng Việt). Không tự đổi.
 - Hợp đồng API: `api/openapi.yaml` là bản **copy nguyên văn** từ `finance-backend`, pin theo `api/VERSION` (hiện `2.0.0`). **Không sửa tay file này.**
-- Feature hiện có: `feature/auth` (reference feature: SignedOut / Profile). Login/register diễn ra trên **Keycloak** qua system browser (ADR-004).
+- Feature hiện có: `feature/auth` (reference feature: SignedOut / Profile; login/register diễn ra trên **Keycloak** qua system browser, ADR-004) · `feature/home` (Trang chủ; chưa có số liệu, chờ `core/ledger`).
 - `finance-backend` là repo riêng — **không sửa từ đây**.
 
 ## 2. Commands
@@ -27,7 +27,7 @@ Mọi lệnh thường dùng đều là target trong `Makefile`. Gõ `make` đ�
 | `make crash` | Chỉ theo dõi warning + crash |
 | `make apk` | Build APK debug, không cài |
 | `make test` | Unit test **mọi module KMP** (chạy trên host JVM) |
-| `make arch` | 17 luật Konsist |
+| `make arch` | 19 luật Konsist |
 | `make lint` | Android Lint cho `composeApp` |
 | `make tunnel URL=https://…` | Trỏ build debug tới URL HTTPS của `make tunnel` bên backend (ghi `finance.publicBaseUrl` vào `local.properties`). Có URL thì APK **tắt** cleartext |
 | `make tunnel-off` | Quay về loopback `10.0.2.2` / `localhost` (http) |
@@ -45,8 +45,10 @@ CI (`.github/workflows/`): job `android` (ubuntu, APK + `testDebugUnitTest` + Ko
 ## 3. Architecture map
 
 ```
-composeApp/           App(), FinanceTheme, FinanceNavHost, Koin composition root (initKoin/startKoinIos),
+composeApp/           App(), FinanceTheme, Koin composition root (initKoin/startKoinIos),
                       MainActivity + FinanceApplication (Android), MainViewController() (iOS)
+  navigation/         FinanceNavHost (session → NavHost + Scaffold), TopLevelDestination (tab bottom bar),
+                      MainNavigationBar, NavControllerExtensions, placeholder/ (màn tạm cho feature chưa có module)
 iosApp/               XcodeGen project.yml + vỏ SwiftUI (.xcodeproj git-ignored)
 api/                  openapi.yaml + VERSION — hợp đồng pin, xem api/README.md
 build-logic/          4 convention plugin: finance.kmp.library / .kmp.compose / .kmp.feature / .compose.application
@@ -62,10 +64,12 @@ core/auth             OIDC client Keycloak: PKCE S256, discovery, token/refresh/
 core/database         SQLDelight FinanceDatabase (outbox, sync_cursor) + DatabaseDriverFactory expect/actual
 core/datastore        SecureStorage (Android Keystore AES/GCM · iOS Keychain), AppSettings, SessionStore
 core/sync             SyncEngine, OutboxRepository, SyncCursorStore, ConflictPolicy, SyncScheduler
-core/designsystem     FinanceTheme, Spacing (4dp grid), PrimaryButton, FinanceTextField, LoadingIndicator, ErrorBanner
+core/designsystem     FinanceTheme, Spacing (4dp grid), PrimaryButton, FinanceTextField, LoadingIndicator, ErrorBanner,
+                      FinanceIcons (ImageVector, dùng qua `Icon()`)
 core/testing          TestDispatcherProvider, TestClock, FakeUuidGenerator, MainDispatcherRule
 feature/auth          domain / data / presentation trong CÙNG một Gradle module
-architecture-test     17 luật Konsist (JVM)
+feature/home          Trang chủ: chỉ presentation (chưa có domain/data cho tới khi có core/ledger)
+architecture-test     19 luật Konsist (JVM)
 ```
 
 Chiều phụ thuộc: **`presentation → domain ← data`**. Feature không phụ thuộc feature. Core không phụ thuộc feature.
@@ -77,7 +81,7 @@ Mỗi Gradle module expose **đúng một** Koin module public (`coreNetworkModu
 
 | File | Nội dung |
 |---|---|
-| `architecture-boundaries.md` | presentation ↛ data, domain thuần, feature isolation, 17 luật Konsist |
+| `architecture-boundaries.md` | presentation ↛ data, domain thuần, feature isolation, 19 luật Konsist |
 | `mvi-and-state.md` | MviViewModel, State/Intent/Effect, Route vs Screen |
 | `kmp-and-platform.md` | source set, expect/actual, Dispatchers, giới hạn iOS |
 | `contract-pinning.md` | `api/openapi.yaml` pin, generated client chỉ ở `core/network` |
@@ -108,6 +112,7 @@ Tóm tắt không được vi phạm:
 
 - MCP `code-review-graph`: repo này **chưa có** cache graph (`list_repos_tool` = 0 registered, kiểm tra 2026-09-18). Muốn dùng phải `build_or_update_graph_tool` trước; nếu không, dùng Grep/Glob/Read là hợp lệ.
 - `local.properties` (git-ignored) phải có `sdk.dir` trỏ Android SDK.
+- Gradle daemon pin **Java 21 Adoptium (Temurin)** ở `gradle/gradle-daemon-jvm.properties`. Thiếu vendor thì Gradle có thể chọn JRE không có `jlink` (vd JRE của extension Java trong VS Code) → `:composeApp` fail ở bước JdkImageTransform.
 - **Máy dev hiện tại không có Xcode** ⇒ mọi task liên quan link framework iOS / `xcodebuild` sẽ fail ở local; compile klib (`compileKotlinIosSimulatorArm64`) thì vẫn chạy được. Nói rõ với user thay vì tìm cách né.
 - `build/`, `.gradle/`, `.kotlin/`, `bin/`, `iosApp/*.xcodeproj` là output — đừng đọc/sửa.
 - Nâng version thư viện: **chỉ sửa `gradle/libs.versions.toml`**, và đọc comment cảnh báo trong đó trước (một số version mới hơn cố tình không được dùng vì xung đột AGP/Kotlin metadata).

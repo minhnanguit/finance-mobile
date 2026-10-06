@@ -36,10 +36,10 @@ fun ErrorBanner(
                 modifier = Modifier.weight(1f),
             )
             if (onRetry != null) {
-                TextButton(onClick = onRetry) { Text("Retry") }
+                TextButton(onClick = onRetry) { Text("Thử lại") }
             }
             if (onDismiss != null) {
-                TextButton(onClick = onDismiss) { Text("Dismiss") }
+                TextButton(onClick = onDismiss) { Text("Đóng") }
             }
         }
     }

@@ -39,7 +39,7 @@ kotlin {
 ## 2. Package layout (trong cùng một Gradle module)
 
 ```
-feature/<name>/src/commonMain/kotlin/com/mosaicglobal/finance/feature/<name>/
+feature/<name>/src/commonMain/kotlin/com/uit/finance/feature/<name>/
 ├─ domain/       model/ · repository/ (interface) · usecase/ · validation/
 ├─ data/         remote/ · repository/ (Impl, internal) · mapper/
 ├─ presentation/ <screen>/ (Contract + ViewModel + Screen) · navigation/
@@ -100,6 +100,8 @@ val xFeatureModule: Module = module {
 ```
 
 Rồi đăng ký ở `composeApp/src/commonMain/kotlin/.../di/` (đọc `KoinInit.kt` để biết danh sách module) và thêm `implementation(projects.feature.x)` vào `composeApp/build.gradle.kts`, nối `xNavGraph(...)` vào `FinanceNavHost`.
+
+Nếu feature thay một màn tạm trong `composeApp/.../navigation/placeholder/` (transactions, accounts, budgets, reports…): xoá destination + `composable` tạm đó, trỏ `TopLevelDestination.route` (nếu là tab) và các chỗ map `HomeTarget` sang destination mới của feature.
 
 ## 7. Test
 

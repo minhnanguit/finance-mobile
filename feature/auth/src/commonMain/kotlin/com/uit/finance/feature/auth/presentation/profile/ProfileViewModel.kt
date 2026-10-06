@@ -25,22 +25,22 @@ internal class ProfileViewModel(
     }
 
     private fun load() {
-        setState { copy(isLoading = true, error = null) }
+        setState { copy(isLoading = true, error = null, errorAction = ProfileErrorAction.ReloadProfile) }
         viewModelScope.launch {
             getCurrentUser().fold(
                 onSuccess = { profile -> setState { copy(isLoading = false, profile = profile) } },
-                onFailure = { error -> setState { copy(isLoading = false, error = error.toUiText()) } },
+                onFailure = { error -> setState { copy(isLoading = false, error = error.toUiText(), errorAction = ProfileErrorAction.ReloadProfile) } },
             )
         }
     }
 
     private fun performLogout() {
         if (currentState.isLoggingOut) return
-        setState { copy(isLoggingOut = true) }
+        setState { copy(isLoggingOut = true, error = null) }
         viewModelScope.launch {
             logout().fold(
                 onSuccess = { sendEffect(ProfileEffect.LoggedOut) },
-                onFailure = { error -> setState { copy(isLoggingOut = false, error = error.toUiText()) } },
+                onFailure = { error -> setState { copy(isLoggingOut = false, error = error.toUiText(), errorAction = ProfileErrorAction.RetryLogout) } },
             )
         }
     }

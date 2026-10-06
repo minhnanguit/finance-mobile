@@ -5,7 +5,7 @@ description: Thêm hoặc sửa màn hình / component Compose Multiplatform tro
 
 # Sửa / thêm màn hình Compose
 
-Đọc trước: `.claude/rules/mvi-and-state.md`. Mẫu đầy đủ: `feature/auth/presentation/login/`.
+Đọc trước: `.claude/rules/mvi-and-state.md`. Mẫu đầy đủ: `feature/auth/presentation/signedout/`, `feature/home/presentation/home/`.
 
 ## Trước khi gõ code
 
@@ -22,6 +22,7 @@ description: Thêm hoặc sửa màn hình / component Compose Multiplatform tro
 | Nút chính / phụ | `PrimaryButton`, `SecondaryTextButton` |
 | Ô nhập | `FinanceTextField` |
 | Loading / lỗi | `LoadingIndicator`, `ErrorBanner` |
+| Icon | `Icon(FinanceIcons.X, contentDescription = …)` — thêm icon mới vào `core/designsystem/icon/FinanceIcons.kt` |
 
 Thiếu component → thêm vào `core/designsystem/component/` theo phong cách các file có sẵn, rồi mới dùng.
 
@@ -64,6 +65,7 @@ Quy tắc:
 1. `@Serializable data object XDestination` trong `presentation/navigation/` của feature.
 2. Thêm `composable<XDestination> { XRoute(...) }` vào hàm `…NavGraph(...)` của feature.
 3. `composeApp/.../FinanceNavHost.kt` truyền callback điều hướng vào. **Feature không tự quyết định đi đâu** — chỉ gọi callback.
+4. Màn là tab bottom bar → thêm vào `TopLevelDestination`; màn con → mở bằng `navigateSingleTop` (chặn bấm 2 lần).
 
 ## Verify
 

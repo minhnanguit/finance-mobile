@@ -55,6 +55,7 @@ kotlin {
             implementation(projects.core.datastore)
             implementation(projects.core.sync)
             implementation(projects.feature.auth)
+            implementation(projects.feature.home)
         }
         commonMain {
             kotlin.srcDir(generateAppEnvironment)
