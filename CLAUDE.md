@@ -7,8 +7,9 @@ Client Kotlin Multiplatform (Android + iOS) dùng **Compose Multiplatform UI chu
 
 - Package gốc: `com.uit.finance` · compileSdk 36 · minSdk 26 · targetSdk 36
 - Kiến trúc đã **chốt** ở `../ARCHITECTURE.md` (repo-level, tiếng Việt). Không tự đổi.
-- Hợp đồng API: `api/openapi.yaml` là bản **copy nguyên văn** từ `finance-backend`, pin theo `api/VERSION` (hiện `2.0.0`). **Không sửa tay file này.**
-- Feature hiện có: `feature/auth` (reference feature: SignedOut / Profile; login/register diễn ra trên **Keycloak** qua system browser, ADR-004) · `feature/home` (Trang chủ; chưa có số liệu, chờ `core/ledger`).
+- Hợp đồng API: `api/openapi.yaml` là bản **copy nguyên văn** từ `finance-backend`, pin theo `api/VERSION` (hiện `2.1.0`). **Không sửa tay file này.**
+- Feature hiện có: `feature/auth` (reference feature: SignedOut / Profile; login/register diễn ra trên **Keycloak** qua system browser, ADR-004) · `feature/home` (Trang chủ; chưa có số liệu, chờ màn ledger Phase 5).
+- Dữ liệu ledger (ví, danh mục, giao dịch) + sync offline-first: `core/ledger` + `core/sync`, theo `../docs/LEDGER-PLAN.md`.
 - `finance-backend` là repo riêng — **không sửa từ đây**.
 
 ## 2. Commands
@@ -27,7 +28,7 @@ Mọi lệnh thường dùng đều là target trong `Makefile`. Gõ `make` đ�
 | `make crash` | Chỉ theo dõi warning + crash |
 | `make apk` | Build APK debug, không cài |
 | `make test` | Unit test **mọi module KMP** (chạy trên host JVM) |
-| `make arch` | 19 luật Konsist |
+| `make arch` | 21 luật Konsist |
 | `make lint` | Android Lint cho `composeApp` |
 | `make tunnel URL=https://…` | Trỏ build debug tới URL HTTPS của `make tunnel` bên backend (ghi `finance.publicBaseUrl` vào `local.properties`). Có URL thì APK **tắt** cleartext |
 | `make tunnel-off` | Quay về loopback `10.0.2.2` / `localhost` (http) |
@@ -61,15 +62,22 @@ core/network          Ktor client (ContentNegotiation, logging sanitize, timeout
                       IdempotencyKeyPlugin, RFC 7807 → ApiException), UserApi, port TokenProvider + TokenRefresher
 core/auth             OIDC client Keycloak: PKCE S256, discovery, token/refresh/logout, AuthorizationLauncher
                       (Android Custom Tabs · iOS ASWebAuthenticationSession), implement TokenRefresher
-core/database         SQLDelight FinanceDatabase (outbox, sync_cursor) + DatabaseDriverFactory expect/actual
-core/datastore        SecureStorage (Android Keystore AES/GCM · iOS Keychain), AppSettings, SessionStore
-core/sync             SyncEngine, OutboxRepository, SyncCursorStore, ConflictPolicy, SyncScheduler
+core/database         SQLDelight FinanceDatabase **mỗi user một file** `finance-<userId>.db`, mã hoá SQLCipher (khoá 256-bit
+                      trong SecureStorage): outbox, sync_cursor, sync_rejection, account, category, ledger_transaction.
+                      UserDatabaseProvider (StateFlow DB đang mở) + UserDatabases (open/close/delete)
+core/datastore        SecureStorage (Android Keystore AES/GCM · iOS Keychain AfterFirstUnlockThisDeviceOnly), AppSettings,
+                      SessionStore, DatabaseKeyStore
+core/sync             OutboxWriter, SyncEngine (push/pull 1 cursor, xử lý APPLIED/CONFLICT/REJECTED/RETRY/429),
+                      SyncRemoteDataSource (API thật), SyncIssueRepository, SyncScheduler
+core/ledger           Model + validate ví/danh mục/giao dịch, repository (ghi entity + outbox 1 transaction),
+                      số dư Flow từ SUM, SyncChangeApplier áp thay đổi từ server. Module duy nhất đụng bảng ledger
+core/session          UserSession: sau /me mở DB của user + chạy sync; đăng xuất xoá DB + khoá; DB của user khác trên máy
 core/designsystem     FinanceTheme, Spacing (4dp grid), PrimaryButton, FinanceTextField, LoadingIndicator, ErrorBanner,
                       FinanceIcons (ImageVector, dùng qua `Icon()`)
 core/testing          TestDispatcherProvider, TestClock, FakeUuidGenerator, MainDispatcherRule
 feature/auth          domain / data / presentation trong CÙNG một Gradle module
 feature/home          Trang chủ: chỉ presentation (chưa có domain/data cho tới khi có core/ledger)
-architecture-test     19 luật Konsist (JVM)
+architecture-test     21 luật Konsist (JVM)
 ```
 
 Chiều phụ thuộc: **`presentation → domain ← data`**. Feature không phụ thuộc feature. Core không phụ thuộc feature.
@@ -81,7 +89,7 @@ Mỗi Gradle module expose **đúng một** Koin module public (`coreNetworkModu
 
 | File | Nội dung |
 |---|---|
-| `architecture-boundaries.md` | presentation ↛ data, domain thuần, feature isolation, 19 luật Konsist |
+| `architecture-boundaries.md` | presentation ↛ data, domain thuần, feature isolation, 21 luật Konsist |
 | `mvi-and-state.md` | MviViewModel, State/Intent/Effect, Route vs Screen |
 | `kmp-and-platform.md` | source set, expect/actual, Dispatchers, giới hạn iOS |
 | `contract-pinning.md` | `api/openapi.yaml` pin, generated client chỉ ở `core/network` |

@@ -8,7 +8,7 @@
 | `src/androidMain` | Chỉ khi cần API Android (Keystore, WorkManager, Context) |
 | `src/iosMain` | Chỉ khi cần API Apple (Keychain, BGTaskScheduler) |
 | `src/commonTest` | Test chung, chạy cho mọi target |
-| `src/androidUnitTest` | Test cần JVM/Android-only (mẫu `SqlDelightOutboxRepositoryTest`) |
+| `src/androidUnitTest` | Test cần JVM/Android-only (mẫu `DefaultSyncEngineTest`) |
 
 Quy tắc: **thứ gì viết được ở `commonMain` thì không được đẩy xuống platform source set.**
 
@@ -18,13 +18,14 @@ Dùng khi và chỉ khi hành vi khác nhau theo nền tảng. Mẫu có sẵn:
 
 | expect | actual Android | actual iOS |
 |---|---|---|
-| `DatabaseDriverFactory` | `AndroidSqliteDriver` | `NativeSqliteDriver` |
+| `DatabaseDriverFactory.create(fileName, passphrase)` / `delete` | `AndroidSqliteDriver` + SQLCipher `SupportOpenHelperFactory` | `NativeSqliteDriver` + `DatabaseConfiguration.Encryption` (SQLCipher qua SPM trong `iosApp/project.yml`, **không** `-lsqlite3`) |
 | `SecureStorage` (interface + Koin platform module) | Keystore AES-256/GCM + SharedPreferences | Keychain |
 | `PlatformInfo` | `.android.kt` | `.ios.kt` |
 | `platformEngine()` | OkHttp | Darwin |
 | `SyncScheduler` | WorkManager | BGTaskScheduler |
 | `AuthorizationLauncher` (interface + Koin platform module, `core/auth`) | Custom Tabs qua `AuthorizationActivity` + `RedirectReceiverActivity` | `ASWebAuthenticationSession` (ephemeral) |
-| `secureRandomBytes()`, `sha256()` (`core/auth/pkce`) | `SecureRandom`, `MessageDigest` | `SecRandomCopyBytes`, `CC_SHA256` |
+| `secureRandomBytes()` (`core/common/security`) | `SecureRandom` | `SecRandomCopyBytes` |
+| `sha256()` (`core/auth/pkce`) | `MessageDigest` | `CC_SHA256` |
 | `defaultApiBaseUrl()`, `isDebugBuild` (composeApp) | `10.0.2.2:8080` khi debug | loopback simulator |
 
 Đặt tên file: `X.kt` (expect) / `X.android.kt` / `X.ios.kt`.
@@ -50,7 +51,7 @@ Compiler flag đang bật: `-Xexpect-actual-classes` (expect/actual class vẫn 
 
 | Plugin | Dùng cho |
 |---|---|
-| `finance.kmp.library` | core module thuần (common, network, auth, database, datastore, sync, presentation, testing) |
+| `finance.kmp.library` | core module thuần (common, network, auth, database, datastore, sync, ledger, session, presentation, testing) |
 | `finance.kmp.compose` | module có UI Compose (designsystem) |
 | `finance.kmp.feature` | feature module (Compose + Koin + lifecycle + navigation + serialization đã kèm sẵn) |
 | `finance.compose.application` | `composeApp` |

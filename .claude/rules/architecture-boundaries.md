@@ -15,7 +15,7 @@ presentation ──► domain ◄── data
 
 Một feature = **một Gradle module** chứa cả ba package `domain/`, `data/`, `presentation/` (+ `di/`). Không tách thành 3 Gradle module.
 
-## 19 luật Konsist (file `architecture-test/src/test/kotlin/…`)
+## 21 luật Konsist (file `architecture-test/src/test/kotlin/…`)
 
 ### `LayerDependencyRulesTest`
 
@@ -43,6 +43,13 @@ Một feature = **một Gradle module** chứa cả ba package `domain/`, `data/
 | Koin module | Property tên kết thúc `Module` phải ở package `..di..` |
 | `*Destination` | `@Serializable` và nằm trong package `..navigation..` (trừ enum `TopLevelDestination`) |
 | NavGraph entry point | Mỗi feature `x` expose **đúng một** hàm public `NavGraphBuilder.xNavGraph(...)` |
+
+### `LedgerDataRulesTest`
+
+| Luật | Ý nghĩa |
+|---|---|
+| Bảng ledger bị nhốt | Chỉ `core/ledger` (và `core/database` nơi sinh code) được dùng query/row class của `account`, `category`, `ledger_transaction` — mọi chỗ khác đi qua repository của `core/ledger` |
+| Log không chứa dữ liệu tiền | Lời gọi log không được nhắc `amount`, `note`, `payee` (B8). Payload sync có `toString()` đã che |
 
 ## Visibility
 

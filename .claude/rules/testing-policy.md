@@ -3,7 +3,7 @@
 | Lệnh | Chạy gì | Cần gì |
 |---|---|---|
 | `make test` | Unit test mọi module KMP (target Android/JVM, chạy trên host) | JDK + Android SDK |
-| `make arch` | 19 luật Konsist (đọc **source**, không phải bytecode) | JDK |
+| `make arch` | 21 luật Konsist (đọc **source**, không phải bytecode) | JDK |
 | `make apk` | Build APK — smoke test biên dịch | Android SDK |
 
 CI chạy cả ba (job `android`) + build iOS (job `ios`, cần macOS + Xcode).
@@ -17,7 +17,7 @@ CI chạy cả ba (job `android`) + build iOS (job `ios`, cần macOS + Xcode).
 | ViewModel | `commonTest/…/presentation/` | **Turbine** cho `state`/`effects` (mẫu `SignedOutViewModelTest`), `TestDispatcherProvider` |
 | Ktor client, plugin | `core/network/src/commonTest/` | `ktor-client-mock` (mẫu `HttpClientFactoryTest`, `IdempotencyKeyPluginTest`, `TestSupport.kt`) |
 | OIDC / Keycloak | `core/auth/src/commonTest/` | `FakeKeycloak` (MockEngine) + `FakeAuthorizationLauncher`. PKCE kiểm bằng vector RFC 7636 |
-| Thứ chỉ chạy trên JVM/Android | `src/androidUnitTest/` | Mẫu `SqlDelightOutboxRepositoryTest` |
+| Thứ chỉ chạy trên JVM/Android (SQLDelight in-memory) | `src/androidUnitTest/` | Mẫu `OutboxWriterTest`, `DefaultSyncEngineTest` (`core/sync`), `LedgerRepositoriesTest` (`core/ledger`) |
 | Luật kiến trúc | `architecture-test/` | Konsist — chỉ sửa khi user đồng ý |
 
 ## Quy tắc
