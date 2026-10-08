@@ -12,6 +12,12 @@ configs:
 configFiles:
   Debug: Configuration/Config.xcconfig
   Release: Configuration/Config.xcconfig
+# SQLCipher thay cho libsqlite3 của hệ thống: DB của mỗi user được mã hoá (ADR-006 B6).
+# Cùng phiên bản với net.zetetic:sqlcipher-android trong gradle/libs.versions.toml.
+packages:
+  SQLCipher:
+    url: https://github.com/sqlcipher/SQLCipher.swift
+    exactVersion: 4.19.0
 settings:
   base:
     SWIFT_VERSION: "5.9"
@@ -37,8 +43,12 @@ targets:
         "EXCLUDED_ARCHS[sdk=iphonesimulator*]": x86_64
         # The Kotlin framework is produced by the Gradle build phase below.
         FRAMEWORK_SEARCH_PATHS: $(inherited) $(SRCROOT)/../composeApp/build/xcode-frameworks/$(CONFIGURATION)/$(SDK_NAME)
-        # ComposeApp is a static framework, so its native deps (SQLDelight's NativeSqliteDriver → sqlite3) must be linked here.
-        OTHER_LDFLAGS: $(inherited) -framework ComposeApp -lsqlite3
+        # ComposeApp is a static framework, so its native deps are linked here. The sqlite3 symbols that SQLDelight's
+        # NativeSqliteDriver needs come from SQLCipher (package below), NOT -lsqlite3: linking the system SQLite would
+        # leave the database unencrypted. UserDatabaseManager refuses to open a DB if `PRAGMA cipher_version` is empty.
+        OTHER_LDFLAGS: $(inherited) -framework ComposeApp
+    dependencies:
+      - package: SQLCipher
     preBuildScripts:
       - name: Compile Kotlin Framework
         basedOnDependencyAnalysis: false

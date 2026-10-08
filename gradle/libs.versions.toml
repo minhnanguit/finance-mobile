@@ -32,6 +32,8 @@ kotlinx-datetime = "0.8.0"
 ktor = "3.5.2"
 koin = "4.2.2"
 sqldelight = "2.3.2"
+# DB của mỗi user được mã hoá trên máy (ADR-006 B6). Bản iOS kéo qua SPM trong iosApp/project.yml (SQLCipher.swift).
+sqlcipher-android = "4.19.1"
 multiplatform-settings = "1.3.0"
 kermit = "2.2.0"
 # Coil 3.5.0+ is compiled with Kotlin 2.4 metadata and cannot be consumed by Kotlin 2.3.21.
@@ -80,6 +82,7 @@ sqldelight-coroutines = { module = "app.cash.sqldelight:coroutines-extensions", 
 sqldelight-android-driver = { module = "app.cash.sqldelight:android-driver", version.ref = "sqldelight" }
 sqldelight-native-driver = { module = "app.cash.sqldelight:native-driver", version.ref = "sqldelight" }
 sqldelight-sqlite-driver = { module = "app.cash.sqldelight:sqlite-driver", version.ref = "sqldelight" }
+sqlcipher-android = { module = "net.zetetic:sqlcipher-android", version.ref = "sqlcipher-android" }
 
 # Compose Multiplatform (explicit coordinates; the `compose.*` accessors are deprecated in 1.12)
 compose-runtime = { module = "org.jetbrains.compose.runtime:runtime", version.ref = "compose-multiplatform" }

@@ -2,11 +2,15 @@ package com.uit.finance.core.database
 
 import app.cash.sqldelight.db.SqlDriver
 
-const val DATABASE_NAME: String = "finance.db"
-
-/** Android: `AndroidSqliteDriver(context)`; iOS: `NativeSqliteDriver`. */
+/**
+ * Mở và xoá file DB đã mã hoá bằng SQLCipher (ADR-006 B6). Android: `AndroidSqliteDriver` +
+ * `SupportOpenHelperFactory` của SQLCipher. iOS: `NativeSqliteDriver` + `PRAGMA key` (cần app link
+ * SQLCipher thay cho libsqlite3).
+ */
 expect class DatabaseDriverFactory {
-    fun createDriver(): SqlDriver
-}
+    /** Mở (tạo nếu chưa có) [fileName] bằng [passphrase]. Chỉ mở thật ở câu lệnh đầu tiên. */
+    fun create(fileName: String, passphrase: String): SqlDriver
 
-fun DatabaseDriverFactory.createDatabase(): FinanceDatabase = FinanceDatabase(createDriver())
+    /** Xoá file và các file phụ (journal, WAL). Không có thì thôi. */
+    fun delete(fileName: String)
+}
