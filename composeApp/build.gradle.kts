@@ -54,6 +54,8 @@ kotlin {
             implementation(projects.core.database)
             implementation(projects.core.datastore)
             implementation(projects.core.sync)
+            implementation(projects.core.ledger)
+            implementation(projects.core.session)
             implementation(projects.feature.auth)
             implementation(projects.feature.home)
         }
