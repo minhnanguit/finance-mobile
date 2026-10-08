@@ -1,0 +1,39 @@
+-- Danh mục (ADR-005), tối đa 2 cấp. Không đặt FK (xem Account.sq). Chỉ core/ledger được dùng.
+CREATE TABLE category (
+    id TEXT NOT NULL PRIMARY KEY,
+    kind TEXT NOT NULL,
+    name TEXT NOT NULL,
+    parent_id TEXT,
+    icon TEXT,
+    color TEXT,
+    template_key TEXT,
+    archived INTEGER NOT NULL DEFAULT 0,
+    deleted INTEGER NOT NULL DEFAULT 0
+);
+
+CREATE INDEX category_parent_idx ON category(parent_id);
+
+upsert:
+INSERT OR REPLACE INTO category(id, kind, name, parent_id, icon, color, template_key, archived, deleted)
+VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?);
+
+selectById:
+SELECT * FROM category WHERE id = ?;
+
+selectActive:
+SELECT * FROM category WHERE deleted = 0 ORDER BY kind ASC, name ASC, id ASC;
+
+countActive:
+SELECT COUNT(*) FROM category WHERE deleted = 0;
+
+isReferenced:
+SELECT COUNT(*) FROM ledger_transaction WHERE deleted = 0 AND category_id = ?;
+
+hasActiveChildren:
+SELECT COUNT(*) FROM category WHERE deleted = 0 AND parent_id = ?;
+
+markDeleted:
+UPDATE category SET deleted = 1 WHERE id = ?;
+
+remove:
+DELETE FROM category WHERE id = ?;

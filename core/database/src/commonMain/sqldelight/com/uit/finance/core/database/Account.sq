@@ -1,0 +1,57 @@
+-- Ví (ADR-005). Không đặt FK: pull có thể đưa giao dịch về trước ví của nó (ADR-002 §4).
+-- Chỉ core/ledger được dùng các query này (Konsist).
+CREATE TABLE account (
+    id TEXT NOT NULL PRIMARY KEY,
+    name TEXT NOT NULL,
+    type TEXT NOT NULL,
+    currency TEXT NOT NULL,
+    opening_balance_minor INTEGER NOT NULL,
+    sort_order INTEGER NOT NULL,
+    archived INTEGER NOT NULL DEFAULT 0,
+    deleted INTEGER NOT NULL DEFAULT 0
+);
+
+upsert:
+INSERT OR REPLACE INTO account(id, name, type, currency, opening_balance_minor, sort_order, archived, deleted)
+VALUES (?, ?, ?, ?, ?, ?, ?, ?);
+
+selectById:
+SELECT * FROM account WHERE id = ?;
+
+selectActive:
+SELECT * FROM account WHERE deleted = 0 ORDER BY sort_order ASC, name ASC, id ASC;
+
+countActive:
+SELECT COUNT(*) FROM account WHERE deleted = 0;
+
+isReferenced:
+SELECT COUNT(*) FROM ledger_transaction
+WHERE deleted = 0 AND (account_id = :id OR counter_account_id = :id);
+
+markDeleted:
+UPDATE account SET deleted = 1 WHERE id = ?;
+
+remove:
+DELETE FROM account WHERE id = ?;
+
+-- Số dư = ban đầu + thu − chi − chuyển đi + chuyển đến; chỉ giao dịch CONFIRMED chưa xoá (ADR-005 §5).
+-- Cùng công thức với backend (AccountFlowsQueryAdapter).
+selectBalances:
+SELECT
+    a.id,
+    a.currency,
+    a.archived,
+    a.opening_balance_minor
+        + CAST(COALESCE((
+            SELECT SUM(CASE t.type WHEN 'INCOME' THEN t.amount_minor ELSE -t.amount_minor END)
+            FROM ledger_transaction t
+            WHERE t.account_id = a.id AND t.deleted = 0 AND t.status = 'CONFIRMED'
+        ), 0) AS INTEGER)
+        + CAST(COALESCE((
+            SELECT SUM(t.amount_minor)
+            FROM ledger_transaction t
+            WHERE t.counter_account_id = a.id AND t.type = 'TRANSFER' AND t.deleted = 0 AND t.status = 'CONFIRMED'
+        ), 0) AS INTEGER) AS balance_minor
+FROM account a
+WHERE a.deleted = 0
+ORDER BY a.sort_order ASC, a.name ASC, a.id ASC;
