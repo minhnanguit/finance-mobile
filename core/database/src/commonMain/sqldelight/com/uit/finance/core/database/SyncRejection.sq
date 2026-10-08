@@ -1,0 +1,22 @@
+-- Op bị server từ chối (REJECTED), giữ lại để báo user. Chỉ có id và mã lỗi, không có dữ liệu (ADR-006 B8).
+CREATE TABLE sync_rejection (
+    op_id TEXT NOT NULL PRIMARY KEY,
+    entity TEXT NOT NULL,
+    entity_id TEXT NOT NULL,
+    code TEXT,
+    rejected_at INTEGER NOT NULL,
+    acknowledged INTEGER NOT NULL DEFAULT 0
+);
+
+insert:
+INSERT OR REPLACE INTO sync_rejection(op_id, entity, entity_id, code, rejected_at, acknowledged)
+VALUES (?, ?, ?, ?, ?, 0);
+
+selectUnacknowledged:
+SELECT * FROM sync_rejection WHERE acknowledged = 0 ORDER BY rejected_at DESC;
+
+countUnacknowledged:
+SELECT COUNT(*) FROM sync_rejection WHERE acknowledged = 0;
+
+acknowledgeAll:
+UPDATE sync_rejection SET acknowledged = 1 WHERE acknowledged = 0;

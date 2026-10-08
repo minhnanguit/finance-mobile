@@ -1,17 +1,14 @@
--- Server-issued delta cursor per sync scope (e.g. "transactions", "accounts").
+-- Dấu trang của pull (ADR-002 §2): MỘT cursor cho mọi entity, mỗi DB của user đúng một dòng.
 CREATE TABLE sync_cursor (
-    scope TEXT NOT NULL PRIMARY KEY,
-    cursor TEXT
+    id INTEGER NOT NULL PRIMARY KEY CHECK (id = 1),
+    cursor TEXT NOT NULL
 );
 
-selectByScope:
-SELECT cursor FROM sync_cursor WHERE scope = ?;
+select:
+SELECT cursor FROM sync_cursor WHERE id = 1;
 
 upsert:
-INSERT OR REPLACE INTO sync_cursor(scope, cursor) VALUES (?, ?);
+INSERT OR REPLACE INTO sync_cursor(id, cursor) VALUES (1, ?);
 
-deleteByScope:
-DELETE FROM sync_cursor WHERE scope = ?;
-
-deleteAll:
+clear:
 DELETE FROM sync_cursor;
