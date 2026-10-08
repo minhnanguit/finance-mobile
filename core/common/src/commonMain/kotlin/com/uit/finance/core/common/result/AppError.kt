@@ -16,6 +16,8 @@ sealed interface AppError {
         val title: String?,
         val detail: String?,
         val fieldErrors: List<FieldError> = emptyList(),
+        /** Header `Retry-After` (giây) khi server trả 429: chờ đúng chừng này rồi mới gửi lại. */
+        val retryAfterSeconds: Long? = null,
     ) : AppError
 
     /** Access token rejected and the refresh token could not rotate it. The session is gone. */
