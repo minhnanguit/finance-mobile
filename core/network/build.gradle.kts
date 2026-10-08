@@ -32,8 +32,15 @@ val openApiGenerate = tasks.named<GenerateTask>("openApiGenerate") {
         mapOf(
             "date-time" to "kotlin.time.Instant",
             "DateTime" to "kotlin.time.Instant",
+            // Contract 2.1.0: `data` của op sync là object tự do (`additionalProperties: true`). Mặc định
+            // generator sinh `Map<String, Any>`, kotlinx-serialization không serialize được `Any`.
+            // JsonElement giữ nguyên kiểu JSON (số nguyên vẫn là số nguyên, không bị ép sang Double).
+            "AnyType" to "JsonElement",
         ),
     )
+    // Tên ngắn ở typeMappings + import ở đây: đưa tên đầy đủ vào typeMappings thì generator coi là tên
+    // model và sinh ra `KotlinxserializationjsonJsonElement`.
+    importMappings.set(mapOf("JsonElement" to "kotlinx.serialization.json.JsonElement"))
     configOptions.set(
         mapOf(
             // Không set serializationLibrary: library=multiplatform đã ngụ ý kotlinx-serialization,

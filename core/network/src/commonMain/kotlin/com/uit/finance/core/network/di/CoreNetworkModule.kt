@@ -1,7 +1,11 @@
 package com.uit.finance.core.network.di
 
+import com.uit.finance.core.network.api.SyncApi
 import com.uit.finance.core.network.api.UserApi
+import com.uit.finance.core.network.api.internal.GeneratedSyncApiAdapter
+import com.uit.finance.core.network.api.internal.GeneratedSyncPayloadCodec
 import com.uit.finance.core.network.api.internal.GeneratedUserApiAdapter
+import com.uit.finance.core.network.api.model.SyncPayloadCodec
 import com.uit.finance.core.network.auth.TokenCache
 import com.uit.finance.core.network.client.KtorTokenCache
 import com.uit.finance.core.network.client.NetworkConfig
@@ -34,4 +38,6 @@ val coreNetworkModule: Module = module {
     }
     single<TokenCache> { KtorTokenCache(get()) }
     single<UserApi> { GeneratedUserApiAdapter(baseUrl = get<NetworkConfig>().baseUrl, httpClient = get()) }
+    single<SyncApi> { GeneratedSyncApiAdapter(baseUrl = get<NetworkConfig>().baseUrl, httpClient = get()) }
+    single<SyncPayloadCodec> { GeneratedSyncPayloadCodec(json = get()) }
 }

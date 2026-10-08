@@ -1,7 +1,7 @@
 openapi: 3.0.3
 info:
   title: Finance API
-  version: 2.0.0
+  version: 2.1.0
   description: |
     API contract của finance-backend, là single source of truth: backend generate server interface,
     app mobile generate client từ file này.
@@ -17,6 +17,13 @@ info:
     - Error theo RFC 7807 `application/problem+json`, kèm `code` ổn định, machine-readable.
     - Tiền không bao giờ là float: integer theo minor units + currency code ISO-4217.
 
+    Đồng bộ (2.1.0, chỉ thêm, không breaking, ADR-002)
+    - App chỉ ghi dữ liệu sổ thu chi qua `POST /api/v1/sync/push`, kéo thay đổi qua `GET /api/v1/sync/pull`.
+    - Dữ liệu từng entity: `AccountData`, `CategoryData`, `TransactionData`. Field lạ, kể cả field do server
+      quản lý (`userId`, `changeSeq`, `version`, `createdAt`...), làm op đó bị `REJECTED`.
+    - Giới hạn: push 60 lần/phút, pull 120 lần/phút mỗi user (vượt → 429 + `Retry-After`); push tối đa
+      100 op và 256 KB.
+
     Breaking changes so với 1.0.0
     - Xoá `/api/v1/auth/register`, `/login`, `/refresh`, `/logout` cùng các schema đi kèm.
     - `UserProfile.id` là internal id, không phải `sub` của Keycloak.
@@ -26,6 +33,8 @@ servers:
 tags:
   - name: me
     description: Current user
+  - name: sync
+    description: Đồng bộ offline-first giữa app và server (ADR-002)
 # Chỉ khai http bearer. KHÔNG thêm scheme `openIdConnect`: generator Kotlin multiplatform 7.14 sinh code
 # sai cú pháp cho scheme đó (`mapOf(, ...`), làm gãy build của finance-mobile.
 security:
@@ -45,6 +54,77 @@ paths:
               schema:
                 $ref: '#/components/schemas/UserProfile'
         '401': { $ref: '#/components/responses/Unauthorized' }
+  /api/v1/sync/push:
+    post:
+      tags: [sync]
+      operationId: pushChanges
+      summary: Gửi các thay đổi ghi offline lên server
+      description: |
+        Mỗi op được xử lý trong một transaction riêng; op lỗi không làm hỏng op khác. Kết quả trả theo
+        từng op, luôn kèm `current` là bản ghi hiện tại trên server (null nếu không có hoặc không phải của
+        bạn). Gửi lại cùng `opId` trong 30 ngày nhận `DUPLICATE`.
+      parameters:
+        - $ref: '#/components/parameters/IdempotencyKey'
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/SyncPushRequest'
+      responses:
+        '200':
+          description: Kết quả từng op, cùng thứ tự với request
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/SyncPushResponse'
+        '400': { $ref: '#/components/responses/BadRequest' }
+        '401': { $ref: '#/components/responses/Unauthorized' }
+        '409': { $ref: '#/components/responses/Conflict' }
+        '413': { $ref: '#/components/responses/PayloadTooLarge' }
+        '422': { $ref: '#/components/responses/UnprocessableEntity' }
+        '429': { $ref: '#/components/responses/TooManyRequests' }
+  /api/v1/sync/pull:
+    get:
+      tags: [sync]
+      operationId: pullChanges
+      summary: Kéo các thay đổi kể từ cursor lần trước
+      description: |
+        Trả thay đổi của chính user, tăng dần theo `changeSeq`, kể cả bản ghi đã xoá (`deleted = true`).
+        Gọi lặp tới khi `hasMore = false`. Một trang có thể chứa giao dịch trước ví của nó.
+      parameters:
+        - name: since
+          in: query
+          required: false
+          description: '`nextCursor` của lần pull trước. Bỏ trống = từ đầu. Chuỗi opaque, không tự tính.'
+          schema:
+            type: string
+            maxLength: 32
+        - name: limit
+          in: query
+          required: false
+          schema:
+            type: integer
+            format: int32
+            minimum: 1
+            maximum: 500
+            default: 200
+      responses:
+        '200':
+          description: Một trang thay đổi
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/SyncPullResponse'
+        '400': { $ref: '#/components/responses/BadRequest' }
+        '401': { $ref: '#/components/responses/Unauthorized' }
+        '409':
+          description: '`sync.cursor_ahead`: cursor lớn hơn dữ liệu trên server (server được khôi phục). Xoá cursor rồi pull lại từ đầu.'
+          content:
+            application/problem+json:
+              schema:
+                $ref: '#/components/schemas/Problem'
+        '429': { $ref: '#/components/responses/TooManyRequests' }
 components:
   securitySchemes:
     bearerAuth:
@@ -82,6 +162,222 @@ components:
           type: string
           format: date-time
           description: Thời điểm local account được tạo (lần đầu gọi API), không phải lúc register trên Keycloak.
+    SyncPushRequest:
+      type: object
+      required: [deviceId, ops]
+      properties:
+        deviceId:
+          type: string
+          minLength: 1
+          maxLength: 128
+          pattern: '^[A-Za-z0-9._:-]+$'
+          description: Id cố định của cài đặt app trên máy, dùng cho nhật ký (ADR-006 B9)
+        ops:
+          type: array
+          minItems: 1
+          maxItems: 100
+          items:
+            $ref: '#/components/schemas/SyncOperation'
+    SyncOperation:
+      type: object
+      required: [opId, entity, id, action]
+      properties:
+        opId:
+          type: string
+          format: uuid
+          description: Do client sinh, duy nhất cho mỗi op. Gửi lại y nguyên khi retry.
+        entity:
+          type: string
+          minLength: 1
+          maxLength: 30
+          description: '`account` | `category` | `transaction`. Giá trị khác → op bị `REJECTED sync.unknown_entity`.'
+          example: transaction
+        id:
+          type: string
+          format: uuid
+          description: Id bản ghi, do client sinh
+        action:
+          type: string
+          enum: [UPSERT, DELETE]
+        data:
+          type: object
+          nullable: true
+          additionalProperties: true
+          description: |
+            Bắt buộc khi `UPSERT`, bỏ qua khi `DELETE`. Hình dạng theo `entity`: `AccountData`,
+            `CategoryData` hoặc `TransactionData`. Không được có field nào khác.
+    SyncPushResponse:
+      type: object
+      required: [results]
+      properties:
+        results:
+          type: array
+          items:
+            $ref: '#/components/schemas/SyncOpResult'
+    SyncOpResult:
+      type: object
+      required: [opId, outcome]
+      properties:
+        opId:
+          type: string
+          format: uuid
+        outcome:
+          type: string
+          enum: [APPLIED, DUPLICATE, CONFLICT, REJECTED, RETRY]
+          description: |
+            APPLIED: đã ghi. DUPLICATE: opId đã xử lý trước đó. CONFLICT: server giữ bản của mình (đã xoá),
+            ghi đè local bằng `current`. REJECTED: bỏ op, khôi phục local theo `current`, báo user.
+            RETRY: ví/danh mục được trỏ tới chưa tới, giữ op và thử lại sau.
+        code:
+          type: string
+          nullable: true
+          description: Mã lỗi khi REJECTED / CONFLICT / RETRY, ví dụ `ledger.archived`
+        current:
+          $ref: '#/components/schemas/SyncChange'
+    SyncPullResponse:
+      type: object
+      required: [changes, nextCursor, hasMore]
+      properties:
+        changes:
+          type: array
+          items:
+            $ref: '#/components/schemas/SyncChange'
+        nextCursor:
+          type: string
+          description: Gửi lại ở tham số `since` của lần pull sau
+        hasMore:
+          type: boolean
+    SyncChange:
+      type: object
+      nullable: true
+      required: [entity, id, changeSeq, deleted]
+      properties:
+        entity:
+          type: string
+          example: account
+        id:
+          type: string
+          format: uuid
+        changeSeq:
+          type: integer
+          format: int64
+        deleted:
+          type: boolean
+          description: Tombstone. Máy khác phải xoá bản ghi này theo.
+        data:
+          type: object
+          nullable: true
+          additionalProperties: true
+          description: '`AccountData` / `CategoryData` / `TransactionData`; null khi `deleted = true`.'
+    AccountData:
+      type: object
+      additionalProperties: false
+      required: [name, type, currency, openingBalanceMinor, sortOrder, archived]
+      properties:
+        name:
+          type: string
+          minLength: 1
+          maxLength: 50
+        type:
+          type: string
+          enum: [CASH, BANK, EWALLET, OTHER]
+        currency:
+          type: string
+          pattern: '^[A-Z]{3}$'
+          description: ISO-4217. Khoá lại khi ví đã có giao dịch.
+        openingBalanceMinor:
+          type: integer
+          format: int64
+          minimum: -1000000000000000
+          maximum: 1000000000000000
+        sortOrder:
+          type: integer
+          format: int32
+        archived:
+          type: boolean
+    CategoryData:
+      type: object
+      additionalProperties: false
+      required: [kind, name, archived]
+      properties:
+        kind:
+          type: string
+          enum: [INCOME, EXPENSE]
+          description: Không đổi được sau khi tạo
+        name:
+          type: string
+          minLength: 1
+          maxLength: 50
+        parentId:
+          type: string
+          format: uuid
+          nullable: true
+          description: Tối đa 2 cấp, cha phải cùng kind
+        icon:
+          type: string
+          nullable: true
+          pattern: '^[a-z0-9_]{1,50}$'
+        color:
+          type: string
+          nullable: true
+          pattern: '^#[0-9A-Fa-f]{6}$'
+        archived:
+          type: boolean
+        templateKey:
+          type: string
+          nullable: true
+          readOnly: true
+          description: Chỉ có ở danh mục mặc định (ví dụ `fee`). Server điền, client gửi lên sẽ bị REJECTED.
+    TransactionData:
+      type: object
+      additionalProperties: false
+      required: [type, status, accountId, amountMinor, currency, occurredOn]
+      properties:
+        type:
+          type: string
+          enum: [INCOME, EXPENSE, TRANSFER]
+        status:
+          type: string
+          enum: [CONFIRMED, DRAFT]
+        accountId:
+          type: string
+          format: uuid
+          description: Ví (với TRANSFER là ví đi)
+        counterAccountId:
+          type: string
+          format: uuid
+          nullable: true
+          description: Ví đến, bắt buộc khi TRANSFER
+        amountMinor:
+          type: integer
+          format: int64
+          minimum: 1
+          maximum: 1000000000000000
+          description: Luôn dương; chiều tiền do `type` quyết định
+        currency:
+          type: string
+          pattern: '^[A-Z]{3}$'
+        categoryId:
+          type: string
+          format: uuid
+          nullable: true
+          description: Bắt buộc khi INCOME/EXPENSE, phải null khi TRANSFER
+        occurredOn:
+          type: string
+          format: date
+          description: Ngày theo lịch của user
+        occurredAt:
+          type: string
+          format: date-time
+          nullable: true
+        payee:
+          type: string
+          nullable: true
+          maxLength: 100
+        note:
+          type: string
+          nullable: true
+          maxLength: 500
     FieldError:
       type: object
       required: [field, message]
@@ -134,6 +430,23 @@ components:
             $ref: '#/components/schemas/Problem'
     Conflict:
       description: Resource đã tồn tại
+      content:
+        application/problem+json:
+          schema:
+            $ref: '#/components/schemas/Problem'
+    PayloadTooLarge:
+      description: Body vượt giới hạn của endpoint
+      content:
+        application/problem+json:
+          schema:
+            $ref: '#/components/schemas/Problem'
+    TooManyRequests:
+      description: Vượt giới hạn tần suất của user. Chờ đúng `Retry-After` giây rồi gửi lại.
+      headers:
+        Retry-After:
+          description: Số giây phải chờ
+          schema:
+            type: integer
       content:
         application/problem+json:
           schema:
