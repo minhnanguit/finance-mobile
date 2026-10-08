@@ -16,21 +16,25 @@ import com.uit.finance.core.network.api.UserApi
 import com.uit.finance.core.network.api.model.UserProfileDto
 import com.uit.finance.core.network.auth.AuthTokens
 import com.uit.finance.core.network.auth.TokenCache
+import com.uit.finance.core.session.LocalDataState
+import com.uit.finance.core.session.UserSession
+import com.uit.finance.core.sync.outbox.OutboxRepository
 import com.uit.finance.core.testing.TestClock
 import com.uit.finance.feature.auth.data.remote.UserRemoteDataSource
 import com.uit.finance.feature.auth.domain.model.Session
 import com.uit.finance.feature.auth.domain.model.SignInMode
 import com.uit.finance.feature.auth.domain.model.SignInResult
 import com.uit.finance.feature.auth.domain.model.UserProfile
-import kotlinx.coroutines.flow.Flow
-import kotlinx.coroutines.flow.MutableStateFlow
-import kotlinx.coroutines.test.runTest
 import kotlin.test.Test
 import kotlin.test.assertEquals
 import kotlin.test.assertIs
 import kotlin.test.assertNull
 import kotlin.time.ExperimentalTime
 import kotlin.time.Instant
+import kotlinx.coroutines.flow.Flow
+import kotlinx.coroutines.flow.MutableStateFlow
+import kotlinx.coroutines.flow.flowOf
+import kotlinx.coroutines.test.runTest
 
 class AuthRepositoryImplTest {
 
@@ -75,10 +79,34 @@ class AuthRepositoryImplTest {
         override fun invalidate() { invalidations += 1 }
     }
 
+    /** Ghi thứ tự thao tác để kiểm "xoá sổ trước, xoá token sau". */
+    private class FakeUserSession(private val sessionStore: FakeSessionStore) : UserSession {
+        val events = mutableListOf<String>()
+        val stored = mutableSetOf("user-1")
+        override val state = MutableStateFlow<LocalDataState>(LocalDataState.SignedOut)
+        override fun start() = Unit
+        override fun refresh() = Unit
+        override suspend fun wipeCurrentUser() {
+            events += "wipe(sessionPresent=${sessionStore.state.value != null})"
+        }
+        override suspend fun otherUsersOnDevice(currentUserId: String) = stored - currentUserId
+        override suspend fun wipe(userIds: Set<String>) {
+            events += "wipe$userIds"
+            stored -= userIds
+        }
+    }
+
+    private class FakeOutbox(var unsent: Long = 0) : OutboxRepository {
+        override fun observeUnsentCount() = flowOf(unsent)
+        override suspend fun unsentCount() = unsent
+    }
+
     private val authenticator = FakeAuthenticator()
     private val userApi = FakeUserApi()
     private val sessionStore = FakeSessionStore()
     private val tokenCache = RecordingTokenCache()
+    private val userSession = FakeUserSession(sessionStore)
+    private val outbox = FakeOutbox()
     private val clock = TestClock(Instant.fromEpochSeconds(1_000))
 
     private fun repository() = AuthRepositoryImpl(
@@ -86,6 +114,8 @@ class AuthRepositoryImplTest {
         userRemote = UserRemoteDataSource(userApi),
         sessionStore = sessionStore,
         tokenCache = tokenCache,
+        userSession = userSession,
+        outbox = outbox,
         clock = clock,
         logger = Logger.withTag("test"),
     )
@@ -154,5 +184,35 @@ class AuthRepositoryImplTest {
         assertEquals(AppResult.Success(Unit), repository().logout())
 
         assertEquals(emptyList(), authenticator.endedSessions)
+    }
+
+    @Test
+    fun logoutWipesTheLocalLedgerBeforeClearingTheSession() = runTest {
+        sessionStore.save(StoredSession("a", "r", 5_000L, userId = "user-1"))
+
+        repository().logout()
+
+        assertEquals(listOf("wipe(sessionPresent=true)"), userSession.events)
+        assertNull(sessionStore.state.value)
+    }
+
+    @Test
+    fun countsUnsentChangesFromTheOutbox() = runTest {
+        outbox.unsent = 4
+
+        assertEquals(4L, repository().unsentChangeCount())
+    }
+
+    @Test
+    fun findsAndWipesOtherAccountsLedgersOnTheDevice() = runTest {
+        sessionStore.save(StoredSession("a", "r", 5_000L))
+        userSession.stored += "user-old"
+        val repo = repository()
+
+        val found = repo.otherAccountsOnDevice()
+        repo.wipeOtherAccounts()
+
+        assertEquals(AppResult.Success(1), found)
+        assertEquals(setOf("user-1"), userSession.stored)
     }
 }

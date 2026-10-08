@@ -38,4 +38,17 @@ internal class FakeAuthRepository : AuthRepository {
     override fun observeSession(): Flow<Session?> = sessions
 
     override suspend fun currentUser(): AppResult<UserProfile> = currentUserResult
+
+    var unsentChanges = 0L
+    var otherAccountsResult: AppResult<Int> = AppResult.Success(0)
+    var wipeOtherCalls = 0
+
+    override suspend fun unsentChangeCount(): Long = unsentChanges
+
+    override suspend fun otherAccountsOnDevice(): AppResult<Int> = otherAccountsResult
+
+    override suspend fun wipeOtherAccounts(): AppResult<Unit> {
+        wipeOtherCalls += 1
+        return AppResult.Success(Unit)
+    }
 }

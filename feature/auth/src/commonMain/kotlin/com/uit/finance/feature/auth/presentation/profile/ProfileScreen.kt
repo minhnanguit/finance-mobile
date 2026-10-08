@@ -17,6 +17,7 @@ import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.getValue
 import androidx.compose.ui.Modifier
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
+import com.uit.finance.core.designsystem.component.ConfirmDialog
 import com.uit.finance.core.designsystem.component.ErrorBanner
 import com.uit.finance.core.designsystem.component.LoadingIndicator
 import com.uit.finance.core.designsystem.theme.FinanceTheme
@@ -102,6 +103,18 @@ internal fun ProfileScreen(
         ) {
             Text(if (state.isLoggingOut) "Đang đăng xuất..." else "Đăng xuất")
         }
+    }
+
+    state.unsentChangesWarning?.let { unsent ->
+        ConfirmDialog(
+            title = "Còn thay đổi chưa đồng bộ",
+            message = "Có $unsent thay đổi chưa lên server. Đăng xuất bây giờ sẽ xoá sổ trên máy này và mất các thay đổi đó.",
+            confirmLabel = "Vẫn đăng xuất",
+            dismissLabel = "Ở lại",
+            destructive = true,
+            onConfirm = { onIntent(ProfileIntent.ConfirmLogout) },
+            onDismiss = { onIntent(ProfileIntent.DismissLogoutWarning) },
+        )
     }
 }
 

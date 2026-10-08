@@ -3,16 +3,21 @@ package com.uit.finance.feature.auth.presentation.signedout
 import androidx.lifecycle.viewModelScope
 import com.uit.finance.core.common.result.AppError
 import com.uit.finance.core.common.result.fold
+import com.uit.finance.core.common.result.getOrNull
 import com.uit.finance.core.presentation.mvi.MviViewModel
 import com.uit.finance.core.presentation.text.UiText
 import com.uit.finance.core.presentation.text.toUiText
 import com.uit.finance.feature.auth.domain.model.SignInMode
 import com.uit.finance.feature.auth.domain.model.SignInResult
+import com.uit.finance.feature.auth.domain.usecase.CheckOtherAccountsDataUseCase
 import com.uit.finance.feature.auth.domain.usecase.SignInUseCase
+import com.uit.finance.feature.auth.domain.usecase.WipeOtherAccountsDataUseCase
 import kotlinx.coroutines.launch
 
 internal class SignedOutViewModel(
     private val signIn: SignInUseCase,
+    private val checkOtherAccounts: CheckOtherAccountsDataUseCase,
+    private val wipeOtherAccounts: WipeOtherAccountsDataUseCase,
 ) : MviViewModel<SignedOutState, SignedOutIntent, SignedOutEffect>(SignedOutState()) {
 
     override fun onIntent(intent: SignedOutIntent) {
@@ -20,6 +25,11 @@ internal class SignedOutViewModel(
             SignedOutIntent.SignInClicked -> start(SignInMode.SignIn)
             SignedOutIntent.SignUpClicked -> start(SignInMode.SignUp)
             SignedOutIntent.ErrorDismissed -> setState { copy(error = null) }
+            SignedOutIntent.KeepOtherAccounts -> enterApp()
+            SignedOutIntent.WipeOtherAccounts -> viewModelScope.launch {
+                wipeOtherAccounts()
+                enterApp()
+            }
         }
     }
 
@@ -30,12 +40,26 @@ internal class SignedOutViewModel(
         viewModelScope.launch {
             signIn(mode).fold(
                 onSuccess = { result ->
-                    setState { copy(inProgress = null) }
-                    if (result is SignInResult.SignedIn) sendEffect(SignedOutEffect.NavigateToHome)
+                    if (result is SignInResult.SignedIn) afterSignIn() else setState { copy(inProgress = null) }
                 },
                 onFailure = { error -> setState { copy(inProgress = null).withError(error) } },
             )
         }
+    }
+
+    /** Máy còn sổ của tài khoản khác thì hỏi trước; kiểm không được (mất mạng) thì vào app luôn. */
+    private suspend fun afterSignIn() {
+        val others = checkOtherAccounts().getOrNull() ?: 0
+        if (others > 0) {
+            setState { copy(inProgress = null, otherAccountsPrompt = true) }
+        } else {
+            enterApp()
+        }
+    }
+
+    private fun enterApp() {
+        setState { copy(inProgress = null, otherAccountsPrompt = false) }
+        sendEffect(SignedOutEffect.NavigateToHome)
     }
 }
 
