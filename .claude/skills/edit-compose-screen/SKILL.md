@@ -17,12 +17,17 @@ description: Thêm hoặc sửa màn hình / component Compose Multiplatform tro
 | Cần gì | Dùng |
 |---|---|
 | Khoảng cách | `FinanceTheme.spacing.{xxs,xs,sm,md,lg,xl,xxl}` (4dp grid) — **không** `16.dp` literal |
-| Màu | `MaterialTheme.colorScheme.*` (`FinanceTheme` đã set sáng/tối) |
-| Typography | `MaterialTheme.typography.*` |
-| Nút chính / phụ | `PrimaryButton`, `SecondaryTextButton` |
+| Màu | `MaterialTheme.colorScheme.*` (sáng/tối) + `FinanceTheme.colors.{income,expense,transfer,*Container,accountCards}` |
+| Typography | `MaterialTheme.typography.*` (Montserrat, set sẵn trong theme) |
+| Bo góc | `MaterialTheme.shapes.{small,medium,large}` |
+| Chuyển động | `FinanceMotion.{quick,standard,emphasized,gentleSpring}()`, `Modifier.pressScale(interactionSource)` — không tự đặt duration |
+| Nút chính / phụ | `PrimaryButton`, `SecondaryTextButton`, `QuickActionButton` (tròn + nhãn), `CircleIconButton` |
 | Ô nhập | `FinanceTextField` |
-| Loading / lỗi | `LoadingIndicator`, `ErrorBanner` |
-| Icon | `Icon(FinanceIcons.X, contentDescription = …)` — thêm icon mới vào `core/designsystem/icon/FinanceIcons.kt` |
+| Loading / lỗi / trống | `LoadingIndicator`, `ErrorBanner`, `EmptyState` |
+| Tiền | `AmountText(amount, currency, sign)` — chuỗi do `MoneyFormatter` (core/presentation) format trong ViewModel/mapper |
+| Danh sách | `FinanceListItem` + `IconTile` (đầu dòng) + `AmountText` (cuối dòng); tiêu đề mục `SectionHeader` |
+| Thẻ ví / số liệu | `AccountCard` (màu từ `FinanceTheme.colors.accountCards[i % size]`), `StatTile`, `PagerIndicator`, `Avatar`, `LabelChip` |
+| Icon | `Icon(FinanceIcons.X, contentDescription = …)` — thêm icon mới vào `FinanceIcons.kt` (map sang Lucide; **không** import `com.composables.icons` ở nơi khác). Icon danh mục: `categoryIcon(key)` |
 
 Thiếu component → thêm vào `core/designsystem/component/` theo phong cách các file có sẵn, rồi mới dùng.
 

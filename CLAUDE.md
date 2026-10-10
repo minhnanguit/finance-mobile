@@ -8,7 +8,8 @@ Client Kotlin Multiplatform (Android + iOS) dùng **Compose Multiplatform UI chu
 - Package gốc: `com.uit.finance` · compileSdk 36 · minSdk 26 · targetSdk 36
 - Kiến trúc đã **chốt** ở `../ARCHITECTURE.md` (repo-level, tiếng Việt). Không tự đổi.
 - Hợp đồng API: `api/openapi.yaml` là bản **copy nguyên văn** từ `finance-backend`, pin theo `api/VERSION` (hiện `2.1.0`). **Không sửa tay file này.**
-- Feature hiện có: `feature/auth` (reference feature: SignedOut / Profile; login/register diễn ra trên **Keycloak** qua system browser, ADR-004) · `feature/home` (Trang chủ; chưa có số liệu, chờ màn ledger Phase 5).
+- Feature hiện có: `feature/auth` (reference feature: SignedOut / Profile; login/register diễn ra trên **Keycloak** qua system browser, ADR-004) · `feature/home` (Trang chủ: thẻ ví, thu/chi tháng này, giao dịch gần đây — đọc từ `core/ledger` qua `ObserveHomeDashboardUseCase`).
+- UI theo bản thiết kế tham chiếu Purrweb "Finance Mobile iOS App" (dribbble.com/shots/21793126): Montserrat, sage `#94C1B2` / cam đào `#FFC789` / nền `#121212`. Token và component ở `core/designsystem`; icon là Lucide nhưng **chỉ** import trong `FinanceIcons.kt`.
 - Dữ liệu ledger (ví, danh mục, giao dịch) + sync offline-first: `core/ledger` + `core/sync`, theo `../docs/LEDGER-PLAN.md`.
 - `finance-backend` là repo riêng — **không sửa từ đây**.
 
@@ -57,7 +58,8 @@ gradle/libs.versions.toml   version catalog — MỌI version nằm ở đây
 
 core/common           AppResult / AppError / FieldError, Money (Long minor units), DispatcherProvider,
                       UuidGenerator, Clock, PlatformInfo. Kotlin thuần
-core/presentation     MviViewModel<State, Intent, Effect>, UiText + AppError.toUiText()
+core/presentation     MviViewModel<State, Intent, Effect>, UiText + AppError.toUiText(), MoneyFormatter (corePresentationModule),
+                      DateLabels (toRelativeLabel / toLongLabel)
 core/network          Ktor client (ContentNegotiation, logging sanitize, timeout, bearer + refresh rotation,
                       IdempotencyKeyPlugin, RFC 7807 → ApiException), UserApi, port TokenProvider + TokenRefresher
 core/auth             OIDC client Keycloak: PKCE S256, discovery, token/refresh/logout, AuthorizationLauncher
@@ -72,11 +74,14 @@ core/sync             OutboxWriter, SyncEngine (push/pull 1 cursor, xử lý APP
 core/ledger           Model + validate ví/danh mục/giao dịch, repository (ghi entity + outbox 1 transaction),
                       số dư Flow từ SUM, SyncChangeApplier áp thay đổi từ server. Module duy nhất đụng bảng ledger
 core/session          UserSession: sau /me mở DB của user + chạy sync; đăng xuất xoá DB + khoá; DB của user khác trên máy
-core/designsystem     FinanceTheme, Spacing (4dp grid), PrimaryButton, FinanceTextField, LoadingIndicator, ErrorBanner,
-                      FinanceIcons (ImageVector, dùng qua `Icon()`)
+core/designsystem     FinanceTheme (Color/Typography Montserrat/Shape/Spacing 4dp/Motion), FinanceIcons (facade Lucide) +
+                      categoryIcon(key), component: AccountCard (+contourPattern), QuickActionButton, FinanceListItem,
+                      IconTile, AmountText, StatTile, SectionHeader, PagerIndicator, Avatar, CircleIconButton, LabelChip,
+                      EmptyState, pressScale, PrimaryButton, FinanceTextField, LoadingIndicator, ErrorBanner, ConfirmDialog
 core/testing          TestDispatcherProvider, TestClock, FakeUuidGenerator, MainDispatcherRule
 feature/auth          domain / data / presentation trong CÙNG một Gradle module
-feature/home          Trang chủ: chỉ presentation (chưa có domain/data cho tới khi có core/ledger)
+feature/home          Trang chủ: domain (ObserveHomeDashboardUseCase gom ví + số dư + thu/chi tháng + giao dịch gần đây từ
+                      repository của core/ledger) + presentation (HomeUiMapper format, HomeScreen theo bản thiết kế)
 architecture-test     21 luật Konsist (JVM)
 ```
 

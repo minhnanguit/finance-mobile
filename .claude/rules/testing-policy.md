@@ -23,6 +23,7 @@ CI chạy cả ba (job `android`) + build iOS (job `ios`, cần macOS + Xcode).
 ## Quy tắc
 
 - Test ở `commonTest` trước; chỉ xuống `androidUnitTest` khi thật sự cần JVM-only.
+- Tên test trong `commonTest` (backtick) **không chứa** `,` `:` `(` `)` `.` — Kotlin/Native từ chối, `compileTestKotlinIosSimulatorArm64` fail dù `make test` xanh. Dùng ` - ` thay dấu phẩy.
 - **Fake > mock.** Repo dùng fake class viết tay, không có mocking framework trong version catalog.
 - Thời gian: `TestClock`. Id: `FakeUuidGenerator`. Dispatcher: `TestDispatcherProvider`. Đừng dùng giờ/UUID thật.
 - Flow/StateFlow: Turbine (`turbine` trong catalog), không `delay()` + assert.
