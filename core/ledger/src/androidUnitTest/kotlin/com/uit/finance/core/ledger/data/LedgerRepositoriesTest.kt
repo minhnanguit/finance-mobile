@@ -35,7 +35,9 @@ import kotlin.test.assertIs
 import kotlin.test.assertTrue
 import kotlinx.coroutines.test.TestScope
 import kotlinx.coroutines.test.runTest
+import kotlinx.datetime.DateTimeUnit
 import kotlinx.datetime.LocalDate
+import kotlinx.datetime.minus
 
 class LedgerRepositoriesTest {
 
@@ -261,6 +263,32 @@ class LedgerRepositoriesTest {
             assertEquals(100_000L, byAccount[wallet.id])
             assertEquals(20_000L, byAccount[bank.id])
             assertEquals(listOf(Money(120_000, "VND")), summary.totals)
+            cancelAndIgnoreRemainingEvents()
+        }
+    }
+
+    @Test
+    fun `dòng tiền theo khoảng ngày - chỉ CONFIRMED trong kỳ, bỏ chuyển tiền, tách tiền tệ`() = runTest {
+        val repos = repos()
+        val wallet = repos.wallet()
+        val bank = repos.accounts.create(AccountDraft("Bank", AccountType.BANK, "VND", 0)).value()
+        val usd = repos.accounts.create(AccountDraft("USD", AccountType.BANK, "USD", 0)).value()
+        val food = repos.category()
+        val salary = repos.category(CategoryKind.INCOME)
+        repos.transactions.record(expense(wallet, food, 30_000))
+        repos.transactions.record(expense(wallet, food, 999).copy(status = TransactionStatus.DRAFT))
+        repos.transactions.record(expense(wallet, food, 5_000).copy(occurredOn = today.minus(40, DateTimeUnit.DAY)))
+        repos.transactions.record(TransactionDraft(TransactionType.INCOME, wallet.id, 50_000, today, categoryId = salary.id))
+        repos.transactions.record(TransactionDraft(TransactionType.TRANSFER, wallet.id, 20_000, today, counterAccountId = bank.id))
+        repos.transactions.record(TransactionDraft(TransactionType.EXPENSE, usd.id, 1_250, today, categoryId = food.id))
+        val removed = repos.transactions.record(expense(wallet, food, 7_000)).value()
+        repos.transactions.delete(removed.id)
+
+        repos.balances.observeCashFlow(from = LocalDate(2023, 11, 1), to = LocalDate(2023, 11, 30)).test {
+            val cashFlow = awaitItem()
+            assertEquals(listOf(Money(50_000, "VND")), cashFlow.income)
+            assertEquals(listOf(Money(1_250, "USD"), Money(30_000, "VND")), cashFlow.expense)
+            assertEquals(Money(0, "USD"), cashFlow.income("USD"))
             cancelAndIgnoreRemainingEvents()
         }
     }

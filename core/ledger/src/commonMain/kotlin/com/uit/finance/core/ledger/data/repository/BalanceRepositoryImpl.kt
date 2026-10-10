@@ -7,9 +7,12 @@ import com.uit.finance.core.common.money.Money
 import com.uit.finance.core.ledger.data.local.LedgerStore
 import com.uit.finance.core.ledger.domain.model.AccountBalance
 import com.uit.finance.core.ledger.domain.model.BalanceSummary
+import com.uit.finance.core.ledger.domain.model.CashFlow
+import com.uit.finance.core.ledger.domain.model.TransactionType
 import com.uit.finance.core.ledger.domain.repository.BalanceRepository
 import kotlinx.coroutines.flow.Flow
 import kotlinx.coroutines.flow.map
+import kotlinx.datetime.LocalDate
 
 /** Một câu SUM cho mọi ví (Account.sq `selectBalances`), cùng công thức với backend (ADR-005 §5). */
 internal class BalanceRepositoryImpl(
@@ -28,6 +31,18 @@ internal class BalanceRepositoryImpl(
             }
             BalanceSummary(accounts = accounts, totals = totalsByCurrency(accounts))
         }
+    }
+
+    override fun observeCashFlow(from: LocalDate, to: LocalDate): Flow<CashFlow> = store.observe(CashFlow.EMPTY) { database ->
+        database.ledgerTransactionQueries.selectCashFlowBetween(from.toString(), to.toString())
+            .asFlow().mapToList(dispatchers.io)
+            .map { rows ->
+                val byType = rows.groupBy({ TransactionType.valueOf(it.type) }, { Money(it.total_minor, it.currency) })
+                CashFlow(
+                    income = byType[TransactionType.INCOME].orEmpty(),
+                    expense = byType[TransactionType.EXPENSE].orEmpty(),
+                )
+            }
     }
 
     /** Không cộng thẳng các tiền tệ khác nhau (ADR-001); bỏ ví đã archive. */

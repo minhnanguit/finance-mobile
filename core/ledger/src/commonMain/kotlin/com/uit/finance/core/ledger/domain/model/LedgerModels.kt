@@ -73,6 +73,19 @@ data class BalanceSummary(val accounts: List<AccountBalance>, val totals: List<M
     }
 }
 
+/** Tổng thu và tổng chi (CONFIRMED, chưa xoá) trong một khoảng ngày, tách theo tiền tệ; chuyển tiền không tính (D2). */
+data class CashFlow(val income: List<Money>, val expense: List<Money>) {
+    fun income(currency: String): Money = income.firstOrNull { it.currency == currency } ?: Money.zero(currency)
+    fun expense(currency: String): Money = expense.firstOrNull { it.currency == currency } ?: Money.zero(currency)
+
+    /** Mọi tiền tệ có phát sinh thu hoặc chi. */
+    val currencies: Set<String> get() = (income + expense).map { it.currency }.toSet()
+
+    companion object {
+        val EMPTY = CashFlow(emptyList(), emptyList())
+    }
+}
+
 // ---- Dữ liệu để tạo mới (id do client sinh khi lưu) ----
 
 data class AccountDraft(

@@ -4,11 +4,13 @@ import com.uit.finance.core.common.result.AppResult
 import com.uit.finance.core.ledger.domain.model.Account
 import com.uit.finance.core.ledger.domain.model.AccountDraft
 import com.uit.finance.core.ledger.domain.model.BalanceSummary
+import com.uit.finance.core.ledger.domain.model.CashFlow
 import com.uit.finance.core.ledger.domain.model.Category
 import com.uit.finance.core.ledger.domain.model.CategoryDraft
 import com.uit.finance.core.ledger.domain.model.Transaction
 import com.uit.finance.core.ledger.domain.model.TransactionDraft
 import kotlinx.coroutines.flow.Flow
+import kotlinx.datetime.LocalDate
 
 /*
  * Mọi lần ghi lưu vào DB của user trên máy rồi mới gửi lên server khi có mạng (offline-first, ADR-002):
@@ -52,4 +54,7 @@ interface TransactionRepository {
 interface BalanceRepository {
     /** Tính từ lịch sử bằng một câu SUM trên máy, tự cập nhật khi có giao dịch mới (D4). */
     fun observeBalances(): Flow<BalanceSummary>
+
+    /** Tổng thu/chi CONFIRMED trong [from, to] (gồm cả hai đầu), tách theo tiền tệ; bỏ TRANSFER (D2). */
+    fun observeCashFlow(from: LocalDate, to: LocalDate): Flow<CashFlow>
 }
