@@ -44,11 +44,13 @@ interface UserDatabases : UserDatabaseProvider {
  *
  * - Mở xong là kiểm `PRAGMA cipher_version`: lỡ link SQLite thường (không mã hoá) thì **từ chối mở**
  *   thay vì lặng lẽ ghi sổ ra file đọc được.
- * - Mất khoá (Keystore bị reset, app bị restore sang máy khác) thì file không đọc lại được nữa: xoá và
- *   tạo mới. Dữ liệu đã sync vẫn kéo về được; phần chưa gửi thì mất, không cứu được.
+ * - Chỉ xoá file khi chắc chắn không bao giờ đọc lại được: khoá đã mất hẳn, hoặc SQLite báo sai khoá / file
+ *   hỏng. Dữ liệu đã sync vẫn kéo về được; phần chưa gửi thì mất, không cứu được.
+ * - Mọi lỗi khác (Keystore tạm bận, I/O, đĩa đầy, migration lỗi ở bản sau) **giữ nguyên file và khoá**, ném
+ *   lỗi ra cho phiên đăng nhập báo `Failed` rồi thử lại sau: trong file có thể còn thay đổi chưa gửi.
  */
 internal class SqlCipherUserDatabases(
-    private val factory: DatabaseDriverFactory,
+    private val factory: EncryptedDatabaseFiles,
     private val keys: DatabaseKeyStore,
     private val dispatchers: DispatcherProvider,
     private val logger: Logger,
@@ -87,25 +89,26 @@ internal class SqlCipherUserDatabases(
     override suspend fun storedUserIds(): Set<String> = keys.userIds()
 
     private suspend fun openVerified(userId: String, fileName: String): Open {
+        // Keystore/Keychain tạm thời không đọc được thì `find` ném lỗi (không trả null): file được giữ nguyên.
         val existingKey = keys.find(userId)
-        if (existingKey == null) {
-            // File không có khoá thì không bao giờ đọc được nữa; xoá để mở file mới sạch sẽ.
-            factory.delete(fileName)
-        }
-        val key = existingKey ?: keys.create(userId)
+            ?: return recreate(userId, fileName, reason = "không còn khoá")
         return try {
-            connect(userId, fileName, key)
+            connect(userId, fileName, existingKey)
         } catch (e: CancellationException) {
             throw e
         } catch (e: UnencryptedDatabaseException) {
             throw e
         } catch (e: Exception) {
-            if (existingKey == null) throw e
-            // Khoá có nhưng không mở được file (hỏng, sai khoá): bỏ file cũ, mở lại từ đầu.
-            logger.w { "Không mở được DB cục bộ (${e::class.simpleName}); tạo lại file mới" }
-            factory.delete(fileName)
-            connect(userId, fileName, keys.create(userId))
+            if (!factory.isUnreadableFile(e)) throw e
+            recreate(userId, fileName, reason = "sai khoá hoặc file hỏng (${e::class.simpleName})")
         }
+    }
+
+    /** File không bao giờ đọc lại được nữa: bỏ đi, mở file mới với khoá mới. */
+    private suspend fun recreate(userId: String, fileName: String, reason: String): Open {
+        logger.w { "DB cục bộ không đọc được: $reason; tạo lại file mới" }
+        factory.delete(fileName)
+        return connect(userId, fileName, keys.create(userId))
     }
 
     private fun connect(userId: String, fileName: String, key: String): Open {
@@ -119,10 +122,12 @@ internal class SqlCipherUserDatabases(
         return Open(userId, driver, FinanceDatabase(driver))
     }
 
+    /** Gỡ DB khỏi [database] **trước** rồi mới đóng: ai đang theo dõi thấy `null` ngay, không chạm vào driver đã đóng. */
     private fun closeLocked() {
-        open?.driver?.close()
-        open = null
+        val closing = open ?: return
         current.value = null
+        open = null
+        closing.driver.close()
     }
 
     private fun removeLegacyDatabase() {

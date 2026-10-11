@@ -24,7 +24,13 @@ internal class KeychainSecureStorage(
 
     override fun putString(key: String, value: String) = keychain.putString(key, value)
 
-    override fun getString(key: String): String? = keychain.getStringOrNull(key)
+    // KeychainSettings chỉ trả null khi errSecItemNotFound; mọi OSStatus khác (vd errSecInteractionNotAllowed
+    // trước lần mở khoá đầu tiên) là IllegalStateException: item vẫn còn, chỉ là chưa đọc được lúc này.
+    override fun getString(key: String): String? = try {
+        keychain.getStringOrNull(key)
+    } catch (e: IllegalStateException) {
+        throw SecureStorageUnavailableException(e)
+    }
 
     override fun remove(key: String) = keychain.remove(key)
 

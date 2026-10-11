@@ -14,6 +14,7 @@ import com.uit.finance.core.database.FinanceDatabase
 import com.uit.finance.core.ledger.data.local.LedgerStore
 import com.uit.finance.core.ledger.data.local.rejectWith
 import com.uit.finance.core.ledger.data.local.save
+import com.uit.finance.core.ledger.data.local.syncRefs
 import com.uit.finance.core.ledger.data.local.toDomain
 import com.uit.finance.core.ledger.data.local.toPayload
 import com.uit.finance.core.ledger.domain.model.Account
@@ -152,7 +153,7 @@ internal class TransactionRepositoryImpl(
 
     private fun persist(database: FinanceDatabase, transaction: Transaction) {
         database.save(transaction)
-        outbox.upsert(database, SyncEntity.TRANSACTION, transaction.id, codec.encode(transaction.toPayload()))
+        outbox.upsert(database, SyncEntity.TRANSACTION, transaction.id, codec.encode(transaction.toPayload()), transaction.syncRefs())
     }
 
     private companion object {

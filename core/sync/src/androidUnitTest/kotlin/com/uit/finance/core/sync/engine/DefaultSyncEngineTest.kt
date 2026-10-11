@@ -4,10 +4,12 @@ import co.touchlab.kermit.Logger
 import com.uit.finance.core.common.result.AppError
 import com.uit.finance.core.common.result.AppResult
 import com.uit.finance.core.database.FinanceDatabase
+import com.uit.finance.core.sync.outbox.OutboxEntry
 import com.uit.finance.core.sync.outbox.OutboxWriter
 import com.uit.finance.core.sync.support.FakeDatabases
 import com.uit.finance.core.sync.support.FakeRemote
 import com.uit.finance.core.sync.support.RecordingApplier
+import com.uit.finance.core.sync.support.inMemoryDatabase
 import com.uit.finance.core.sync.support.remote
 import com.uit.finance.core.testing.FakeUuidGenerator
 import com.uit.finance.core.testing.TestClock
@@ -16,8 +18,12 @@ import kotlin.test.Test
 import kotlin.test.assertEquals
 import kotlin.test.assertIs
 import kotlin.test.assertTrue
+import kotlin.time.Duration.Companion.hours
 import kotlin.time.Duration.Companion.seconds
+import kotlinx.coroutines.CompletableDeferred
+import kotlinx.coroutines.async
 import kotlinx.coroutines.test.TestScope
+import kotlinx.coroutines.test.runCurrent
 import kotlinx.coroutines.test.runTest
 import kotlinx.serialization.json.JsonPrimitive
 import kotlinx.serialization.json.buildJsonObject
@@ -32,25 +38,32 @@ class DefaultSyncEngineTest {
     private val ids = FakeUuidGenerator()
     private val writer = OutboxWriter(ids, clock)
 
-    private fun TestScope.engine(maxAttempts: Int = 5) = DefaultSyncEngine(
+    private fun TestScope.engine(
+        appliers: List<SyncChangeApplier> = listOf(applier),
+        pushBatchBytes: Int = 192 * 1024,
+    ) = DefaultSyncEngine(
         databases = databases,
-        store = SyncStore(appliers = mapOf(applier.entity to applier), clock = clock, logger = Logger.withTag("test")),
+        store = SyncStore(appliers = appliers.associateBy { it.entity }, logger = Logger.withTag("test")),
         remote = remote,
         deviceId = { "device-1" },
         uuidGenerator = ids,
         clock = clock,
         dispatchers = testDispatcherProvider(),
         logger = Logger.withTag("test"),
-        maxAttempts = maxAttempts,
+        pushBatchBytes = pushBatchBytes,
     )
 
-    private fun queue(id: String) =
-        writer.upsert(database, "account", id, buildJsonObject { put("name", JsonPrimitive(id)) })
+    private fun queue(id: String, name: String = id) =
+        writer.upsert(database, "account", id, buildJsonObject { put("name", JsonPrimitive(name)) })
+
+    private fun rows() = database.outboxQueries.selectAll().executeAsList()
 
     private fun unsent() = database.outboxQueries.countAll().executeAsOne()
 
-    private fun opIdOf(entityId: String) =
-        database.outboxQueries.selectPending(99, 99).executeAsList().first { it.entity_id == entityId }.op_id
+    private fun opIdOf(entityId: String) = rows().first { it.entity_id == entityId }.op_id
+
+    private fun retryAll(batch: List<OutboxEntry>): AppResult<List<PushResult>> =
+        AppResult.Success(batch.map { PushResult(it.opId, SyncOutcome.RETRY, "sync.server_error", null) })
 
     @Test
     fun `chưa có DB của user thì không làm gì`() = runTest {
@@ -82,7 +95,7 @@ class DefaultSyncEngineTest {
         var editedWhileInFlight = false
         remote.onPush = { batch ->
             if (!editedWhileInFlight) {
-                queue("a1") // user sửa lại đúng lúc batch đầu đang bay: op cũ được thay bằng op mới
+                queue("a1") // user sửa lại đúng lúc batch đầu đang bay: op cuối hàng được thay bằng op mới
                 editedWhileInFlight = true
             }
             AppResult.Success(batch.map { PushResult(it.opId, SyncOutcome.APPLIED, null, remote(it.entityId, 7)) })
@@ -124,19 +137,36 @@ class DefaultSyncEngineTest {
     }
 
     @Test
-    fun `RETRY giữ op và tăng số lần thử, quá giới hạn thì không gửi nữa nhưng vẫn tính là chưa gửi`() = runTest {
+    fun `RETRY thì chờ backoff rồi gửi lại, không gửi dồn ngay`() = runTest {
         queue("a1")
-        remote.onPush = { batch ->
-            AppResult.Success(batch.map { PushResult(it.opId, SyncOutcome.RETRY, "ledger.reference_pending", null) })
+        remote.onPush = { retryAll(it) }
+        val engine = engine()
+
+        engine.sync()
+        engine.sync() // còn trong 15 giây chờ
+        clock.advanceBy(16.seconds)
+        engine.sync()
+
+        assertEquals(2, remote.pushedBatches.size)
+        assertEquals(2L, rows().single().attempts)
+    }
+
+    @Test
+    fun `RETRY nhiều lần vẫn không bao giờ bỏ op - server hồi phục là gửi được`() = runTest {
+        queue("a1")
+        remote.onPush = { retryAll(it) }
+        val engine = engine()
+        repeat(10) {
+            engine.sync()
+            clock.advanceBy(2.hours)
         }
-        val engine = engine(maxAttempts = 2)
+        assertEquals(1L, database.outboxQueries.countStuck(STUCK_AFTER_ATTEMPTS.toLong()).executeAsOne(), "UI thấy op kẹt")
 
-        engine.sync()
-        engine.sync()
+        remote.onPush = { FakeRemote.applied(it) }
         engine.sync()
 
-        assertEquals(2, remote.pushedBatches.size, "lần thứ ba op đã bị dừng, không gửi nữa")
-        assertEquals(1L, unsent())
+        assertEquals(10 + 1, remote.pushedBatches.size)
+        assertEquals(0L, unsent())
     }
 
     @Test
@@ -147,7 +177,7 @@ class DefaultSyncEngineTest {
         val result = engine().sync()
 
         assertIs<AppResult.Failure>(result)
-        assertEquals(0L, database.outboxQueries.selectPending(99, 99).executeAsOne().attempts)
+        assertEquals(0L, rows().single().attempts)
         assertTrue(remote.pulledCursors.isEmpty())
     }
 
@@ -167,14 +197,44 @@ class DefaultSyncEngineTest {
     }
 
     @Test
-    fun `cả batch bị 400 thì mỗi op bị tính một lần thử`() = runTest {
-        queue("a1")
-        queue("a2")
-        remote.onPush = { AppResult.Failure(AppError.Api(400, "request.validation_failed", null, null)) }
+    fun `cả batch bị 400 thì chia đôi tới khi khoanh được op lỗi, các op khác vẫn lên server, vẫn pull`() = runTest {
+        listOf("a1", "a2", "bad", "a3").forEach { queue(it) }
+        remote.onPush = { batch ->
+            if (batch.any { it.entityId == "bad" }) AppResult.Failure(AppError.Api(400, "request.validation_failed", null, null))
+            else FakeRemote.applied(batch)
+        }
+
+        val result = engine().sync()
+
+        assertEquals(listOf("bad"), rows().map { it.entity_id }, "chỉ op lỗi còn lại")
+        assertEquals(1L, rows().single().attempts)
+        assertEquals("request.validation_failed", rows().single().last_error)
+        assertIs<AppResult.Success<SyncReport>>(result)
+        assertEquals(listOf<String?>(null), remote.pulledCursors, "push bị từ chối vì nội dung không chặn pull")
+    }
+
+    @Test
+    fun `batch được chia theo dung lượng để không vượt giới hạn body của server`() = runTest {
+        val longName = "x".repeat(1_000)
+        repeat(5) { queue("a$it", name = longName) }
+
+        engine(pushBatchBytes = 2_500).sync()
+
+        assertTrue(remote.pushedBatches.size > 1)
+        assertTrue(remote.pushedBatches.all { batch -> batch.sumOf { it.estimatedWireBytes } <= 2_500 })
+        assertEquals(0L, unsent())
+    }
+
+    @Test
+    fun `413 thì chia nhỏ batch và gửi lại, không kẹt`() = runTest {
+        repeat(4) { queue("a$it") }
+        remote.onPush = { batch ->
+            if (batch.size > 1) AppResult.Failure(AppError.Api(413, "request.too_large", null, null)) else FakeRemote.applied(batch)
+        }
 
         engine().sync()
 
-        assertTrue(database.outboxQueries.selectPending(99, 99).executeAsList().all { it.attempts == 1L })
+        assertEquals(0L, unsent())
     }
 
     @Test
@@ -190,6 +250,43 @@ class DefaultSyncEngineTest {
         assertEquals(listOf(null, "2"), remote.pulledCursors)
         assertEquals("3", database.syncCursorQueries.select().executeAsOne())
         assertEquals(2, (report as AppResult.Success).value.pulled)
+    }
+
+    @Test
+    fun `thay đổi chưa đọc được thì cất lại chứ không mất, nâng cấp app xong áp lại được`() = runTest {
+        applier.unreadable += "a2"
+        remote.pages += AppResult.Success(
+            PullPage(listOf(remote("a1", 1), remote("a2", 2), remote("b1", 3, entity = "budget")), "3", hasMore = false),
+        )
+
+        engine().sync()
+
+        assertEquals("3", database.syncCursorQueries.select().executeAsOne(), "một bản ghi lạ không chặn cả sync")
+        assertEquals(listOf("a2", "b1"), database.syncDeferredQueries.selectOldest(10).executeAsList().map { it.entity_id })
+
+        // Bản app mới: đọc được enum mới, biết thêm entity budget. Process mới nên áp lại một lần.
+        applier.unreadable.clear()
+        val budgets = RecordingApplier(entity = "budget")
+        engine(appliers = listOf(applier, budgets)).sync()
+
+        assertEquals(listOf("a1", "a2"), applier.applied.map { it.id })
+        assertEquals(listOf("b1"), budgets.applied.map { it.id })
+        assertEquals(0L, database.syncDeferredQueries.countAll().executeAsOne())
+    }
+
+    @Test
+    fun `bản mới hơn của cùng bản ghi áp được thì bản cũ đang hoãn bị bỏ`() = runTest {
+        applier.unreadable += "a1"
+        remote.pages += AppResult.Success(PullPage(listOf(remote("a1", 1)), "1", hasMore = false))
+        val engine = engine()
+        engine.sync()
+
+        applier.unreadable.clear()
+        remote.pages += AppResult.Success(PullPage(listOf(remote("a1", 5)), "5", hasMore = false))
+        engine.sync()
+
+        assertEquals(listOf(5L), applier.applied.map { it.changeSeq })
+        assertEquals(0L, database.syncDeferredQueries.countAll().executeAsOne())
     }
 
     @Test
@@ -229,12 +326,53 @@ class DefaultSyncEngineTest {
         queue("a1")
         remote.onPush = { batch ->
             queue("a1") // lần nào cũng có bản sửa mới chen vào
-            AppResult.Success(batch.map { PushResult(it.opId, SyncOutcome.APPLIED, null, null) })
+            FakeRemote.applied(batch)
         }
 
         engine().sync()
 
         assertTrue(remote.pushedBatches.size <= 20)
         assertEquals(1L, unsent(), "phần còn lại để vòng sync sau")
+    }
+
+    @Test
+    fun `đổi DB (đổi user) giữa vòng thì vòng cũ dừng, không áp kết quả, không pull`() = runTest {
+        queue("a1")
+        val oldDatabase = database
+        remote.onPush = { batch ->
+            databases.database.value = inMemoryDatabase() // A đăng xuất, B đăng nhập đúng lúc request đang bay
+            FakeRemote.applied(batch)
+        }
+
+        val result = engine().sync()
+
+        assertIs<AppResult.Failure>(result)
+        assertTrue(remote.pulledCursors.isEmpty(), "không pull bằng phiên mới vào vòng của phiên cũ")
+        assertEquals(1L, oldDatabase.outboxQueries.countAll().executeAsOne(), "kết quả không được áp vào sổ cũ")
+    }
+
+    @Test
+    fun `stop huỷ request đang bay, chờ vòng dừng hẳn, không gửi thêm gì`() = runTest {
+        queue("a1")
+        queue("a2")
+        val inFlight = CompletableDeferred<Unit>()
+        remote.onPush = { batch ->
+            inFlight.complete(Unit)
+            CompletableDeferred<Nothing>().await() // request treo cho tới khi bị huỷ
+            FakeRemote.applied(batch)
+        }
+        val engine = engine()
+
+        val running = async { engine.sync() }
+        inFlight.await()
+        engine.stop()
+        runCurrent()
+
+        assertTrue(running.isCompleted, "stop chỉ trả về khi vòng đã dừng hẳn")
+        assertIs<AppResult.Failure>(running.await())
+        assertEquals(1, remote.pushedBatches.size)
+        assertTrue(remote.pulledCursors.isEmpty())
+        assertEquals(2L, unsent())
+        assertEquals(SyncStatus.Idle, engine.status.value)
     }
 }

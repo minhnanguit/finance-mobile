@@ -63,9 +63,13 @@ internal class AuthRepositoryImpl(
 
     override fun observeSession(): Flow<Session?> = sessionStore.session.map { it?.toDomain() }
 
-    override suspend fun currentUser(): AppResult<UserProfile> = userRemote.currentUser()
-        .map { it.toDomain() }
-        .onSuccess { profile -> sessionStore.attachUserId(profile.id) }
+    /** `userId` chỉ được gắn vào đúng phiên đã hỏi `/me` (phiên đổi giữa chừng thì bỏ, ADR-006 B5). */
+    override suspend fun currentUser(): AppResult<UserProfile> {
+        val askedFor = sessionStore.current()?.refreshToken
+        return userRemote.currentUser()
+            .map { it.toDomain() }
+            .onSuccess { profile -> askedFor?.let { sessionStore.attachUserId(profile.id, forRefreshToken = it) } }
+    }
 
     override suspend fun unsentChangeCount(): Long = outbox.unsentCount()
 

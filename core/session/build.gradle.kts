@@ -9,7 +9,7 @@ kotlin {
             implementation(projects.core.database) // UserDatabases
             implementation(projects.core.datastore) // SessionStore
             implementation(projects.core.network) // UserApi (/me) để biết userId
-            implementation(projects.core.sync) // SyncScheduler
+            implementation(projects.core.sync) // SyncScheduler, SyncEngine.stop()
             implementation(libs.koin.core)
         }
         commonTest.dependencies {

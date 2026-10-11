@@ -1,13 +1,15 @@
 package com.uit.finance.core.database
 
 import android.content.Context
+import android.database.sqlite.SQLiteDatabaseCorruptException
 import app.cash.sqldelight.db.SqlDriver
 import app.cash.sqldelight.driver.android.AndroidSqliteDriver
+import net.zetetic.database.sqlcipher.SQLiteNotADatabaseException
 import net.zetetic.database.sqlcipher.SupportOpenHelperFactory
 
-actual class DatabaseDriverFactory(private val context: Context) {
+actual class DatabaseDriverFactory(private val context: Context) : EncryptedDatabaseFiles {
 
-    actual fun create(fileName: String, passphrase: String): SqlDriver {
+    override fun create(fileName: String, passphrase: String): SqlDriver {
         SqlCipherLibrary.ensureLoaded()
         return AndroidSqliteDriver(
             schema = FinanceDatabase.Schema,
@@ -17,8 +19,14 @@ actual class DatabaseDriverFactory(private val context: Context) {
         )
     }
 
-    actual fun delete(fileName: String) {
+    override fun delete(fileName: String) {
         context.deleteDatabase(fileName)
+    }
+
+    // Sai khoá với SQLCipher là SQLiteNotADatabaseException; error handler mặc định của SQLCipher KHÔNG tự
+    // xoá file khi có codec, nên quyết định xoá hay giữ nằm hết ở UserDatabaseManager.
+    override fun isUnreadableFile(error: Throwable): Boolean = error.causeChain().any {
+        it is SQLiteNotADatabaseException || it is SQLiteDatabaseCorruptException
     }
 }
 

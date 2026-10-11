@@ -70,7 +70,11 @@ class AuthRepositoryImplTest {
         override val session: Flow<StoredSession?> get() = state
         override suspend fun current(): StoredSession? = state.value
         override suspend fun save(session: StoredSession) { state.value = session }
-        override suspend fun attachUserId(userId: String) { state.value = state.value?.copy(userId = userId) }
+        override suspend fun attachUserId(userId: String, forRefreshToken: String): Boolean {
+            if (state.value?.refreshToken != forRefreshToken) return false
+            state.value = state.value?.copy(userId = userId)
+            return true
+        }
         override suspend fun clear() { state.value = null }
     }
 
@@ -99,6 +103,8 @@ class AuthRepositoryImplTest {
     private class FakeOutbox(var unsent: Long = 0) : OutboxRepository {
         override fun observeUnsentCount() = flowOf(unsent)
         override suspend fun unsentCount() = unsent
+        override fun observeStuckCount() = flowOf(0L)
+        override suspend fun retryAllNow() = Unit
     }
 
     private val authenticator = FakeAuthenticator()

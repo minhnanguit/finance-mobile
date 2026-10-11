@@ -10,7 +10,7 @@ import org.koin.dsl.module
 
 /**
  * Cần có trong graph: `SessionStore` (core/datastore), `UserApi` (core/network), `UserDatabases`
- * (core/database), `SyncScheduler` (core/sync). App gọi `UserSession.start()` một lần lúc khởi động.
+ * (core/database), `SyncScheduler` + `SyncEngine` (core/sync). App gọi `UserSession.start()` một lần lúc khởi động.
  */
 val coreSessionModule = module {
     single<UserSession> {
@@ -19,6 +19,7 @@ val coreSessionModule = module {
             userApi = get(),
             databases = get(),
             scheduler = get(),
+            syncEngine = get(),
             // Sống theo process: theo dõi phiên suốt đời app, không gắn với màn hình nào.
             scope = CoroutineScope(SupervisorJob() + get<DispatcherProvider>().default),
             logger = get<Logger>(),

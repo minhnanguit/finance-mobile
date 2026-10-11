@@ -3,6 +3,7 @@ package com.uit.finance.core.datastore.session
 import com.uit.finance.core.common.coroutines.DispatcherProvider
 import com.uit.finance.core.common.time.Clock
 import com.uit.finance.core.datastore.secure.SecureStorage
+import com.uit.finance.core.datastore.secure.SecureStorageUnavailableException
 import com.uit.finance.core.network.auth.AuthTokens
 import com.uit.finance.core.network.auth.TokenProvider
 import kotlinx.coroutines.flow.Flow
@@ -38,29 +39,19 @@ internal class SecureSessionStore(
         return state.value
     }
 
-    override suspend fun save(session: StoredSession) = mutex.withLock {
-        withContext(dispatchers.io) {
-            secureStorage.putString(KEY_ACCESS_TOKEN, session.accessToken)
-            secureStorage.putString(KEY_REFRESH_TOKEN, session.refreshToken)
-            secureStorage.putString(KEY_EXPIRES_AT, session.accessTokenExpiresAtEpochSeconds.toString())
-            session.userId?.let { secureStorage.putString(KEY_USER_ID, it) } ?: secureStorage.remove(KEY_USER_ID)
+    override suspend fun save(session: StoredSession) = mutex.withLock { write(session) }
+
+    override suspend fun attachUserId(userId: String, forRefreshToken: String): Boolean {
+        ensureLoaded()
+        return mutex.withLock {
+            val existing = state.value
+            if (existing?.refreshToken != forRefreshToken) return@withLock false
+            write(existing.copy(userId = userId))
+            true
         }
-        loaded = true
-        state.value = session
     }
 
-    override suspend fun attachUserId(userId: String) {
-        val existing = current() ?: return
-        save(existing.copy(userId = userId))
-    }
-
-    override suspend fun clear() = mutex.withLock {
-        withContext(dispatchers.io) {
-            listOf(KEY_ACCESS_TOKEN, KEY_REFRESH_TOKEN, KEY_EXPIRES_AT, KEY_USER_ID).forEach(secureStorage::remove)
-        }
-        loaded = true
-        state.value = null
-    }
+    override suspend fun clear() = mutex.withLock { erase() }
 
     // ---- TokenProvider ----
 
@@ -72,24 +63,67 @@ internal class SecureSessionStore(
         )
     }
 
-    override suspend fun update(tokens: AuthTokens) {
-        val existing = current()
-        save(
-            StoredSession(
-                accessToken = tokens.accessToken,
-                refreshToken = tokens.refreshToken,
-                accessTokenExpiresAtEpochSeconds = clock.now().epochSeconds + tokens.expiresInSeconds,
-                userId = existing?.userId,
-            ),
-        )
+    override suspend fun replaceIfCurrent(refreshedFrom: String, tokens: AuthTokens): Boolean {
+        ensureLoaded()
+        return mutex.withLock {
+            val existing = state.value
+            if (existing?.refreshToken != refreshedFrom) return@withLock false
+            write(
+                StoredSession(
+                    accessToken = tokens.accessToken,
+                    refreshToken = tokens.refreshToken,
+                    accessTokenExpiresAtEpochSeconds = clock.now().epochSeconds + tokens.expiresInSeconds,
+                    userId = existing.userId,
+                ),
+            )
+            true
+        }
     }
 
+    override suspend fun clearIfCurrent(rejectedRefreshToken: String): Boolean {
+        ensureLoaded()
+        return mutex.withLock {
+            if (state.value?.refreshToken != rejectedRefreshToken) return@withLock false
+            erase()
+            true
+        }
+    }
+
+    /** Gọi khi đang giữ [mutex]. */
+    private suspend fun write(session: StoredSession) {
+        withContext(dispatchers.io) {
+            secureStorage.putString(KEY_ACCESS_TOKEN, session.accessToken)
+            secureStorage.putString(KEY_REFRESH_TOKEN, session.refreshToken)
+            secureStorage.putString(KEY_EXPIRES_AT, session.accessTokenExpiresAtEpochSeconds.toString())
+            session.userId?.let { secureStorage.putString(KEY_USER_ID, it) } ?: secureStorage.remove(KEY_USER_ID)
+        }
+        loaded = true
+        state.value = session
+    }
+
+    /** Gọi khi đang giữ [mutex]. */
+    private suspend fun erase() {
+        withContext(dispatchers.io) {
+            listOf(KEY_ACCESS_TOKEN, KEY_REFRESH_TOKEN, KEY_EXPIRES_AT, KEY_USER_ID).forEach(secureStorage::remove)
+        }
+        loaded = true
+        state.value = null
+    }
+
+    /**
+     * Kho bí mật tạm thời không đọc được: coi như chưa đăng nhập **lần này** nhưng không đánh dấu đã đọc, để
+     * lần hỏi sau đọc lại. Token vẫn còn nguyên trong kho, không bị xoá như trước.
+     */
     private suspend fun ensureLoaded() {
         if (loaded) return
         mutex.withLock {
             if (loaded) return
-            state.value = withContext(dispatchers.io) { read() }
-            loaded = true
+            try {
+                state.value = withContext(dispatchers.io) { read() }
+                loaded = true
+            } catch (e: SecureStorageUnavailableException) {
+                state.value = null
+            }
         }
     }
 

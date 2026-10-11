@@ -5,6 +5,7 @@ import com.uit.finance.core.common.security.secureRandomBytes
 import com.uit.finance.core.common.security.toHex
 import com.uit.finance.core.database.DatabaseKeyStore
 import com.uit.finance.core.datastore.secure.SecureStorage
+import com.uit.finance.core.datastore.secure.SecureStorageUnavailableException
 import kotlinx.coroutines.sync.Mutex
 import kotlinx.coroutines.sync.withLock
 import kotlinx.coroutines.withContext
@@ -42,8 +43,23 @@ internal class SecureDatabaseKeyStore(
         }
     }
 
+    /**
+     * Chỉ để hỏi user có xoá sổ của tài khoản khác không, nên đọc không được thì trả ít hơn chứ không ném lỗi:
+     * khoá tạm thời không đọc được vẫn tính là còn; cả danh mục không đọc được thì coi như chưa biết ai.
+     */
     override suspend fun userIds(): Set<String> = withContext(dispatchers.io) {
-        readIndex().filterTo(mutableSetOf()) { secureStorage.getString(keyOf(it)) != null }
+        val indexed = try {
+            readIndex()
+        } catch (e: SecureStorageUnavailableException) {
+            return@withContext emptySet()
+        }
+        indexed.filterTo(mutableSetOf()) { userId ->
+            try {
+                secureStorage.getString(keyOf(userId)) != null
+            } catch (e: SecureStorageUnavailableException) {
+                true
+            }
+        }
     }
 
     private fun readIndex(): Set<String> =

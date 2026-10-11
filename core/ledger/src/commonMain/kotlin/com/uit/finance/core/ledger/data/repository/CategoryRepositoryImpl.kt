@@ -10,6 +10,7 @@ import com.uit.finance.core.database.FinanceDatabase
 import com.uit.finance.core.ledger.data.local.LedgerStore
 import com.uit.finance.core.ledger.data.local.rejectWith
 import com.uit.finance.core.ledger.data.local.save
+import com.uit.finance.core.ledger.data.local.syncRefs
 import com.uit.finance.core.ledger.data.local.toDomain
 import com.uit.finance.core.ledger.data.local.toPayload
 import com.uit.finance.core.ledger.domain.model.Category
@@ -111,7 +112,7 @@ internal class CategoryRepositoryImpl(
 
     private fun persist(database: FinanceDatabase, category: Category) {
         database.save(category)
-        outbox.upsert(database, SyncEntity.CATEGORY, category.id, codec.encode(category.toPayload()))
+        outbox.upsert(database, SyncEntity.CATEGORY, category.id, codec.encode(category.toPayload()), category.syncRefs())
     }
 
     private fun requireActive(database: FinanceDatabase, categoryId: String, field: String = "category"): Category =

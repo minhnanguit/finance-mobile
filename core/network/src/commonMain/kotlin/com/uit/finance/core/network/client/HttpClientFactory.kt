@@ -110,6 +110,10 @@ internal fun createHttpClient(
 /**
  * Ktor bearer plugin đã serialize các lần refresh đồng thời, nên hàm này chỉ chạy một lần cho mỗi đợt
  * 401. Trả `null` nghĩa là không có token mới: request gốc giữ nguyên 401.
+ *
+ * Phiên có thể đổi trong lúc chờ IdP (đăng xuất, người khác đăng nhập). Khi đó kết quả của lần refresh
+ * này thuộc về phiên cũ: không lưu, không xoá phiên mới, và request gốc (mang dữ liệu của phiên cũ) thất
+ * bại thay vì được gửi lại bằng token của người khác.
  */
 private suspend fun refresh(
     refreshToken: String,
@@ -119,12 +123,17 @@ private suspend fun refresh(
 ): BearerTokens? = try {
     when (val outcome = tokenRefresher.refresh(refreshToken)) {
         is RefreshOutcome.Refreshed -> {
-            tokenProvider.update(outcome.tokens)
-            BearerTokens(outcome.tokens.accessToken, outcome.tokens.refreshToken)
+            if (tokenProvider.replaceIfCurrent(refreshedFrom = refreshToken, tokens = outcome.tokens)) {
+                BearerTokens(outcome.tokens.accessToken, outcome.tokens.refreshToken)
+            } else {
+                logger.i { "Phiên đã đổi trong lúc refresh; bỏ token của phiên cũ" }
+                null
+            }
         }
         RefreshOutcome.Rejected -> {
-            logger.i { "Refresh token bị IdP reject; clear session" }
-            tokenProvider.clear()
+            if (tokenProvider.clearIfCurrent(rejectedRefreshToken = refreshToken)) {
+                logger.i { "Refresh token bị IdP reject; clear session" }
+            }
             null
         }
         RefreshOutcome.Unavailable -> {

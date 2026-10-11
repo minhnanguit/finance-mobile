@@ -1,0 +1,30 @@
+-- Thay đổi từ server mà bản app này chưa áp được: entity chưa biết, enum mới, dữ liệu sai hình dạng.
+-- Cursor vẫn đi tiếp (một bản ghi lạ không được chặn cả sync), nhưng bản ghi được giữ lại ở đây để áp lại
+-- sau khi app được nâng cấp, thay vì mất hẳn vì đã nằm sau cursor.
+-- Mỗi bản ghi chỉ giữ trạng thái mới nhất. Dữ liệu nằm trong DB đã mã hoá (ADR-006 B6), không bao giờ log.
+CREATE TABLE sync_deferred (
+    entity TEXT NOT NULL,
+    entity_id TEXT NOT NULL,
+    change_seq INTEGER NOT NULL,
+    deleted INTEGER NOT NULL,
+    data TEXT,
+    reason TEXT NOT NULL,
+    deferred_at INTEGER NOT NULL,
+    PRIMARY KEY (entity, entity_id)
+);
+
+changeSeqOf:
+SELECT change_seq FROM sync_deferred WHERE entity = ? AND entity_id = ?;
+
+upsert:
+INSERT OR REPLACE INTO sync_deferred(entity, entity_id, change_seq, deleted, data, reason, deferred_at)
+VALUES (?, ?, ?, ?, ?, ?, ?);
+
+deleteFor:
+DELETE FROM sync_deferred WHERE entity = ? AND entity_id = ?;
+
+selectOldest:
+SELECT * FROM sync_deferred ORDER BY change_seq ASC LIMIT ?;
+
+countAll:
+SELECT COUNT(*) FROM sync_deferred;

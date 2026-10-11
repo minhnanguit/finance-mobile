@@ -7,7 +7,7 @@ import org.koin.core.module.Module
 import org.koin.dsl.binds
 import org.koin.dsl.module
 
-/** Provides the platform [com.uit.finance.core.database.DatabaseDriverFactory]. */
+/** Provides the platform [com.uit.finance.core.database.EncryptedDatabaseFiles] (`DatabaseDriverFactory`). */
 internal expect fun platformDatabaseModule(): Module
 
 /** Cần có trong graph: `DatabaseKeyStore` (core/datastore), `DispatcherProvider` + `Logger` (core/common). */

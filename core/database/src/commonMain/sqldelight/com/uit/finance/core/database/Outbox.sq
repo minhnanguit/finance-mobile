@@ -1,6 +1,5 @@
--- Hàng chờ gửi lên server (ADR-002 §4). Mỗi dòng là một op của POST /sync/push.
--- `seq` giữ thứ tự gửi; sửa lại một bản ghi còn đang chờ thì cập nhật dòng cũ tại chỗ (giữ vị trí),
--- để op của ví vẫn đi trước op của giao dịch trỏ tới ví đó.
+-- Hàng chờ gửi lên server (ADR-002 §4). Mỗi dòng là một op của POST /sync/push, `seq` giữ thứ tự ghi.
+-- Server áp từng op độc lập, nên thứ tự gửi do máy giữ (xem selectEligible).
 CREATE TABLE outbox (
     seq INTEGER PRIMARY KEY AUTOINCREMENT,
     op_id TEXT NOT NULL UNIQUE,
@@ -10,36 +9,86 @@ CREATE TABLE outbox (
     payload TEXT,
     created_at INTEGER NOT NULL,
     attempts INTEGER NOT NULL DEFAULT 0,
-    last_error TEXT
+    last_error TEXT,
+    -- Chưa tới giờ thì chưa gửi lại (backoff sau RETRY / batch bị từ chối). 0 = gửi được ngay.
+    next_attempt_at INTEGER NOT NULL DEFAULT 0
 );
 
+-- (entity, entity_id) kèm rowid = seq, nên tìm "op trước của cùng bản ghi" chỉ là một lần dò index.
 CREATE INDEX outbox_entity_idx ON outbox(entity, entity_id);
+
+-- Bản ghi mà một op trỏ tới: ví và danh mục của giao dịch, danh mục cha. Op đổi bản ghi đó (archive,
+-- xoá...) phải đợi mọi op trước còn trỏ tới nó, nếu không server sẽ từ chối op trỏ tới (ledger.archived).
+CREATE TABLE outbox_ref (
+    seq INTEGER NOT NULL,
+    entity TEXT NOT NULL,
+    entity_id TEXT NOT NULL,
+    PRIMARY KEY (seq, entity, entity_id)
+);
+
+CREATE INDEX outbox_ref_target_idx ON outbox_ref(entity, entity_id, seq);
+
+-- Op xong (hoặc bị bỏ) thì phụ thuộc của nó cũng hết.
+CREATE TRIGGER outbox_ref_cleanup
+AFTER DELETE ON outbox
+BEGIN
+    DELETE FROM outbox_ref WHERE seq = old.seq;
+END;
 
 insert:
 INSERT INTO outbox(op_id, entity, entity_id, action, payload, created_at)
 VALUES (?, ?, ?, ?, ?, ?);
 
-latestFor:
-SELECT seq, action FROM outbox
-WHERE entity = ? AND entity_id = ?
-ORDER BY seq DESC
-LIMIT 1;
+lastInsertedSeq:
+SELECT last_insert_rowid();
+
+insertRef:
+INSERT OR IGNORE INTO outbox_ref(seq, entity, entity_id) VALUES (?, ?, ?);
+
+deleteRefs:
+DELETE FROM outbox_ref WHERE seq = ?;
+
+selectRefs:
+SELECT entity, entity_id FROM outbox_ref WHERE seq = ? ORDER BY entity, entity_id;
+
+-- Op cuối cùng của cả hàng chờ.
+selectTail:
+SELECT seq, entity, entity_id, action FROM outbox ORDER BY seq DESC LIMIT 1;
 
 replace:
 UPDATE outbox
-SET op_id = :opId, payload = :payload, created_at = :createdAt, attempts = 0, last_error = NULL
+SET op_id = :opId, payload = :payload, created_at = :createdAt, attempts = 0, last_error = NULL, next_attempt_at = 0
 WHERE seq = :seq;
 
-selectPending:
-SELECT * FROM outbox
-WHERE attempts < :maxAttempts
-ORDER BY seq ASC
+-- Op gửi được ở lượt này, theo đúng thứ tự ghi. Một op phải đợi khi:
+--  1. còn op trước của chính bản ghi đó: server áp độc lập, gửi chung batch thì bản cũ có thể đè bản mới;
+--  2. còn op trước trỏ tới bản ghi này: archive/xoá ví đi trước giao dịch của ví → giao dịch bị từ chối;
+--  3. bản ghi nó trỏ tới còn op trước đang chờ backoff: gửi bây giờ chỉ tốn một lần RETRY.
+-- Mọi điều kiện chỉ nhìn op TRƯỚC, nên op đầu hàng luôn gửi được khi hết backoff: hàng chờ không kẹt vĩnh viễn.
+selectEligible:
+SELECT o.* FROM outbox o
+WHERE o.next_attempt_at <= :now
+  AND NOT EXISTS (
+      SELECT 1 FROM outbox p
+      WHERE p.entity = o.entity AND p.entity_id = o.entity_id AND p.seq < o.seq
+  )
+  AND NOT EXISTS (
+      SELECT 1 FROM outbox_ref r
+      WHERE r.entity = o.entity AND r.entity_id = o.entity_id AND r.seq < o.seq
+  )
+  AND NOT EXISTS (
+      SELECT 1 FROM outbox_ref mine
+      JOIN outbox p ON p.entity = mine.entity AND p.entity_id = mine.entity_id
+      WHERE mine.seq = o.seq AND p.seq < o.seq AND p.next_attempt_at > :now
+  )
+ORDER BY o.seq ASC
 LIMIT :limit;
 
 countAll:
 SELECT COUNT(*) FROM outbox;
 
-countParked:
+-- Op đã thử nhiều lần vẫn chưa được nhận: UI báo "chưa gửi được" để user biết.
+countStuck:
 SELECT COUNT(*) FROM outbox WHERE attempts >= ?;
 
 hasPendingFor:
@@ -47,8 +96,16 @@ SELECT COUNT(*) FROM outbox WHERE entity = ? AND entity_id = ?;
 
 markAttempt:
 UPDATE outbox
-SET attempts = attempts + 1, last_error = ?
-WHERE op_id = ?;
+SET attempts = attempts + 1, last_error = :lastError, next_attempt_at = :nextAttemptAt
+WHERE op_id = :opId;
+
+-- User chủ động làm mới: bỏ thời gian chờ, giữ nguyên số lần thử.
+resetBackoff:
+UPDATE outbox SET next_attempt_at = 0 WHERE next_attempt_at > 0;
 
 deleteByOpId:
 DELETE FROM outbox WHERE op_id = ?;
+
+-- Cả hàng chờ theo thứ tự ghi (debug, test).
+selectAll:
+SELECT * FROM outbox ORDER BY seq ASC;

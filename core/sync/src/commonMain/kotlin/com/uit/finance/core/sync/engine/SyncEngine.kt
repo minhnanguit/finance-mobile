@@ -35,6 +35,12 @@ data class SyncReport(val pushed: Int, val pulled: Int, val rejected: Int, val r
 interface SyncEngine {
     val status: StateFlow<SyncStatus>
     suspend fun sync(): AppResult<SyncReport>
+
+    /**
+     * Huỷ vòng sync đang chạy (kể cả request đang bay) và **chờ nó dừng hẳn**. Gọi trước khi đóng, xoá hoặc
+     * đổi DB của user, để không vòng nào đọc sổ của người này rồi gửi đi bằng token của người khác (B5).
+     */
+    suspend fun stop()
 }
 
 /** ADR-002 §4. Mọi kết quả trừ [RETRY] là chốt. */

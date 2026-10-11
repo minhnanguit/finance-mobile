@@ -72,7 +72,7 @@ class LedgerRepositoriesTest {
 
     private fun AppResult<*>.fieldErrors(): List<FieldError> = ((this as AppResult.Failure).error as AppError.Validation).fieldErrors
 
-    private fun outboxActions() = database.outboxQueries.selectPending(99, 99).executeAsList().map { "${it.entity}:${it.action}" }
+    private fun outboxActions() = database.outboxQueries.selectAll().executeAsList().map { "${it.entity}:${it.action}" }
 
     private suspend fun Repos.wallet(currency: String = "VND", opening: Long = 0): Account =
         accounts.create(AccountDraft("Ví", AccountType.CASH, currency, opening)).value()

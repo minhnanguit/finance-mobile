@@ -12,6 +12,7 @@ import com.uit.finance.core.sync.engine.SyncOutcome
 import com.uit.finance.core.sync.engine.SyncRemoteDataSource
 import com.uit.finance.core.sync.outbox.OutboxEntry
 import kotlinx.coroutines.flow.MutableStateFlow
+import kotlinx.serialization.json.JsonObject
 
 /** Schema thật trên SQLite in-memory của JVM (không có SQLCipher, không cần ở đây). */
 fun inMemoryDatabase(): FinanceDatabase {
@@ -31,9 +32,7 @@ class FakeRemote : SyncRemoteDataSource {
     val pulledCursors = mutableListOf<String?>()
     val pages = ArrayDeque<AppResult<PullPage>>()
 
-    var onPush: (List<OutboxEntry>) -> AppResult<List<PushResult>> = { batch ->
-        AppResult.Success(batch.map { PushResult(it.opId, SyncOutcome.APPLIED, null, null) })
-    }
+    var onPush: suspend (List<OutboxEntry>) -> AppResult<List<PushResult>> = { batch -> applied(batch) }
 
     override suspend fun push(deviceId: String, batch: List<OutboxEntry>, idempotencyKey: String): AppResult<List<PushResult>> {
         pushedBatches += batch
@@ -45,13 +44,21 @@ class FakeRemote : SyncRemoteDataSource {
         pulledCursors += since
         return pages.removeFirstOrNull() ?: AppResult.Success(PullPage(emptyList(), since ?: "0", hasMore = false))
     }
+
+    companion object {
+        fun applied(batch: List<OutboxEntry>): AppResult<List<PushResult>> =
+            AppResult.Success(batch.map { PushResult(it.opId, SyncOutcome.APPLIED, null, null) })
+    }
 }
 
+/** Ghi lại thay vì ghi DB. Id nằm trong [unreadable] thì giả làm dữ liệu không đọc được (enum mới...). */
 class RecordingApplier(override val entity: String = "account") : SyncChangeApplier {
     val applied = mutableListOf<RemoteChange>()
     val discarded = mutableListOf<String>()
+    val unreadable = mutableSetOf<String>()
 
     override fun apply(database: FinanceDatabase, change: RemoteChange) {
+        require(change.id !in unreadable) { "unknown enum value" }
         applied += change
     }
 
@@ -60,5 +67,5 @@ class RecordingApplier(override val entity: String = "account") : SyncChangeAppl
     }
 }
 
-fun remote(id: String, seq: Long, deleted: Boolean = false, entity: String = "account") =
-    RemoteChange(entity = entity, id = id, changeSeq = seq, deleted = deleted, data = null)
+fun remote(id: String, seq: Long, deleted: Boolean = false, entity: String = "account", data: JsonObject? = null) =
+    RemoteChange(entity = entity, id = id, changeSeq = seq, deleted = deleted, data = data)

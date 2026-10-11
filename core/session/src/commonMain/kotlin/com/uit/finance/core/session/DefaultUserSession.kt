@@ -8,6 +8,7 @@ import com.uit.finance.core.datastore.session.SessionStore
 import com.uit.finance.core.datastore.session.StoredSession
 import com.uit.finance.core.network.api.UserApi
 import com.uit.finance.core.network.api.apiCall
+import com.uit.finance.core.sync.engine.SyncEngine
 import com.uit.finance.core.sync.scheduler.SyncScheduler
 import kotlinx.coroutines.CancellationException
 import kotlinx.coroutines.CoroutineScope
@@ -24,12 +25,17 @@ internal class DefaultUserSession(
     private val userApi: UserApi,
     private val databases: UserDatabases,
     private val scheduler: SyncScheduler,
+    private val syncEngine: SyncEngine,
     private val scope: CoroutineScope,
     private val logger: Logger,
 ) : UserSession {
 
-    /** Chỉ hai thứ quyết định DB nào mở: có phiên hay không, và `userId` là gì. Token rotate thì bỏ qua. */
-    private data class Identity(val signedIn: Boolean, val userId: String?)
+    /**
+     * Thứ quyết định DB nào được mở. Token rotate thì bỏ qua, trừ khi chưa biết `userId`: lúc đó mỗi lần
+     * đăng nhập là một danh tính khác nhau (refresh token khác), kể cả khi `StateFlow` gộp mất bước đăng
+     * xuất ở giữa, để việc gọi `/me` của phiên cũ luôn bị huỷ.
+     */
+    private data class Identity(val signedIn: Boolean, val userId: String?, val pendingLogin: String?)
 
     private val mutableState = MutableStateFlow<LocalDataState>(LocalDataState.SignedOut)
     override val state: StateFlow<LocalDataState> = mutableState.asStateFlow()
@@ -60,7 +66,7 @@ internal class DefaultUserSession(
 
     override suspend fun wipeCurrentUser() {
         val userId = databases.activeUserId ?: sessions.current()?.userId ?: return
-        scheduler.cancelAll()
+        stopSync()
         databases.delete(userId)
         mutableState.value = LocalDataState.SignedOut
     }
@@ -73,23 +79,36 @@ internal class DefaultUserSession(
     }
 
     private suspend fun onIdentity(identity: Identity) {
+        // Đổi người (hoặc chưa biết là ai) thì tháo hẳn DB đang mở trước: không vòng sync nào được đọc sổ của
+        // người cũ rồi gửi đi bằng token của người mới (B5). Chỉ đóng, KHÔNG xoá (B7); xoá đi qua wipeCurrentUser.
+        if (!identity.signedIn || databases.activeUserId != identity.userId) detach()
         when {
-            !identity.signedIn -> {
-                // Hết phiên hoặc đã đăng xuất: chỉ đóng, KHÔNG xoá (B7). Xoá chỉ đi qua wipeCurrentUser.
-                scheduler.cancelAll()
-                databases.close()
-                mutableState.value = LocalDataState.SignedOut
-            }
+            !identity.signedIn -> mutableState.value = LocalDataState.SignedOut
             identity.userId == null -> resolveUserId()
             else -> openFor(identity.userId)
         }
     }
 
-    /** Lấy `userId` từ `/me` rồi gắn vào phiên; lần phát kế tiếp của phiên sẽ mở DB. */
+    private suspend fun detach() {
+        stopSync()
+        databases.close()
+    }
+
+    /** Huỷ lịch nền **và** vòng sync đang chạy dở, chờ nó dừng hẳn rồi mới đụng tới DB. */
+    private suspend fun stopSync() {
+        scheduler.cancelAll()
+        syncEngine.stop()
+    }
+
+    /** Lấy `userId` từ `/me` rồi gắn vào **đúng** phiên đã hỏi; lần phát kế tiếp của phiên sẽ mở DB. */
     private suspend fun resolveUserId() {
         mutableState.value = LocalDataState.ResolvingUser
+        val askedFor = sessions.current() ?: return
         when (val profile = apiCall { userApi.getCurrentUser() }) {
-            is AppResult.Success -> sessions.attachUserId(profile.value.id)
+            is AppResult.Success ->
+                if (!sessions.attachUserId(profile.value.id, forRefreshToken = askedFor.refreshToken)) {
+                    logger.i { "Phiên đổi trong lúc gọi /me; bỏ kết quả của phiên cũ" }
+                }
             is AppResult.Failure -> {
                 logger.w { "Chưa lấy được userId của phiên" }
                 mutableState.value = LocalDataState.Failed(profile.error)
@@ -112,5 +131,9 @@ internal class DefaultUserSession(
         scheduler.requestImmediate()
     }
 
-    private fun StoredSession?.identity() = Identity(signedIn = this != null, userId = this?.userId)
+    private fun StoredSession?.identity() = Identity(
+        signedIn = this != null,
+        userId = this?.userId,
+        pendingLogin = this?.takeIf { it.userId == null }?.refreshToken,
+    )
 }

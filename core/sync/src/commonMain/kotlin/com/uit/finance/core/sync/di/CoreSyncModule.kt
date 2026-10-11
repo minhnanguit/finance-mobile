@@ -35,7 +35,6 @@ val coreSyncModule: Module = module {
             databases = get(),
             store = SyncStore(
                 appliers = getAll<SyncChangeApplier>().associateBy { it.entity },
-                clock = get(),
                 logger = get(),
             ),
             remote = get(),
