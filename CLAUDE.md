@@ -65,12 +65,16 @@ core/network          Ktor client (ContentNegotiation, logging sanitize, timeout
 core/auth             OIDC client Keycloak: PKCE S256, discovery, token/refresh/logout, AuthorizationLauncher
                       (Android Custom Tabs · iOS ASWebAuthenticationSession), implement TokenRefresher
 core/database         SQLDelight FinanceDatabase **mỗi user một file** `finance-<userId>.db`, mã hoá SQLCipher (khoá 256-bit
-                      trong SecureStorage): outbox, sync_cursor, sync_rejection, account, category, ledger_transaction.
-                      UserDatabaseProvider (StateFlow DB đang mở) + UserDatabases (open/close/delete)
+                      trong SecureStorage): outbox (+ outbox_ref), sync_cursor, sync_rejection, sync_deferred, account,
+                      category, ledger_transaction. Schema version 2, migration ở `sqldelight/migrations/*.sqm` (đổi bảng
+                      = thêm file .sqm + cập nhật UserDatabaseMigrationTest). UserDatabaseProvider (StateFlow DB đang mở) +
+                      UserDatabases (open/close/delete; chỉ xoá file khi sai khoá/mất khoá thật)
 core/datastore        SecureStorage (Android Keystore AES/GCM · iOS Keychain AfterFirstUnlockThisDeviceOnly), AppSettings,
                       SessionStore, DatabaseKeyStore
-core/sync             OutboxWriter, SyncEngine (push/pull 1 cursor, xử lý APPLIED/CONFLICT/REJECTED/RETRY/429),
-                      SyncRemoteDataSource (API thật), SyncIssueRepository, SyncScheduler
+core/sync             OutboxWriter (chỉ gộp vào op cuối hàng + SyncRef), SyncEngine (push/pull 1 cursor; giữ thứ tự theo bản
+                      ghi và tham chiếu; batch theo số op + dung lượng, 400/413 thì chia đôi; RETRY = backoff, không bỏ op;
+                      bản ghi chưa đọc được cất vào sync_deferred; stop() trước khi đổi/đóng DB), SyncRemoteDataSource,
+                      OutboxRepository (unsent/stuck/retryAllNow), SyncIssueRepository, SyncScheduler
 core/ledger           Model + validate ví/danh mục/giao dịch, repository (ghi entity + outbox 1 transaction),
                       số dư Flow từ SUM, SyncChangeApplier áp thay đổi từ server. Module duy nhất đụng bảng ledger
 core/session          UserSession: sau /me mở DB của user + chạy sync; đăng xuất xoá DB + khoá; DB của user khác trên máy

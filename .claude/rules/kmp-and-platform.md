@@ -18,8 +18,8 @@ Dùng khi và chỉ khi hành vi khác nhau theo nền tảng. Mẫu có sẵn:
 
 | expect | actual Android | actual iOS |
 |---|---|---|
-| `DatabaseDriverFactory.create(fileName, passphrase)` / `delete` | `AndroidSqliteDriver` + SQLCipher `SupportOpenHelperFactory` | `NativeSqliteDriver` + `DatabaseConfiguration.Encryption` (SQLCipher qua SPM trong `iosApp/project.yml`, **không** `-lsqlite3`) |
-| `SecureStorage` (interface + Koin platform module) | Keystore AES-256/GCM + SharedPreferences | Keychain |
+| `DatabaseDriverFactory : EncryptedDatabaseFiles` (`create` / `delete` / `isUnreadableFile`) | `AndroidSqliteDriver` + SQLCipher `SupportOpenHelperFactory`; sai khoá = `SQLiteNotADatabaseException` | `NativeSqliteDriver` + `DatabaseConfiguration.Encryption` (SQLCipher qua SPM trong `iosApp/project.yml`, **không** `-lsqlite3`); sai khoá = `SqliteErrorType.SQLITE_NOTADB` |
+| `SecureStorage` (interface + Koin platform module) | Keystore AES-256/GCM + SharedPreferences. Chỉ xoá giá trị khi lỗi vĩnh viễn (`AEADBadTag`...); lỗi tạm → `SecureStorageUnavailableException` | Keychain. OSStatus khác `errSecItemNotFound` → `SecureStorageUnavailableException` |
 | `PlatformInfo` | `.android.kt` | `.ios.kt` |
 | `platformEngine()` | OkHttp | Darwin |
 | `SyncScheduler` | WorkManager | BGTaskScheduler |
