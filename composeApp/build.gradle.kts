@@ -59,6 +59,9 @@ kotlin {
             implementation(projects.feature.auth)
             implementation(projects.feature.home)
         }
+        commonTest.dependencies {
+            implementation(projects.core.testing)
+        }
         commonMain {
             kotlin.srcDir(generateAppEnvironment)
         }

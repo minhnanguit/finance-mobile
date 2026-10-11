@@ -1,8 +1,10 @@
 package com.uit.finance.app.di
 
+import com.uit.finance.app.devtools.DemoDataSeeder
 import com.uit.finance.core.auth.OidcConfig
 import com.uit.finance.core.network.client.NetworkConfig
 import org.koin.core.module.Module
+import org.koin.core.module.dsl.factoryOf
 import org.koin.dsl.module
 
 /** Backend của build này: loopback của emulator/simulator khi debug, host thật khi release. */
@@ -27,4 +29,7 @@ internal const val OIDC_CLIENT_ID = "finance-mobile"
 internal val appModule: Module = module {
     single { NetworkConfig(baseUrl = defaultApiBaseUrl(), logHttp = isDebugBuild) }
     single { OidcConfig(issuer = defaultOidcIssuer(), clientId = OIDC_CLIENT_ID, redirectUri = OIDC_REDIRECT_URI) }
+
+    // Công cụ dev (menu DEV, dữ liệu mẫu): bản release không đăng ký nên không resolve được.
+    if (isDebugBuild) factoryOf(::DemoDataSeeder)
 }

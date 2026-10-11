@@ -1,6 +1,8 @@
 package com.uit.finance.app.navigation
 
+import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.WindowInsets
+import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.safeDrawing
 import androidx.compose.material3.Scaffold
@@ -8,6 +10,7 @@ import androidx.compose.runtime.Composable
 import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.remember
+import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import androidx.navigation.NavDestination.Companion.hasRoute
@@ -15,12 +18,15 @@ import androidx.navigation.NavHostController
 import androidx.navigation.compose.NavHost
 import androidx.navigation.compose.currentBackStackEntryAsState
 import androidx.navigation.compose.rememberNavController
+import com.uit.finance.app.devtools.DevMenu
+import com.uit.finance.app.di.isDebugBuild
 import com.uit.finance.app.navigation.placeholder.AccountsDestination
 import com.uit.finance.app.navigation.placeholder.AddTransactionDestination
 import com.uit.finance.app.navigation.placeholder.BillsDestination
 import com.uit.finance.app.navigation.placeholder.ReportsDestination
 import com.uit.finance.app.navigation.placeholder.placeholderNavGraph
 import com.uit.finance.core.designsystem.component.LoadingIndicator
+import com.uit.finance.core.designsystem.theme.FinanceTheme
 import com.uit.finance.feature.auth.domain.usecase.ObserveSessionUseCase
 import com.uit.finance.feature.auth.presentation.navigation.SignedOutDestination
 import com.uit.finance.feature.auth.presentation.navigation.authNavGraph
@@ -66,17 +72,23 @@ private fun MainNavHost(isAuthenticated: Boolean) {
             }
         },
     ) { contentPadding ->
-        NavHost(
-            navController = navController,
-            startDestination = startDestination,
-            modifier = Modifier.padding(contentPadding),
-        ) {
-            authNavGraph(
-                onAuthenticated = { navController.navigateClearingBackStack(HomeDestination) },
-                onLoggedOut = { navController.navigateClearingBackStack(SignedOutDestination) },
-            )
-            homeNavGraph(onNavigate = navController::open)
-            placeholderNavGraph(onBack = { navController.navigateUp() })
+        Box(Modifier.padding(contentPadding)) {
+            NavHost(
+                navController = navController,
+                startDestination = startDestination,
+                modifier = Modifier.fillMaxSize(),
+            ) {
+                authNavGraph(
+                    onAuthenticated = { navController.navigateClearingBackStack(HomeDestination) },
+                    onLoggedOut = { navController.navigateClearingBackStack(SignedOutDestination) },
+                )
+                homeNavGraph(onNavigate = navController::open)
+                placeholderNavGraph(onBack = { navController.navigateUp() })
+            }
+            // Menu DEV (dữ liệu mẫu…) chỉ có ở build debug và khi đã có sổ của user để ghi vào.
+            if (isDebugBuild && isAuthenticated) {
+                DevMenu(Modifier.align(Alignment.BottomEnd).padding(FinanceTheme.spacing.md))
+            }
         }
     }
 
