@@ -36,22 +36,32 @@ DELETE FROM account WHERE id = ?;
 
 -- Số dư = ban đầu + thu − chi − chuyển đi + chuyển đến; chỉ giao dịch CONFIRMED chưa xoá (ADR-005 §5).
 -- Cùng công thức với backend (AccountFlowsQueryAdapter).
+--
+-- Không dùng thẳng SUM(amount): SUM của SQLite ném "integer overflow" khi tổng vượt Long, làm chết cả Flow
+-- số dư (tới được bằng ~9.300 giao dịch 10¹⁵). Cộng riêng phần thương và phần dư cho 10⁹ thì không bao
+-- giờ tràn. Ghép lại bằng phép nhân/cộng thường: tràn thì SQLite đổi sang số thực, CAST kẹp ở biên Long.
+-- Trong biên Long, kết quả vẫn chính xác tới từng đơn vị.
 selectBalances:
+WITH flow(account_id, amount) AS (
+    SELECT account_id, CASE type WHEN 'INCOME' THEN amount_minor ELSE -amount_minor END
+    FROM ledger_transaction
+    WHERE deleted = 0 AND status = 'CONFIRMED'
+    UNION ALL
+    SELECT counter_account_id, amount_minor
+    FROM ledger_transaction
+    WHERE deleted = 0 AND status = 'CONFIRMED' AND type = 'TRANSFER'
+),
+total(account_id, high, low) AS (
+    SELECT account_id, SUM(amount / 1000000000), SUM(amount % 1000000000)
+    FROM flow
+    GROUP BY account_id
+)
 SELECT
     a.id,
     a.currency,
     a.archived,
-    a.opening_balance_minor
-        + CAST(COALESCE((
-            SELECT SUM(CASE t.type WHEN 'INCOME' THEN t.amount_minor ELSE -t.amount_minor END)
-            FROM ledger_transaction t
-            WHERE t.account_id = a.id AND t.deleted = 0 AND t.status = 'CONFIRMED'
-        ), 0) AS INTEGER)
-        + CAST(COALESCE((
-            SELECT SUM(t.amount_minor)
-            FROM ledger_transaction t
-            WHERE t.counter_account_id = a.id AND t.type = 'TRANSFER' AND t.deleted = 0 AND t.status = 'CONFIRMED'
-        ), 0) AS INTEGER) AS balance_minor
+    CAST(a.opening_balance_minor + COALESCE(t.high, 0) * 1000000000 + COALESCE(t.low, 0) AS INTEGER) AS balance_minor
 FROM account a
+LEFT JOIN total t ON t.account_id = a.id
 WHERE a.deleted = 0
 ORDER BY a.sort_order ASC, a.name ASC, a.id ASC;

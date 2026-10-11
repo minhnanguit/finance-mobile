@@ -45,10 +45,22 @@ internal class BalanceRepositoryImpl(
             }
     }
 
-    /** Không cộng thẳng các tiền tệ khác nhau (ADR-001); bỏ ví đã archive. */
+    /**
+     * Không cộng thẳng các tiền tệ khác nhau (ADR-001); bỏ ví đã archive. Tổng vượt Long thì kẹt ở biên giống
+     * câu SQL số dư, thay vì `Money.plus` ném ArithmeticException làm chết cả Flow.
+     */
     private fun totalsByCurrency(accounts: List<AccountBalance>): List<Money> =
         accounts.filterNot { it.archived }
             .groupBy { it.balance.currency }
-            .map { (currency, balances) -> balances.fold(Money.zero(currency)) { total, it -> total + it.balance } }
+            .map { (currency, balances) -> Money(balances.fold(0L) { total, it -> total.saturatingPlus(it.balance.amountMinor) }, currency) }
             .sortedBy { it.currency }
+
+    private fun Long.saturatingPlus(other: Long): Long {
+        val sum = this + other
+        return when {
+            this > 0 && other > 0 && sum < 0 -> Long.MAX_VALUE
+            this < 0 && other < 0 && sum >= 0 -> Long.MIN_VALUE
+            else -> sum
+        }
+    }
 }
