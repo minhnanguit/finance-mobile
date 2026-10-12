@@ -3,7 +3,7 @@
 | Lệnh | Chạy gì | Cần gì |
 |---|---|---|
 | `make test` | Unit test mọi module KMP (target Android/JVM, chạy trên host) | JDK + Android SDK |
-| `make arch` | 19 luật Konsist (đọc **source**, không phải bytecode) | JDK |
+| `make arch` | 23 luật Konsist (đọc **source**, không phải bytecode) | JDK |
 | `make apk` | Build APK — smoke test biên dịch | Android SDK |
 
 CI chạy cả ba (job `android`) + build iOS (job `ios`, cần macOS + Xcode).
@@ -12,17 +12,18 @@ CI chạy cả ba (job `android`) + build iOS (job `ios`, cần macOS + Xcode).
 
 | Đối tượng | Nơi | Công cụ |
 |---|---|---|
-| Domain model, use case | `<module>/src/commonTest/…/domain/` | `kotlin.test` + fake repository (mẫu `FakeAuthRepository` trong `feature/auth/src/commonTest/…/testing/`) |
+| Domain model, use case | `<module>/src/commonTest/…/domain/` | `kotlin.test` + fake repository (mẫu `FakeAuthRepository` trong `feature/auth/src/commonTest/…/testing/`). Feature dùng ledger/sync: fake dùng chung ở `core/ledger-testing` (`FakeAccountRepository`…, `FakeSyncKit`) |
 | Repository (data) | `commonTest/…/data/repository/` | Fake remote + fake `SessionStore` (mẫu `AuthRepositoryImplTest`) |
 | ViewModel | `commonTest/…/presentation/` | **Turbine** cho `state`/`effects` (mẫu `SignedOutViewModelTest`), `TestDispatcherProvider` |
 | Ktor client, plugin | `core/network/src/commonTest/` | `ktor-client-mock` (mẫu `HttpClientFactoryTest`, `IdempotencyKeyPluginTest`, `TestSupport.kt`) |
 | OIDC / Keycloak | `core/auth/src/commonTest/` | `FakeKeycloak` (MockEngine) + `FakeAuthorizationLauncher`. PKCE kiểm bằng vector RFC 7636 |
-| Thứ chỉ chạy trên JVM/Android | `src/androidUnitTest/` | Mẫu `SqlDelightOutboxRepositoryTest` |
+| Thứ chỉ chạy trên JVM/Android (SQLDelight in-memory) | `src/androidUnitTest/` | Mẫu `OutboxWriterTest`, `OutboxOrderingTest`, `DefaultSyncEngineTest` (`core/sync`), `LedgerRepositoriesTest` (`core/ledger`), `UserDatabaseMigrationTest` + `SqlCipherUserDatabasesTest` (`core/database`) |
 | Luật kiến trúc | `architecture-test/` | Konsist — chỉ sửa khi user đồng ý |
 
 ## Quy tắc
 
 - Test ở `commonTest` trước; chỉ xuống `androidUnitTest` khi thật sự cần JVM-only.
+- Tên test trong `commonTest` (backtick) **không chứa** `,` `:` `(` `)` `.` — Kotlin/Native từ chối, `compileTestKotlinIosSimulatorArm64` fail dù `make test` xanh. Dùng ` - ` thay dấu phẩy.
 - **Fake > mock.** Repo dùng fake class viết tay, không có mocking framework trong version catalog.
 - Thời gian: `TestClock`. Id: `FakeUuidGenerator`. Dispatcher: `TestDispatcherProvider`. Đừng dùng giờ/UUID thật.
 - Flow/StateFlow: Turbine (`turbine` trong catalog), không `delay()` + assert.

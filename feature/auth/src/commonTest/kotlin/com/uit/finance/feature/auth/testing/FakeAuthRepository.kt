@@ -2,6 +2,7 @@ package com.uit.finance.feature.auth.testing
 
 import com.uit.finance.core.common.result.AppError
 import com.uit.finance.core.common.result.AppResult
+import com.uit.finance.feature.auth.domain.model.LocalDataStatus
 import com.uit.finance.feature.auth.domain.model.Session
 import com.uit.finance.feature.auth.domain.model.SignInMode
 import com.uit.finance.feature.auth.domain.model.SignInResult
@@ -38,4 +39,26 @@ internal class FakeAuthRepository : AuthRepository {
     override fun observeSession(): Flow<Session?> = sessions
 
     override suspend fun currentUser(): AppResult<UserProfile> = currentUserResult
+
+    var unsentChanges = 0L
+    var otherAccountsResult: AppResult<Int> = AppResult.Success(0)
+    var wipeOtherCalls = 0
+
+    override suspend fun unsentChangeCount(): Long = unsentChanges
+
+    override suspend fun otherAccountsOnDevice(): AppResult<Int> = otherAccountsResult
+
+    val localData = MutableStateFlow(LocalDataStatus.Ready)
+    var retryLocalDataCalls = 0
+
+    override fun observeLocalDataStatus(): Flow<LocalDataStatus> = localData
+
+    override fun retryLocalData() {
+        retryLocalDataCalls += 1
+    }
+
+    override suspend fun wipeOtherAccounts(): AppResult<Unit> {
+        wipeOtherCalls += 1
+        return AppResult.Success(Unit)
+    }
 }

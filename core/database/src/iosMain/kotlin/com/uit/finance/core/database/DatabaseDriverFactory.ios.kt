@@ -2,8 +2,32 @@ package com.uit.finance.core.database
 
 import app.cash.sqldelight.db.SqlDriver
 import app.cash.sqldelight.driver.native.NativeSqliteDriver
+import co.touchlab.sqliter.DatabaseConfiguration
+import co.touchlab.sqliter.DatabaseFileContext
+import co.touchlab.sqliter.interop.SQLiteExceptionErrorCode
+import co.touchlab.sqliter.interop.SqliteErrorType
 
-actual class DatabaseDriverFactory {
-    actual fun createDriver(): SqlDriver =
-        NativeSqliteDriver(schema = FinanceDatabase.Schema, name = DATABASE_NAME)
+/**
+ * `PRAGMA key` chỉ có tác dụng khi app link SQLCipher (iosApp/project.yml) thay cho libsqlite3; nếu
+ * không, [requireEncrypted] chặn lại ngay khi mở.
+ */
+actual class DatabaseDriverFactory : EncryptedDatabaseFiles {
+
+    override fun create(fileName: String, passphrase: String): SqlDriver = NativeSqliteDriver(
+        schema = FinanceDatabase.Schema,
+        name = fileName,
+        onConfiguration = { config ->
+            config.copy(encryptionConfig = DatabaseConfiguration.Encryption(key = passphrase))
+        },
+    )
+
+    override fun delete(fileName: String) {
+        DatabaseFileContext.deleteDatabase(fileName)
+    }
+
+    // Sai khoá với SQLCipher là SQLITE_NOTADB ("file is not a database"); file hỏng là SQLITE_CORRUPT.
+    override fun isUnreadableFile(error: Throwable): Boolean = error.causeChain().any {
+        it is SQLiteExceptionErrorCode &&
+            (it.errorType == SqliteErrorType.SQLITE_NOTADB || it.errorType == SqliteErrorType.SQLITE_CORRUPT)
+    }
 }

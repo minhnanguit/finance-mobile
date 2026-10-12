@@ -13,6 +13,8 @@ class ApiException(
     val detail: String?,
     val fieldErrors: List<FieldError> = emptyList(),
     val traceId: String? = null,
+    /** Header `Retry-After` (giây) của response 429. */
+    val retryAfterSeconds: Long? = null,
 ) : RuntimeException(buildString {
     append("HTTP ").append(status)
     code?.let { append(" [").append(it).append(']') }

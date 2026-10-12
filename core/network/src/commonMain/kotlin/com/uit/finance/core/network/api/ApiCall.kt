@@ -42,5 +42,6 @@ fun ApiException.toAppError(): AppError = when (status) {
         title = title,
         detail = detail,
         fieldErrors = fieldErrors,
+        retryAfterSeconds = retryAfterSeconds,
     )
 }

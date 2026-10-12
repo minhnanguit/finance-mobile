@@ -6,7 +6,11 @@ kotlin {
     sourceSets {
         commonMain.dependencies {
             api(projects.core.common)
-            implementation(projects.core.database)
+            api(projects.core.database) // FinanceDatabase nằm trong API của OutboxWriter / SyncChangeApplier
+            implementation(projects.core.network) // SyncApi
+            implementation(projects.core.datastore) // installationId làm deviceId
+            api(libs.kotlinx.serialization.json) // JsonObject trong payload của op
+            implementation(libs.sqldelight.coroutines)
             implementation(libs.koin.core)
         }
         androidMain.dependencies {

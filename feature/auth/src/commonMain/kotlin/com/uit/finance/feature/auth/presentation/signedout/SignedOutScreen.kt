@@ -14,6 +14,7 @@ import androidx.compose.runtime.getValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
+import com.uit.finance.core.designsystem.component.ConfirmDialog
 import com.uit.finance.core.designsystem.component.ErrorBanner
 import com.uit.finance.core.designsystem.component.PrimaryButton
 import com.uit.finance.core.designsystem.component.SecondaryTextButton
@@ -79,6 +80,18 @@ internal fun SignedOutScreen(
             text = "Tạo tài khoản",
             onClick = { onIntent(SignedOutIntent.SignUpClicked) },
             enabled = !state.isBusy,
+        )
+    }
+
+    if (state.otherAccountsPrompt) {
+        ConfirmDialog(
+            title = "Máy này còn dữ liệu của tài khoản khác",
+            message = "Sổ thu chi của tài khoản đăng nhập trước đó vẫn còn trên máy (đã mã hoá, tài khoản này không xem được). Xoá đi để giải phóng bộ nhớ và bảo vệ người kia?",
+            confirmLabel = "Xoá",
+            dismissLabel = "Giữ lại",
+            destructive = true,
+            onConfirm = { onIntent(SignedOutIntent.WipeOtherAccounts) },
+            onDismiss = { onIntent(SignedOutIntent.KeepOtherAccounts) },
         )
     }
 }

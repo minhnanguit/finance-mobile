@@ -8,8 +8,19 @@ import com.uit.finance.core.common.result.AppResult
 import com.uit.finance.feature.auth.domain.model.Session
 import com.uit.finance.feature.auth.domain.model.SignInMode
 import com.uit.finance.feature.auth.domain.model.SignInResult
+import com.uit.finance.feature.auth.domain.usecase.CheckOtherAccountsDataUseCase
 import com.uit.finance.feature.auth.domain.usecase.SignInUseCase
+import com.uit.finance.feature.auth.domain.usecase.WipeOtherAccountsDataUseCase
 import com.uit.finance.feature.auth.testing.FakeAuthRepository
+import kotlin.test.AfterTest
+import kotlin.test.BeforeTest
+import kotlin.test.Test
+import kotlin.test.assertEquals
+import kotlin.test.assertFalse
+import kotlin.test.assertNull
+import kotlin.test.assertTrue
+import kotlin.time.ExperimentalTime
+import kotlin.time.Instant
 import kotlinx.coroutines.CompletableDeferred
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.ExperimentalCoroutinesApi
@@ -17,13 +28,6 @@ import kotlinx.coroutines.test.StandardTestDispatcher
 import kotlinx.coroutines.test.resetMain
 import kotlinx.coroutines.test.runTest
 import kotlinx.coroutines.test.setMain
-import kotlin.test.AfterTest
-import kotlin.test.BeforeTest
-import kotlin.test.Test
-import kotlin.test.assertEquals
-import kotlin.test.assertNull
-import kotlin.time.ExperimentalTime
-import kotlin.time.Instant
 
 class SignedOutViewModelTest {
 
@@ -31,7 +35,11 @@ class SignedOutViewModelTest {
     private val repository = FakeAuthRepository()
     private val signedIn = AppResult.Success(SignInResult.SignedIn(Session(null, Instant.fromEpochSeconds(1))))
 
-    private fun viewModel() = SignedOutViewModel(SignInUseCase(repository))
+    private fun viewModel() = SignedOutViewModel(
+        SignInUseCase(repository),
+        CheckOtherAccountsDataUseCase(repository),
+        WipeOtherAccountsDataUseCase(repository),
+    )
 
     @BeforeTest
     fun setUp() = Dispatchers.setMain(dispatcher)
@@ -127,5 +135,51 @@ class SignedOutViewModelTest {
         vm.onIntent(SignedOutIntent.ErrorDismissed)
 
         assertNull(vm.state.value.error)
+    }
+
+    @Test
+    fun anotherAccountsDataOnTheDeviceIsOfferedForDeletionBeforeEnteringTheApp() = runTest(dispatcher) {
+        repository.signInResult = signedIn
+        repository.otherAccountsResult = AppResult.Success(1)
+        val vm = viewModel()
+
+        vm.effects.test {
+            vm.onIntent(SignedOutIntent.SignInClicked)
+            dispatcher.scheduler.advanceUntilIdle()
+            assertTrue(vm.state.value.otherAccountsPrompt)
+            expectNoEvents()
+
+            vm.onIntent(SignedOutIntent.WipeOtherAccounts)
+            assertEquals(SignedOutEffect.NavigateToHome, awaitItem())
+        }
+        assertEquals(1, repository.wipeOtherCalls)
+        assertFalse(vm.state.value.otherAccountsPrompt)
+    }
+
+    @Test
+    fun keepingTheOtherAccountsDataEntersWithoutDeleting() = runTest(dispatcher) {
+        repository.signInResult = signedIn
+        repository.otherAccountsResult = AppResult.Success(2)
+        val vm = viewModel()
+
+        vm.effects.test {
+            vm.onIntent(SignedOutIntent.SignInClicked)
+            dispatcher.scheduler.advanceUntilIdle()
+            vm.onIntent(SignedOutIntent.KeepOtherAccounts)
+            assertEquals(SignedOutEffect.NavigateToHome, awaitItem())
+        }
+        assertEquals(0, repository.wipeOtherCalls)
+    }
+
+    @Test
+    fun failingToCheckOtherAccountsDoesNotBlockSignIn() = runTest(dispatcher) {
+        repository.signInResult = signedIn
+        repository.otherAccountsResult = AppResult.Failure(AppError.Network("offline"))
+        val vm = viewModel()
+
+        vm.effects.test {
+            vm.onIntent(SignedOutIntent.SignInClicked)
+            assertEquals(SignedOutEffect.NavigateToHome, awaitItem())
+        }
     }
 }

@@ -5,14 +5,14 @@ import androidx.navigation.NavDestination
 import androidx.navigation.NavDestination.Companion.hasRoute
 import androidx.navigation.NavDestination.Companion.hierarchy
 import com.uit.finance.app.navigation.placeholder.BudgetsDestination
-import com.uit.finance.app.navigation.placeholder.TransactionsDestination
 import com.uit.finance.core.designsystem.icon.FinanceIcons
 import com.uit.finance.feature.auth.presentation.navigation.ProfileDestination
 import com.uit.finance.feature.home.presentation.navigation.HomeDestination
+import com.uit.finance.feature.transactions.presentation.navigation.TransactionsDestination
 
 /**
  * Các tab của bottom bar. Thêm/bớt tab = sửa enum này; thanh điều hướng và logic chọn tab tự theo.
- * Khi `feature/transactions`, `feature/budgets` ra đời, chỉ đổi `route` sang destination của feature đó.
+ * Khi `feature/budgets` ra đời, chỉ đổi `route` sang destination của feature đó.
  */
 internal enum class TopLevelDestination(val route: Any, val label: String, val icon: ImageVector) {
     Home(HomeDestination, "Trang chủ", FinanceIcons.Home),

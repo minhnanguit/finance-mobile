@@ -17,12 +17,24 @@ import io.ktor.http.HttpHeaders
 import io.ktor.http.HttpStatusCode
 import io.ktor.http.headersOf
 
+/** Compare-and-set theo refresh token giống `SecureSessionStore`. */
 internal class FakeTokenProvider(initial: AuthTokens? = null) : TokenProvider {
     var stored: AuthTokens? = initial
     var clearCalls = 0
     override suspend fun tokens(): AuthTokens? = stored
-    override suspend fun update(tokens: AuthTokens) { stored = tokens }
-    override suspend fun clear() { stored = null; clearCalls += 1 }
+
+    override suspend fun replaceIfCurrent(refreshedFrom: String, tokens: AuthTokens): Boolean {
+        if (stored?.refreshToken != refreshedFrom) return false
+        stored = tokens
+        return true
+    }
+
+    override suspend fun clearIfCurrent(rejectedRefreshToken: String): Boolean {
+        if (stored?.refreshToken != rejectedRefreshToken) return false
+        stored = null
+        clearCalls += 1
+        return true
+    }
 }
 
 /** Trả [outcome] cố định và ghi lại refresh token được đưa vào. */

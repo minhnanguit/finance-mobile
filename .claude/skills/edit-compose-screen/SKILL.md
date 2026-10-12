@@ -17,12 +17,20 @@ description: Thêm hoặc sửa màn hình / component Compose Multiplatform tro
 | Cần gì | Dùng |
 |---|---|
 | Khoảng cách | `FinanceTheme.spacing.{xxs,xs,sm,md,lg,xl,xxl}` (4dp grid) — **không** `16.dp` literal |
-| Màu | `MaterialTheme.colorScheme.*` (`FinanceTheme` đã set sáng/tối) |
-| Typography | `MaterialTheme.typography.*` |
-| Nút chính / phụ | `PrimaryButton`, `SecondaryTextButton` |
+| Màu | `MaterialTheme.colorScheme.*` (sáng/tối) + `FinanceTheme.colors.{income,expense,transfer,*Container,accountCards}` |
+| Typography | `MaterialTheme.typography.*` (Montserrat, set sẵn trong theme) |
+| Bo góc | `MaterialTheme.shapes.{small,medium,large}` |
+| Chuyển động | `FinanceMotion.{quick,standard,emphasized,gentleSpring}()`, `Modifier.pressScale(interactionSource)` — không tự đặt duration |
+| Nút chính / phụ | `PrimaryButton`, `SecondaryTextButton`, `QuickActionButton` (tròn + nhãn), `CircleIconButton` |
 | Ô nhập | `FinanceTextField` |
-| Loading / lỗi | `LoadingIndicator`, `ErrorBanner` |
-| Icon | `Icon(FinanceIcons.X, contentDescription = …)` — thêm icon mới vào `core/designsystem/icon/FinanceIcons.kt` |
+| Loading / lỗi / trống | `LoadingIndicator`, `ErrorBanner`, `EmptyState` |
+| Tiền | `AmountText(amount, currency, sign)` — chuỗi do `MoneyFormatter` (core/presentation) format trong ViewModel/mapper |
+| Danh sách | `FinanceListItem` + `IconTile` (đầu dòng) + `AmountText` (cuối dòng); tiêu đề mục `SectionHeader` |
+| Thẻ ví / số liệu | `AccountCard` (màu từ `FinanceTheme.colors.accountCards[i % size]`), `StatTile`, `PagerIndicator`, `Avatar`, `LabelChip` |
+| Form | `AmountField` (số tiền, chuỗi qua `MoneyInput`), `SegmentedControl`, `ChoiceTile` (lưới chọn), `SelectionField` + `OptionSheet` / `DatePickerSheet`, `ColorSwatchPicker` |
+| Danh sách / màn | `FinanceTopBar`, `FinanceFab`, `OverflowMenu`, `SwipeToDeleteBox`, `RefreshContainer` (kéo làm mới), `MessageSnackbarHost` (thông báo trong state) |
+| Theo model ledger | `core/ui`: `TransactionListItem` + `TransactionItemFormatter`, `AccountType.label()/icon()`, `categoryTileColors`, `toLedgerUiText()` / `messageFor()`, `SyncStatusIndicator` |
+| Icon | `Icon(FinanceIcons.X, contentDescription = …)` — thêm icon mới vào `FinanceIcons.kt` (map sang Lucide; **không** import `com.composables.icons` ở nơi khác). Icon danh mục: `categoryIcon(key)` |
 
 Thiếu component → thêm vào `core/designsystem/component/` theo phong cách các file có sẵn, rồi mới dùng.
 
@@ -41,7 +49,7 @@ internal fun XRoute(onDone: () -> Unit, viewModel: XViewModel = koinViewModel())
 @Composable
 internal fun XScreen(state: XState, onIntent: (XIntent) -> Unit, modifier: Modifier = Modifier) {
     val spacing = FinanceTheme.spacing
-    Column(modifier = modifier.fillMaxSize().safeDrawingPadding().padding(horizontal = spacing.lg)) { ... }
+    Column(modifier = modifier.fillMaxSize().padding(horizontal = spacing.lg)) { ... }
 }
 ```
 
@@ -49,7 +57,7 @@ Quy tắc:
 
 - `Screen` **không** nhận ViewModel, không gọi Koin → thuần state-in/intent-out.
 - `modifier: Modifier = Modifier` là tham số cuối trong danh sách có default.
-- `safeDrawingPadding()` cho màn hình full-screen (insets đúng trên cả Android lẫn iOS).
+- **Không** tự gọi `imePadding()` / `safeDrawingPadding()`: `Scaffold` trong `FinanceNavHost` đã đệm `safeDrawing` (thanh hệ thống + tai thỏ + bàn phím) cho mọi màn rồi `consumeWindowInsets`. Đệm thêm ở màn là bàn phím bị tính hai lần (form co lại còn một khe).
 - Không `collectAsState` — chỉ `collectAsStateWithLifecycle`.
 - Không logic nghiệp vụ trong composable: mọi quyết định đi qua `onIntent`.
 - Text hiện tại là literal tiếng Anh resolve qua `UiText`; chuỗi trong **state** phải là `UiText`, chuỗi tĩnh trong layout thì để literal như các màn hình hiện có.

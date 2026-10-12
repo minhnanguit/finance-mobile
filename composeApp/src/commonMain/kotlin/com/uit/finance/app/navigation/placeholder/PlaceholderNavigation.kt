@@ -20,36 +20,24 @@ import kotlinx.serialization.Serializable
 
 /*
  * Chỗ giữ tạm cho các feature chưa có module (ARCHITECTURE §6.1, LEDGER-PLAN Phase 5).
- * Nằm ở composeApp vì destination thật sẽ thuộc feature/transactions, accounts, budgets, reports;
+ * Nằm ở composeApp vì destination thật sẽ thuộc feature/budgets, reports, bills (giao dịch và ví đã có feature);
  * không feature nào được giữ destination của feature khác. Khi feature thật ra đời: xoá destination
  * tương ứng ở đây và nối `<feature>NavGraph` vào FinanceNavHost.
  */
-@Serializable internal data object TransactionsDestination
 @Serializable internal data object BudgetsDestination
-@Serializable internal data object AccountsDestination
 @Serializable internal data object ReportsDestination
 @Serializable internal data object BillsDestination
-@Serializable internal data object AddTransactionDestination
 
-/** `onBack` chỉ áp dụng cho màn con; màn là tab (Giao dịch, Ngân sách) không có nút quay lại. */
+/** `onBack` chỉ áp dụng cho màn con; màn là tab (Ngân sách) không có nút quay lại. */
 internal fun NavGraphBuilder.placeholderNavGraph(onBack: () -> Unit) {
-    composable<TransactionsDestination> {
-        PlaceholderScreen("Giao dịch", "Lịch sử, tìm kiếm và duyệt giao dịch sẽ nằm ở đây.")
-    }
     composable<BudgetsDestination> {
         PlaceholderScreen("Ngân sách", "Theo dõi hạn mức tháng, số đã chi và phần còn lại.")
-    }
-    composable<AccountsDestination> {
-        PlaceholderScreen("Ví của bạn", "Quản lý tiền mặt, tài khoản ngân hàng và chuyển tiền giữa các ví.", onBack)
     }
     composable<ReportsDestination> {
         PlaceholderScreen("Báo cáo", "Xem thu chi theo thời gian, danh mục và so sánh với kỳ trước.", onBack)
     }
     composable<BillsDestination> {
         PlaceholderScreen("Khoản định kỳ", "Theo dõi hóa đơn, gói đăng ký và các khoản sắp đến hạn.", onBack)
-    }
-    composable<AddTransactionDestination> {
-        PlaceholderScreen("Thêm giao dịch", "Bạn sẽ có thể nhập khoản thu hoặc chi tại đây.", onBack)
     }
 }
 

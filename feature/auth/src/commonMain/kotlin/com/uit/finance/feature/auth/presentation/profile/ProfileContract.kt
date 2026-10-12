@@ -9,6 +9,8 @@ data class ProfileState(
     val profile: UserProfile? = null,
     val error: UiText? = null,
     val errorAction: ProfileErrorAction = ProfileErrorAction.ReloadProfile,
+    /** Khác `null`: còn chừng này thay đổi chưa gửi, hỏi user trước khi đăng xuất (ADR-006 B5). */
+    val unsentChangesWarning: Long? = null,
 )
 
 enum class ProfileErrorAction { ReloadProfile, RetryLogout }
@@ -16,6 +18,8 @@ enum class ProfileErrorAction { ReloadProfile, RetryLogout }
 sealed interface ProfileIntent {
     data object Retry : ProfileIntent
     data object Logout : ProfileIntent
+    data object ConfirmLogout : ProfileIntent
+    data object DismissLogoutWarning : ProfileIntent
 }
 
 sealed interface ProfileEffect {

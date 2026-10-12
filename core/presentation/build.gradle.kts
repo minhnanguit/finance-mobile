@@ -7,6 +7,7 @@ kotlin {
         commonMain.dependencies {
             api(projects.core.common)
             api(libs.jetbrains.lifecycle.viewmodel)
+            implementation(libs.koin.core) // corePresentationModule (MoneyFormatter)
         }
         commonTest.dependencies {
             implementation(projects.core.testing)

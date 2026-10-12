@@ -1,5 +1,7 @@
 package com.uit.finance.core.datastore.di
 
+import com.uit.finance.core.database.DatabaseKeyStore
+import com.uit.finance.core.datastore.database.SecureDatabaseKeyStore
 import com.uit.finance.core.datastore.session.SecureSessionStore
 import com.uit.finance.core.datastore.session.SessionStore
 import com.uit.finance.core.datastore.settings.AppSettings
@@ -16,4 +18,5 @@ val coreDatastoreModule: Module = module {
     single { AppSettings(settings = get(), uuidGenerator = get()) }
     single { SecureSessionStore(secureStorage = get(), dispatchers = get(), clock = get()) } binds
         arrayOf(SessionStore::class, TokenProvider::class)
+    single<DatabaseKeyStore> { SecureDatabaseKeyStore(secureStorage = get(), dispatchers = get()) }
 }

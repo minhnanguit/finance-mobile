@@ -6,7 +6,8 @@ kotlin {
     sourceSets {
         commonMain.dependencies {
             api(projects.core.common)
-            implementation(projects.core.network) // TokenProvider / DeviceIdProvider ports
+            implementation(projects.core.network) // TokenProvider port
+            implementation(projects.core.database) // DatabaseKeyStore port
             api(libs.multiplatform.settings)
             implementation(libs.koin.core)
         }

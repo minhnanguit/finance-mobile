@@ -3,9 +3,13 @@ package com.uit.finance.core.datastore.secure
 import android.content.Context
 import android.content.SharedPreferences
 import android.security.keystore.KeyGenParameterSpec
+import android.security.keystore.KeyPermanentlyInvalidatedException
 import android.security.keystore.KeyProperties
 import android.util.Base64
+import java.security.GeneralSecurityException
 import java.security.KeyStore
+import java.security.UnrecoverableKeyException
+import javax.crypto.AEADBadTagException
 import javax.crypto.Cipher
 import javax.crypto.KeyGenerator
 import javax.crypto.SecretKey
@@ -33,12 +37,22 @@ internal class AndroidKeystoreSecureStorage(
 
     override fun getString(key: String): String? {
         val stored = prefs.getString(key, null) ?: return null
-        return runCatching { decrypt(stored) }
-            .getOrElse {
-                // Key rotated/invalidated (e.g. device credentials reset): the value is unrecoverable.
-                prefs.edit().remove(key).apply()
-                null
-            }
+        return try {
+            decrypt(stored)
+        } catch (e: GeneralSecurityException) {
+            if (!e.isPermanent()) throw SecureStorageUnavailableException(e)
+            // Khoá Keystore đã bị huỷ hoặc thay (đặt lại khoá màn hình, restore máy): giá trị không cứu được.
+            prefs.edit().remove(key).apply()
+            null
+        } catch (e: IllegalArgumentException) {
+            // Base64 hỏng / quá ngắn: dữ liệu rác, không bao giờ giải mã được.
+            prefs.edit().remove(key).apply()
+            null
+        } catch (e: RuntimeException) {
+            // ProviderException, KeyStoreException bọc trong RuntimeException...: Keystore tạm bận. GIỮ giá trị,
+            // nếu không một lần lỗi thoáng qua sẽ làm mất khoá DB và kéo theo cả các thay đổi chưa gửi.
+            throw SecureStorageUnavailableException(e)
+        }
     }
 
     override fun remove(key: String) {
@@ -85,6 +99,13 @@ internal class AndroidKeystoreSecureStorage(
             .apply { init(spec) }
             .generateKey()
     }
+
+    /**
+     * Lỗi chứng tỏ giá trị không bao giờ giải mã được nữa: tag GCM sai (khoá đã đổi), khoá bị vô hiệu hoá
+     * vĩnh viễn hoặc không còn lấy ra được. Lỗi khác của Keystore coi là tạm thời.
+     */
+    private fun GeneralSecurityException.isPermanent(): Boolean =
+        this is AEADBadTagException || this is KeyPermanentlyInvalidatedException || this is UnrecoverableKeyException
 
     private companion object {
         const val PREFS_NAME = "finance_secure_storage"

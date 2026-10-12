@@ -1,6 +1,7 @@
 package com.uit.finance.app.di
 
 import com.uit.finance.app.config.AppEnvironment
+import com.uit.finance.core.session.UserSession
 import com.uit.finance.core.sync.scheduler.SyncScheduler
 import kotlin.experimental.ExperimentalNativeApi
 
@@ -13,6 +14,7 @@ import kotlin.experimental.ExperimentalNativeApi
 fun startKoinIos() {
     val koin = initKoin().koin
     koin.get<SyncScheduler>().schedulePeriodic()
+    koin.get<UserSession>().start()
 }
 
 actual fun defaultApiBaseUrl(): String =

@@ -9,17 +9,6 @@ import kotlinx.cinterop.reinterpret
 import kotlinx.cinterop.usePinned
 import platform.CoreCrypto.CC_SHA256
 import platform.CoreCrypto.CC_SHA256_DIGEST_LENGTH
-import platform.Security.SecRandomCopyBytes
-import platform.Security.errSecSuccess
-import platform.Security.kSecRandomDefault
-
-internal actual fun secureRandomBytes(size: Int): ByteArray {
-    require(size > 0) { "size phải > 0" }
-    val bytes = ByteArray(size)
-    val status = bytes.usePinned { SecRandomCopyBytes(kSecRandomDefault, size.convert(), it.addressOf(0)) }
-    check(status == errSecSuccess) { "SecRandomCopyBytes thất bại: $status" }
-    return bytes
-}
 
 internal actual fun sha256(input: ByteArray): ByteArray {
     require(input.isNotEmpty()) { "input không được rỗng" }

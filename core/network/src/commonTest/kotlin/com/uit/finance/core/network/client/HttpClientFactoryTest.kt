@@ -7,6 +7,7 @@ import com.uit.finance.core.network.api.ApiException
 import com.uit.finance.core.network.api.apiCall
 import com.uit.finance.core.network.auth.AuthTokens
 import com.uit.finance.core.network.auth.RefreshOutcome
+import com.uit.finance.core.network.auth.TokenRefresher
 import io.ktor.client.call.body
 import io.ktor.client.engine.mock.respondError
 import io.ktor.client.request.get
@@ -87,6 +88,50 @@ class HttpClientFactoryTest {
 
         assertEquals(AppResult.Failure(AppError.Unauthorized), result)
         assertEquals(original, tokens.stored, "offline-first: mất mạng tới IdP không được đá user ra ngoài")
+        assertEquals(0, tokens.clearCalls)
+    }
+
+    @Test
+    fun staleRefreshNeverOverwritesTheSessionThatReplacedIt() = runTest {
+        val tokens = FakeTokenProvider(AuthTokens("expired-a", "refresh-a", 300))
+        val sessionOfB = AuthTokens("access-b", "refresh-b", 300)
+        // A đăng xuất, B đăng nhập đúng lúc refresh của A còn đang chờ IdP.
+        val refresher = object : TokenRefresher {
+            override suspend fun refresh(refreshToken: String): RefreshOutcome {
+                tokens.stored = sessionOfB
+                return RefreshOutcome.Refreshed(AuthTokens("access-a2", "refresh-a2", 300))
+            }
+        }
+        val sent = mutableListOf<String?>()
+        val client = testClient(tokenProvider = tokens, tokenRefresher = refresher) { request ->
+            sent += request.headers[HttpHeaders.Authorization]
+            problemResponse(HttpStatusCode.Unauthorized, UNAUTHORIZED_PROBLEM)
+        }
+
+        val result = apiCall { client.get("/api/v1/sync/pull").body<String>() }
+
+        assertEquals(AppResult.Failure(AppError.Unauthorized), result)
+        assertEquals(sessionOfB, tokens.stored, "token của phiên cũ không được đè phiên của B")
+        assertEquals(listOf<String?>("Bearer expired-a"), sent, "request của phiên cũ không được gửi lại")
+    }
+
+    @Test
+    fun staleRejectionNeverSignsOutTheSessionThatReplacedIt() = runTest {
+        val tokens = FakeTokenProvider(AuthTokens("expired-a", "revoked-refresh-a", 300))
+        val sessionOfB = AuthTokens("access-b", "refresh-b", 300)
+        val refresher = object : TokenRefresher {
+            override suspend fun refresh(refreshToken: String): RefreshOutcome {
+                tokens.stored = sessionOfB
+                return RefreshOutcome.Rejected
+            }
+        }
+        val client = testClient(tokenProvider = tokens, tokenRefresher = refresher) {
+            problemResponse(HttpStatusCode.Unauthorized, UNAUTHORIZED_PROBLEM)
+        }
+
+        apiCall { client.get("/api/v1/me").body<String>() }
+
+        assertEquals(sessionOfB, tokens.stored)
         assertEquals(0, tokens.clearCalls)
     }
 

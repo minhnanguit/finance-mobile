@@ -5,6 +5,7 @@ import androidx.compose.material3.MaterialTheme
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.CompositionLocalProvider
 import androidx.compose.runtime.ReadOnlyComposable
+import androidx.compose.runtime.remember
 import androidx.compose.runtime.staticCompositionLocalOf
 
 private val LocalFinanceColors = staticCompositionLocalOf { LightFinanceColors }
@@ -16,18 +17,22 @@ fun FinanceTheme(
 ) {
     val colorScheme = if (darkTheme) DarkColors else LightColors
     val financeColors = if (darkTheme) DarkFinanceColors else LightFinanceColors
+    val fontFamily = montserratFamily()
+    val typography = remember(fontFamily) { financeTypography(fontFamily) }
     CompositionLocalProvider(
         LocalFinanceColors provides financeColors,
         LocalSpacing provides Spacing(),
     ) {
         MaterialTheme(
             colorScheme = colorScheme,
-            typography = FinanceTypography,
+            shapes = FinanceShapes,
+            typography = typography,
             content = content,
         )
     }
 }
 
+/** Token ngoài Material3: `FinanceTheme.spacing`, `FinanceTheme.colors`; chuyển động ở [FinanceMotion]. */
 object FinanceTheme {
     val spacing: Spacing
         @Composable @ReadOnlyComposable get() = LocalSpacing.current

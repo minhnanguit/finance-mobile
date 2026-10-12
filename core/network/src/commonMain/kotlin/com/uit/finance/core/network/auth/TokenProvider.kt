@@ -11,12 +11,25 @@ data class AuthTokens(
 /**
  * Port của network layer, `core/datastore` implement (`SecureSessionStore`). Ktor bearer plugin đọc
  * token ở đây và ghi token mới sau mỗi lần refresh.
+ *
+ * Ghi và xoá đều là **compare-and-set theo refresh token**: một lần refresh bắt đầu từ phiên cũ (user A vừa
+ * đăng xuất, B vừa đăng nhập) mà về muộn thì không được đè token của B, cũng không được đăng xuất B, và
+ * không được "hồi sinh" phiên của A sau khi A đã đăng xuất (ADR-006 B5).
  */
 interface TokenProvider {
     suspend fun tokens(): AuthTokens?
-    suspend fun update(tokens: AuthTokens)
-    /** Gọi khi refresh token bị IdP reject: session đã hết. */
-    suspend fun clear()
+
+    /**
+     * Lưu [tokens] **chỉ khi** phiên hiện tại vẫn là phiên có refresh token [refreshedFrom].
+     * @return `false` nếu phiên đã đổi hoặc đã bị xoá trong lúc refresh: token mới bị bỏ đi.
+     */
+    suspend fun replaceIfCurrent(refreshedFrom: String, tokens: AuthTokens): Boolean
+
+    /**
+     * IdP từ chối [rejectedRefreshToken]: xoá phiên **chỉ khi** phiên hiện tại vẫn dùng refresh token đó.
+     * @return `false` nếu phiên đã đổi (không xoá gì).
+     */
+    suspend fun clearIfCurrent(rejectedRefreshToken: String): Boolean
 }
 
 /**

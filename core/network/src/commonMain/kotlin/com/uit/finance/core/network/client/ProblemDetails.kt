@@ -5,6 +5,7 @@ import com.uit.finance.core.network.api.ApiException
 import io.ktor.client.statement.HttpResponse
 import io.ktor.client.statement.bodyAsText
 import io.ktor.http.ContentType
+import io.ktor.http.HttpHeaders
 import io.ktor.http.contentType
 import kotlinx.serialization.SerialName
 import kotlinx.serialization.Serializable
@@ -50,5 +51,6 @@ internal suspend fun HttpResponse.toApiException(json: Json): ApiException {
         detail = problem?.detail,
         fieldErrors = problem?.errors.orEmpty().map { FieldError(it.field, it.message) },
         traceId = problem?.traceId,
+        retryAfterSeconds = headers[HttpHeaders.RetryAfter]?.trim()?.toLongOrNull()?.takeIf { it >= 0 },
     )
 }
