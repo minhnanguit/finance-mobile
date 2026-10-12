@@ -11,12 +11,14 @@ import com.uit.finance.core.common.result.onSuccess
 import com.uit.finance.core.common.time.Clock
 import com.uit.finance.core.datastore.session.SessionStore
 import com.uit.finance.core.network.auth.TokenCache
+import com.uit.finance.core.session.LocalDataState
 import com.uit.finance.core.session.UserSession
 import com.uit.finance.core.sync.outbox.OutboxRepository
 import com.uit.finance.feature.auth.data.mapper.toDomain
 import com.uit.finance.feature.auth.data.mapper.toPrompt
 import com.uit.finance.feature.auth.data.mapper.toStoredSession
 import com.uit.finance.feature.auth.data.remote.UserRemoteDataSource
+import com.uit.finance.feature.auth.domain.model.LocalDataStatus
 import com.uit.finance.feature.auth.domain.model.Session
 import com.uit.finance.feature.auth.domain.model.SignInMode
 import com.uit.finance.feature.auth.domain.model.SignInResult
@@ -72,6 +74,17 @@ internal class AuthRepositoryImpl(
     }
 
     override suspend fun unsentChangeCount(): Long = outbox.unsentCount()
+
+    override fun observeLocalDataStatus(): Flow<LocalDataStatus> = userSession.state.map { state ->
+        when (state) {
+            LocalDataState.SignedOut, LocalDataState.ResolvingUser -> LocalDataStatus.Preparing
+            is LocalDataState.Ready -> LocalDataStatus.Ready
+            is LocalDataState.Failed ->
+                if (state.error is AppError.Network) LocalDataStatus.NeedsNetwork else LocalDataStatus.Unavailable
+        }
+    }
+
+    override fun retryLocalData() = userSession.refresh()
 
     override suspend fun otherAccountsOnDevice(): AppResult<Int> =
         currentUser().map { profile -> userSession.otherUsersOnDevice(profile.id).size }

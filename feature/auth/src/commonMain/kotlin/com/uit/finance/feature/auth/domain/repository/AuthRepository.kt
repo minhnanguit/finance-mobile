@@ -1,6 +1,7 @@
 package com.uit.finance.feature.auth.domain.repository
 
 import com.uit.finance.core.common.result.AppResult
+import com.uit.finance.feature.auth.domain.model.LocalDataStatus
 import com.uit.finance.feature.auth.domain.model.Session
 import com.uit.finance.feature.auth.domain.model.SignInMode
 import com.uit.finance.feature.auth.domain.model.SignInResult
@@ -29,4 +30,10 @@ interface AuthRepository {
     fun observeSession(): Flow<Session?>
 
     suspend fun currentUser(): AppResult<UserProfile>
+
+    /** Sổ trên máy của phiên hiện tại đã dùng được chưa (S6). */
+    fun observeLocalDataStatus(): Flow<LocalDataStatus>
+
+    /** Thử mở lại sổ sau khi lần trước thất bại (ví dụ vừa có mạng lại). */
+    fun retryLocalData()
 }
