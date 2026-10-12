@@ -1,6 +1,9 @@
 package com.uit.finance.core.sync.di
 
 import com.uit.finance.core.datastore.settings.AppSettings
+import com.uit.finance.core.sync.domain.usecase.AcknowledgeSyncIssuesUseCase
+import com.uit.finance.core.sync.domain.usecase.ObserveSyncOverviewUseCase
+import com.uit.finance.core.sync.domain.usecase.SyncNowUseCase
 import com.uit.finance.core.sync.engine.DefaultSyncEngine
 import com.uit.finance.core.sync.engine.DeviceIdProvider
 import com.uit.finance.core.sync.engine.SyncChangeApplier
@@ -30,6 +33,9 @@ val coreSyncModule: Module = module {
     single<SyncIssueRepository> { SqlDelightSyncIssueRepository(databases = get(), dispatchers = get()) }
     single<DeviceIdProvider> { DeviceIdProvider { get<AppSettings>().installationId } }
     single<SyncRemoteDataSource> { ApiSyncRemoteDataSource(api = get(), json = get()) }
+    factory { ObserveSyncOverviewUseCase(outbox = get(), issues = get(), engine = get()) }
+    factory { SyncNowUseCase(outbox = get(), engine = get()) }
+    factory { AcknowledgeSyncIssuesUseCase(issues = get()) }
     single<SyncEngine> {
         DefaultSyncEngine(
             databases = get(),
