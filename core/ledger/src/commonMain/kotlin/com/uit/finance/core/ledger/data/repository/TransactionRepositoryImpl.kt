@@ -9,6 +9,7 @@ import com.uit.finance.core.common.money.Money
 import com.uit.finance.core.common.result.AppError
 import com.uit.finance.core.common.result.AppResult
 import com.uit.finance.core.common.result.FieldError
+import com.uit.finance.core.common.result.map
 import com.uit.finance.core.common.time.Clock
 import com.uit.finance.core.database.FinanceDatabase
 import com.uit.finance.core.ledger.data.local.LedgerStore
@@ -53,28 +54,35 @@ internal class TransactionRepositoryImpl(
             .map { row -> row?.takeIf { it.deleted == 0L }?.toDomain() }
     }
 
-    override suspend fun record(draft: TransactionDraft): AppResult<Transaction> {
-        val candidate = Transaction(
-            id = uuidGenerator.generate(),
-            type = draft.type,
-            status = draft.status,
-            accountId = draft.accountId,
-            counterAccountId = draft.counterAccountId,
-            amount = Money(draft.amountMinor.coerceAtLeast(0), PLACEHOLDER_CURRENCY), // tiền tệ lấy theo ví bên dưới
-            categoryId = draft.categoryId,
-            occurredOn = draft.occurredOn,
-            occurredAt = draft.occurredAt,
-            payee = draft.payee.normalizedOrNull(),
-            note = draft.note.normalizedOrNull(),
-        )
-        val errors = fieldErrors(candidate, draft.amountMinor)
+    override suspend fun record(draft: TransactionDraft): AppResult<Transaction> = recordAll(listOf(draft)).map { it.single() }
+
+    override suspend fun recordAll(drafts: List<TransactionDraft>): AppResult<List<Transaction>> {
+        val candidates = drafts.map { draft ->
+            Transaction(
+                id = uuidGenerator.generate(),
+                type = draft.type,
+                status = draft.status,
+                accountId = draft.accountId,
+                counterAccountId = draft.counterAccountId,
+                amount = Money(draft.amountMinor.coerceAtLeast(0), PLACEHOLDER_CURRENCY), // tiền tệ lấy theo ví bên dưới
+                categoryId = draft.categoryId,
+                occurredOn = draft.occurredOn,
+                occurredAt = draft.occurredAt,
+                payee = draft.payee.normalizedOrNull(),
+                note = draft.note.normalizedOrNull(),
+            )
+        }
+        val errors = candidates.zip(drafts).flatMap { (candidate, draft) -> fieldErrors(candidate, draft.amountMinor) }
         if (errors.isNotEmpty()) return AppResult.Failure(AppError.Validation(errors))
 
+        // Một transaction DB cho cả nhóm: dòng nào vi phạm luật thì không dòng nào được lưu (D3: chuyển + phí).
         return store.write { database ->
-            val account = requireAttachable(database, draft.accountId, previous = null)
-            candidate.copy(amount = Money(draft.amountMinor, account.currency))
-                .also { checkReferences(database, it, account, previous = null) }
-                .also { persist(database, it) }
+            candidates.zip(drafts).map { (candidate, draft) ->
+                val account = requireAttachable(database, draft.accountId, previous = null)
+                candidate.copy(amount = Money(draft.amountMinor, account.currency))
+                    .also { checkReferences(database, it, account, previous = null) }
+                    .also { persist(database, it) }
+            }
         }
     }
 

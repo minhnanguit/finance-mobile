@@ -111,6 +111,59 @@ class LedgerRepositoriesTest {
     }
 
     @Test
+    fun `chuyển tiền kèm phí ghi cả hai dòng trong một transaction`() = runTest {
+        val repos = repos()
+        val wallet = repos.wallet(opening = 1_000_000)
+        val bank = repos.accounts.create(AccountDraft("Bank", AccountType.BANK, "VND", 0)).value()
+        val fee = repos.category()
+
+        val saved = repos.transactions.recordAll(
+            listOf(
+                TransactionDraft(TransactionType.TRANSFER, wallet.id, 500_000, today, counterAccountId = bank.id),
+                expense(wallet, fee, 3_300),
+            ),
+        ).value()
+
+        assertEquals(listOf(TransactionType.TRANSFER, TransactionType.EXPENSE), saved.map { it.type })
+        assertEquals(2, database.ledgerTransactionQueries.selectRecent(10).executeAsList().size)
+    }
+
+    @Test
+    fun `một dòng trong nhóm vi phạm luật thì không dòng nào được lưu`() = runTest {
+        val repos = repos()
+        val wallet = repos.wallet()
+        val bank = repos.accounts.create(AccountDraft("Bank", AccountType.BANK, "VND", 0)).value()
+        val income = repos.category(CategoryKind.INCOME)
+        val opsBefore = outboxActions()
+
+        val result = repos.transactions.recordAll(
+            listOf(
+                TransactionDraft(TransactionType.TRANSFER, wallet.id, 500_000, today, counterAccountId = bank.id),
+                expense(wallet, income, 3_300), // danh mục THU cho khoản CHI
+            ),
+        )
+
+        assertEquals(LedgerErrorCode.CATEGORY_KIND_MISMATCH, result.fieldErrors().single().message)
+        assertTrue(database.ledgerTransactionQueries.selectRecent(10).executeAsList().isEmpty())
+        assertEquals(opsBefore, outboxActions())
+    }
+
+    @Test
+    fun `sắp xếp ví chỉ ghi ví đổi chỗ`() = runTest {
+        val repos = repos()
+        val first = repos.accounts.create(AccountDraft("A", AccountType.CASH, "VND", 0, sortOrder = 0)).value()
+        val second = repos.accounts.create(AccountDraft("B", AccountType.CASH, "VND", 0, sortOrder = 1)).value()
+        val third = repos.accounts.create(AccountDraft("C", AccountType.CASH, "VND", 0, sortOrder = 2)).value()
+        val writesBefore = scheduler.immediateRequests
+
+        repos.accounts.reorder(listOf(second.id, first.id, third.id)).value()
+
+        val order = database.accountQueries.selectActive().executeAsList().map { it.id }
+        assertEquals(listOf(second.id, first.id, third.id), order)
+        assertEquals(writesBefore + 1, scheduler.immediateRequests)
+    }
+
+    @Test
     fun `chưa mở sổ của user nào thì ghi trả Storage`() = runTest {
         val repos = repos()
         databases.database.value = null

@@ -137,6 +137,7 @@ private class InMemoryAccounts : AccountRepository {
 
     override suspend fun update(account: Account): AppResult<Account> = notUsed()
     override suspend fun setArchived(accountId: String, archived: Boolean): AppResult<Unit> = notUsed()
+    override suspend fun reorder(orderedIds: List<String>): AppResult<Unit> = notUsed()
 }
 
 private class InMemoryCategories : CategoryRepository {
@@ -191,4 +192,5 @@ private class InMemoryTransactions : TransactionRepository {
 
     override fun observe(transactionId: String): Flow<Transaction?> = notUsed()
     override suspend fun update(transaction: Transaction): AppResult<Transaction> = notUsed()
+    override suspend fun recordAll(drafts: List<TransactionDraft>): AppResult<List<Transaction>> = notUsed()
 }

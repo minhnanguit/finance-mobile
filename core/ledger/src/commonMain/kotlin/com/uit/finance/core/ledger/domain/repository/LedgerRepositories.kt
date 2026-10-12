@@ -28,6 +28,9 @@ interface AccountRepository {
     suspend fun update(account: Account): AppResult<Account>
     suspend fun setArchived(accountId: String, archived: Boolean): AppResult<Unit>
 
+    /** Đặt `sortOrder` = vị trí trong [orderedIds], một transaction; chỉ ví đổi chỗ mới sinh op sync. */
+    suspend fun reorder(orderedIds: List<String>): AppResult<Unit>
+
     /** Ví đã có giao dịch chỉ archive được: `ledger.in_use` (D7). */
     suspend fun delete(accountId: String): AppResult<Unit>
 }
@@ -47,6 +50,12 @@ interface TransactionRepository {
     fun observeRecent(limit: Int): Flow<List<Transaction>>
     fun observe(transactionId: String): Flow<Transaction?>
     suspend fun record(draft: TransactionDraft): AppResult<Transaction>
+
+    /**
+     * Ghi nhiều giao dịch trong **một** transaction: một dòng vi phạm luật thì không dòng nào được lưu.
+     * Dùng cho chuyển tiền kèm phí (D3): dòng chuyển + dòng chi "Phí giao dịch".
+     */
+    suspend fun recordAll(drafts: List<TransactionDraft>): AppResult<List<Transaction>>
     suspend fun update(transaction: Transaction): AppResult<Transaction>
     suspend fun delete(transactionId: String): AppResult<Unit>
 }

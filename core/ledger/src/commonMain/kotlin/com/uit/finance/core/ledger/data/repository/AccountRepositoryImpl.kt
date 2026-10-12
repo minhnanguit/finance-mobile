@@ -76,6 +76,14 @@ internal class AccountRepositoryImpl(
         if (existing.archived != archived) persist(database, existing.copy(archived = archived))
     }
 
+    override suspend fun reorder(orderedIds: List<String>): AppResult<Unit> = store.write { database ->
+        orderedIds.forEachIndexed { index, accountId ->
+            val existing = requireActive(database, accountId)
+            // Chỉ ghi ví đổi chỗ: mỗi lần ghi là một op sync.
+            if (existing.sortOrder != index) persist(database, existing.copy(sortOrder = index))
+        }
+    }
+
     override suspend fun delete(accountId: String): AppResult<Unit> = store.write { database ->
         requireActive(database, accountId)
         if (isReferenced(database, accountId)) rejectWith("account", LedgerErrorCode.IN_USE)
