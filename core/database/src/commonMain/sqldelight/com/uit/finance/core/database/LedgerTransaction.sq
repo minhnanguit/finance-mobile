@@ -40,8 +40,13 @@ LIMIT ?;
 
 -- Tổng thu và tổng chi theo tiền tệ trong [fromDate, toDate] (ISO yyyy-MM-dd nên so sánh được theo chữ):
 -- chỉ CONFIRMED chưa xoá, bỏ TRANSFER (ADR-005 D2). Phục vụ số liệu "tháng này" trên trang chủ.
+-- Cộng tách thương/dư cho 10⁹ giống selectBalances (Account.sq): SUM thẳng ném "integer overflow" khi tổng
+-- vượt Long và làm chết Flow; cách này chính xác trong biên Long, vượt thì CAST kẹp ở biên.
 selectCashFlowBetween:
-SELECT type, currency, CAST(COALESCE(SUM(amount_minor), 0) AS INTEGER) AS total_minor
+SELECT type, currency,
+    CAST(
+        COALESCE(SUM(amount_minor / 1000000000), 0) * 1000000000 + COALESCE(SUM(amount_minor % 1000000000), 0)
+    AS INTEGER) AS total_minor
 FROM ledger_transaction
 WHERE deleted = 0 AND status = 'CONFIRMED' AND type IN ('INCOME', 'EXPENSE')
   AND occurred_on >= :fromDate AND occurred_on <= :toDate

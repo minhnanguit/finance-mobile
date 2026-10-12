@@ -12,6 +12,7 @@ import kotlin.test.Test
 import kotlin.test.assertEquals
 import kotlinx.coroutines.test.TestScope
 import kotlinx.coroutines.test.runTest
+import kotlinx.datetime.LocalDate
 
 /**
  * Review Phase 4 (Codex #8): mỗi giao dịch được tới 10¹⁵, nên ~9.300 khoản tối đa đã vượt Long. `SUM` của
@@ -48,6 +49,23 @@ class BalanceOverflowTest {
         balances().observeBalances().test {
             val expected = -7 + 9_000 * LedgerLimits.MAX_AMOUNT_MINOR - 3 * 999_999_999L
             assertEquals(expected, awaitItem().accounts.single().balance.amountMinor)
+            cancelAndIgnoreRemainingEvents()
+        }
+    }
+
+    @Test
+    fun `thu chi trong kỳ chính xác gần biên Long và kẹt ở biên khi vượt`() = runTest {
+        account("a")
+        account("b") // id giao dịch sinh theo (ví, loại, thứ tự): dùng ví khác để 3 khoản nhỏ không đè lên khoản lớn
+        transactions("a", "EXPENSE", LedgerLimits.MAX_AMOUNT_MINOR, count = 9_000)
+        transactions("b", "EXPENSE", 999_999_999, count = 3)
+        transactions("a", "INCOME", LedgerLimits.MAX_AMOUNT_MINOR, count = 10_000) // 10¹⁹ > Long.MAX
+        val day = LocalDate(2023, 11, 14)
+
+        balances().observeCashFlow(day, day).test {
+            val cashFlow = awaitItem()
+            assertEquals(9_000 * LedgerLimits.MAX_AMOUNT_MINOR + 3 * 999_999_999L, cashFlow.expense("VND").amountMinor)
+            assertEquals(Long.MAX_VALUE, cashFlow.income("VND").amountMinor)
             cancelAndIgnoreRemainingEvents()
         }
     }
