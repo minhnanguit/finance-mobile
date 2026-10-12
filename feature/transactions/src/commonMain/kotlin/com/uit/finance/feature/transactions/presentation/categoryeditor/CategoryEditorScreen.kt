@@ -6,7 +6,6 @@ import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.Spacer
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.fillMaxWidth
-import androidx.compose.foundation.layout.imePadding
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.rememberScrollState
 import androidx.compose.foundation.verticalScroll
@@ -65,7 +64,7 @@ internal fun CategoryEditorScreen(
     modifier: Modifier = Modifier,
 ) {
     val spacing = FinanceTheme.spacing
-    Column(modifier.fillMaxSize().imePadding()) {
+    Column(modifier.fillMaxSize()) {
         FinanceTopBar(
             title = if (state.isNew) "Tạo danh mục" else "Sửa danh mục",
             onBack = { onIntent(CategoryEditorIntent.BackClicked) },

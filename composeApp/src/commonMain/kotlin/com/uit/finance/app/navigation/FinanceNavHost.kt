@@ -2,6 +2,7 @@ package com.uit.finance.app.navigation
 
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.WindowInsets
+import androidx.compose.foundation.layout.consumeWindowInsets
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.safeDrawing
@@ -76,7 +77,8 @@ private fun MainNavHost(isAuthenticated: Boolean) {
         .collectAsStateWithLifecycle(initialValue = LocalDataStatus.Preparing)
 
     Scaffold(
-        // safeDrawing = system bars + tai thỏ + bàn phím, nên từng màn không phải tự xử lý inset.
+        // safeDrawing = system bars + tai thỏ + bàn phím, nên từng màn không phải tự xử lý inset. consumeWindowInsets bên
+        // dưới đánh dấu đã dùng, để màn nào lỡ gọi imePadding()/safeDrawingPadding() cũng không bị đệm bàn phím lần hai.
         contentWindowInsets = WindowInsets.safeDrawing,
         bottomBar = {
             if (isAuthenticated && currentTab != null) {
@@ -84,7 +86,7 @@ private fun MainNavHost(isAuthenticated: Boolean) {
             }
         },
     ) { contentPadding ->
-        Box(Modifier.padding(contentPadding)) {
+        Box(Modifier.padding(contentPadding).consumeWindowInsets(contentPadding)) {
             NavHost(
                 navController = navController,
                 startDestination = startDestination,

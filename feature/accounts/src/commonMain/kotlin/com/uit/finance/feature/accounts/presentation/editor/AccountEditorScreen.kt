@@ -3,7 +3,6 @@ package com.uit.finance.feature.accounts.presentation.editor
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.fillMaxSize
-import androidx.compose.foundation.layout.imePadding
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.rememberScrollState
 import androidx.compose.foundation.verticalScroll
@@ -60,7 +59,7 @@ internal fun AccountEditorScreen(
     modifier: Modifier = Modifier,
 ) {
     val spacing = FinanceTheme.spacing
-    Column(modifier.fillMaxSize().imePadding()) {
+    Column(modifier.fillMaxSize()) {
         FinanceTopBar(
             title = if (state.isNew) "Tạo ví" else "Sửa ví",
             onBack = { onIntent(AccountEditorIntent.BackClicked) },

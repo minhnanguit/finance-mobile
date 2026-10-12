@@ -49,7 +49,7 @@ internal fun XRoute(onDone: () -> Unit, viewModel: XViewModel = koinViewModel())
 @Composable
 internal fun XScreen(state: XState, onIntent: (XIntent) -> Unit, modifier: Modifier = Modifier) {
     val spacing = FinanceTheme.spacing
-    Column(modifier = modifier.fillMaxSize().safeDrawingPadding().padding(horizontal = spacing.lg)) { ... }
+    Column(modifier = modifier.fillMaxSize().padding(horizontal = spacing.lg)) { ... }
 }
 ```
 
@@ -57,7 +57,7 @@ Quy tắc:
 
 - `Screen` **không** nhận ViewModel, không gọi Koin → thuần state-in/intent-out.
 - `modifier: Modifier = Modifier` là tham số cuối trong danh sách có default.
-- `safeDrawingPadding()` cho màn hình full-screen (insets đúng trên cả Android lẫn iOS).
+- **Không** tự gọi `imePadding()` / `safeDrawingPadding()`: `Scaffold` trong `FinanceNavHost` đã đệm `safeDrawing` (thanh hệ thống + tai thỏ + bàn phím) cho mọi màn rồi `consumeWindowInsets`. Đệm thêm ở màn là bàn phím bị tính hai lần (form co lại còn một khe).
 - Không `collectAsState` — chỉ `collectAsStateWithLifecycle`.
 - Không logic nghiệp vụ trong composable: mọi quyết định đi qua `onIntent`.
 - Text hiện tại là literal tiếng Anh resolve qua `UiText`; chuỗi trong **state** phải là `UiText`, chuỗi tĩnh trong layout thì để literal như các màn hình hiện có.
