@@ -49,6 +49,7 @@ kotlin {
             implementation(projects.core.common)
             implementation(projects.core.presentation)
             implementation(projects.core.designsystem)
+            implementation(projects.core.ui)
             implementation(projects.core.network)
             implementation(projects.core.auth)
             implementation(projects.core.database)
@@ -58,6 +59,8 @@ kotlin {
             implementation(projects.core.session)
             implementation(projects.feature.auth)
             implementation(projects.feature.home)
+            implementation(projects.feature.accounts)
+            implementation(projects.feature.transactions)
         }
         commonTest.dependencies {
             implementation(projects.core.testing)
