@@ -5,14 +5,14 @@ import com.uit.finance.core.common.money.Money
 import com.uit.finance.core.ledger.domain.model.BalanceSummary
 import com.uit.finance.core.ledger.domain.model.CashFlow
 import com.uit.finance.core.ledger.domain.model.TransactionType
-import com.uit.finance.feature.home.testing.FakeAccountRepository
-import com.uit.finance.feature.home.testing.FakeBalanceRepository
-import com.uit.finance.feature.home.testing.FakeCategoryRepository
-import com.uit.finance.feature.home.testing.FakeTransactionRepository
-import com.uit.finance.feature.home.testing.account
-import com.uit.finance.feature.home.testing.balance
-import com.uit.finance.feature.home.testing.category
-import com.uit.finance.feature.home.testing.transaction
+import com.uit.finance.core.ledger.testing.FakeAccountRepository
+import com.uit.finance.core.ledger.testing.FakeBalanceRepository
+import com.uit.finance.core.ledger.testing.FakeCategoryRepository
+import com.uit.finance.core.ledger.testing.FakeTransactionRepository
+import com.uit.finance.core.ledger.testing.account
+import com.uit.finance.core.ledger.testing.balance
+import com.uit.finance.core.ledger.testing.category
+import com.uit.finance.core.ledger.testing.transaction
 import kotlin.test.Test
 import kotlin.test.assertEquals
 import kotlin.test.assertNull
@@ -55,7 +55,7 @@ class ObserveHomeDashboardUseCaseTest {
         )
         balances.cashFlow.value = CashFlow(income = listOf(Money(50_000, "VND")), expense = emptyList())
         categories.categories.value = listOf(category("food", "Ăn uống", icon = "utensils"))
-        transactions.recent.value = listOf(
+        transactions.transactions.value = listOf(
             transaction("t1", TransactionType.EXPENSE, "a", 30_000, today, categoryId = "food"),
             transaction("t2", TransactionType.INCOME, "zz", 1, today, categoryId = "missing"),
         )

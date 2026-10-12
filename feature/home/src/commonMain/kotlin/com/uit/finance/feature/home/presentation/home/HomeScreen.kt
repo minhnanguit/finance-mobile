@@ -29,20 +29,23 @@ import androidx.compose.ui.util.lerp
 import androidx.lifecycle.compose.LifecycleResumeEffect
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import com.uit.finance.core.designsystem.component.AccountCard
-import com.uit.finance.core.designsystem.component.AmountText
 import com.uit.finance.core.designsystem.component.Avatar
 import com.uit.finance.core.designsystem.component.CircleIconButton
 import com.uit.finance.core.designsystem.component.EmptyState
-import com.uit.finance.core.designsystem.component.FinanceListItem
-import com.uit.finance.core.designsystem.component.IconTile
 import com.uit.finance.core.designsystem.component.LoadingIndicator
+import com.uit.finance.core.designsystem.component.MessageSnackbarHost
 import com.uit.finance.core.designsystem.component.PagerIndicator
 import com.uit.finance.core.designsystem.component.QuickActionButton
+import com.uit.finance.core.designsystem.component.RefreshContainer
 import com.uit.finance.core.designsystem.component.SectionHeader
 import com.uit.finance.core.designsystem.component.StatTile
 import com.uit.finance.core.designsystem.icon.FinanceIcons
 import com.uit.finance.core.designsystem.theme.FinanceTheme
-import com.uit.finance.core.ledger.domain.model.TransactionType
+import com.uit.finance.core.sync.domain.model.SyncOverview
+import com.uit.finance.core.ui.ledger.icon
+import com.uit.finance.core.ui.ledger.label
+import com.uit.finance.core.ui.sync.SyncStatusIndicator
+import com.uit.finance.core.ui.transaction.TransactionListItem
 import com.uit.finance.feature.home.presentation.navigation.HomeTarget
 import kotlin.math.absoluteValue
 import org.koin.compose.viewmodel.koinViewModel
@@ -91,58 +94,73 @@ internal fun HomeScreen(
         ?: state.monthByCurrency.keys.firstOrNull()
     val monthSummary = visibleCurrency?.let(state.monthByCurrency::get)
 
-    LazyColumn(
+    RefreshContainer(
+        isRefreshing = state.isRefreshing,
+        onRefresh = { onIntent(HomeIntent.SyncNow) },
         modifier = modifier.fillMaxSize(),
-        contentPadding = PaddingValues(top = spacing.md, bottom = spacing.xl),
-        verticalArrangement = Arrangement.spacedBy(spacing.lg),
     ) {
-        item(key = "header") {
-            HomeHeader(
-                userName = state.userName,
-                todayLabel = state.todayLabel,
-                onBell = { open(HomeTarget.Bills) },
-                modifier = horizontal,
-            )
-        }
-        item(key = "accounts") {
-            AccountsPager(
-                accounts = state.accounts,
-                pagerState = pagerState,
-                onOpenAccounts = { open(HomeTarget.Accounts) },
-            )
-        }
-        item(key = "actions") { QuickActions(onOpen = open, modifier = horizontal) }
-        if (monthSummary != null) {
-            item(key = "month") { MonthSummary(summary = monthSummary, modifier = horizontal) }
-        }
-        item(key = "recent-header") {
-            SectionHeader(
-                title = "Giao dịch gần đây",
-                actionLabel = "Xem tất cả",
-                onAction = { open(HomeTarget.Transactions) },
-                modifier = horizontal,
-            )
-        }
-        if (state.recentTransactions.isEmpty()) {
-            item(key = "recent-empty") {
-                EmptyState(
-                    icon = FinanceIcons.Receipt,
-                    title = "Chưa có giao dịch",
-                    message = "Ghi khoản thu chi đầu tiên để thấy lịch sử ở đây.",
-                    actionLabel = "Thêm giao dịch",
-                    onAction = { open(HomeTarget.AddTransaction) },
+        LazyColumn(
+            modifier = Modifier.fillMaxSize(),
+            contentPadding = PaddingValues(top = spacing.md, bottom = spacing.xl),
+            verticalArrangement = Arrangement.spacedBy(spacing.lg),
+        ) {
+            item(key = "header") {
+                HomeHeader(
+                    userName = state.userName,
+                    todayLabel = state.todayLabel,
+                    sync = state.sync,
+                    onBell = { open(HomeTarget.Bills) },
+                    onSyncNow = { onIntent(HomeIntent.SyncNow) },
+                    onAcknowledgeSyncIssues = { onIntent(HomeIntent.AcknowledgeSyncIssues) },
                     modifier = horizontal,
                 )
             }
-        } else {
-            items(state.recentTransactions, key = { it.id }) { row ->
-                TransactionRow(
-                    row = row,
-                    onClick = { open(HomeTarget.Transactions) },
-                    modifier = Modifier.animateItem().then(horizontal),
+            item(key = "accounts") {
+                AccountsPager(
+                    accounts = state.accounts,
+                    pagerState = pagerState,
+                    onOpenAccounts = { open(HomeTarget.Accounts) },
+                    onCreateAccount = { open(HomeTarget.CreateAccount) },
                 )
             }
+            item(key = "actions") { QuickActions(onOpen = open, modifier = horizontal) }
+            if (monthSummary != null) {
+                item(key = "month") { MonthSummary(summary = monthSummary, modifier = horizontal) }
+            }
+            item(key = "recent-header") {
+                SectionHeader(
+                    title = "Giao dịch gần đây",
+                    actionLabel = "Xem tất cả",
+                    onAction = { open(HomeTarget.Transactions) },
+                    modifier = horizontal,
+                )
+            }
+            if (state.recentTransactions.isEmpty()) {
+                item(key = "recent-empty") {
+                    EmptyState(
+                        icon = FinanceIcons.Receipt,
+                        title = "Chưa có giao dịch",
+                        message = "Ghi khoản thu chi đầu tiên để thấy lịch sử ở đây.",
+                        actionLabel = "Thêm giao dịch",
+                        onAction = { open(HomeTarget.AddTransaction) },
+                        modifier = horizontal,
+                    )
+                }
+            } else {
+                items(state.recentTransactions, key = { it.id }) { item ->
+                    TransactionListItem(
+                        item = item,
+                        onClick = { open(HomeTarget.EditTransaction(item.id)) },
+                        modifier = Modifier.animateItem().then(horizontal),
+                    )
+                }
+            }
         }
+        MessageSnackbarHost(
+            message = state.message?.resolve(),
+            onShown = { onIntent(HomeIntent.MessageShown) },
+            modifier = Modifier.align(Alignment.BottomCenter),
+        )
     }
 }
 
@@ -150,7 +168,10 @@ internal fun HomeScreen(
 private fun HomeHeader(
     userName: String?,
     todayLabel: String,
+    sync: SyncOverview,
     onBell: () -> Unit,
+    onSyncNow: () -> Unit,
+    onAcknowledgeSyncIssues: () -> Unit,
     modifier: Modifier = Modifier,
 ) {
     val spacing = FinanceTheme.spacing
@@ -179,6 +200,12 @@ private fun HomeHeader(
                     color = MaterialTheme.colorScheme.onSurfaceVariant,
                 )
             }
+            SyncStatusIndicator(
+                overview = sync,
+                onRefresh = onSyncNow,
+                onAcknowledgeIssues = onAcknowledgeSyncIssues,
+                modifier = Modifier.padding(top = FinanceTheme.spacing.xs),
+            )
         }
         CircleIconButton(icon = FinanceIcons.Bell, contentDescription = "Khoản sắp đến hạn", onClick = onBell)
     }
@@ -189,6 +216,7 @@ private fun AccountsPager(
     accounts: List<AccountCardUi>,
     pagerState: PagerState,
     onOpenAccounts: () -> Unit,
+    onCreateAccount: () -> Unit,
 ) {
     val spacing = FinanceTheme.spacing
     if (accounts.isEmpty()) {
@@ -197,7 +225,7 @@ private fun AccountsPager(
             title = "Chưa có ví nào",
             message = "Tạo ví đầu tiên (tiền mặt, ngân hàng, ví điện tử) để bắt đầu ghi chép.",
             actionLabel = "Tạo ví",
-            onAction = onOpenAccounts,
+            onAction = onCreateAccount,
             modifier = Modifier.padding(horizontal = spacing.lg),
         )
         return
@@ -280,28 +308,4 @@ private fun MonthSummary(summary: MonthSummaryUi, modifier: Modifier = Modifier)
             )
         }
     }
-}
-
-@Composable
-private fun TransactionRow(row: TransactionRowUi, onClick: () -> Unit, modifier: Modifier = Modifier) {
-    val amountColor = when (row.type) {
-        TransactionType.INCOME -> FinanceTheme.colors.income
-        TransactionType.EXPENSE, TransactionType.TRANSFER -> MaterialTheme.colorScheme.onSurface
-    }
-    FinanceListItem(
-        title = row.title,
-        subtitle = row.subtitle,
-        leading = {
-            IconTile(
-                icon = row.icon(),
-                containerColor = row.type.tileContainer(),
-                contentColor = row.type.tileContent(),
-            )
-        },
-        trailing = {
-            AmountText(amount = row.amount, currency = row.currency, sign = row.sign, amountColor = amountColor)
-        },
-        onClick = onClick,
-        modifier = modifier,
-    )
 }

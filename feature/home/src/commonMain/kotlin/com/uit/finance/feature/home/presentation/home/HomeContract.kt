@@ -1,7 +1,9 @@
 package com.uit.finance.feature.home.presentation.home
 
 import com.uit.finance.core.ledger.domain.model.AccountType
-import com.uit.finance.core.ledger.domain.model.TransactionType
+import com.uit.finance.core.presentation.text.UiText
+import com.uit.finance.core.sync.domain.model.SyncOverview
+import com.uit.finance.core.ui.transaction.TransactionItemUi
 import com.uit.finance.feature.home.presentation.navigation.HomeTarget
 
 /**
@@ -16,7 +18,12 @@ data class HomeState(
     val accounts: List<AccountCardUi> = emptyList(),
     /** Thu/chi tháng này theo từng tiền tệ; màn hình chọn theo thẻ ví đang xem. */
     val monthByCurrency: Map<String, MonthSummaryUi> = emptyMap(),
-    val recentTransactions: List<TransactionRowUi> = emptyList(),
+    val recentTransactions: List<TransactionItemUi> = emptyList(),
+    val sync: SyncOverview = SyncOverview.IDLE,
+    /** User đang kéo để làm mới và vòng sync chưa xong. */
+    val isRefreshing: Boolean = false,
+    /** Thông báo một lần (snackbar); màn hình báo [HomeIntent.MessageShown] khi đã hiện. */
+    val message: UiText? = null,
 )
 
 data class AccountCardUi(
@@ -35,24 +42,16 @@ data class MonthSummaryUi(
     val expense: String,
 )
 
-data class TransactionRowUi(
-    val id: String,
-    val type: TransactionType,
-    val title: String,
-    val subtitle: String,
-    val currency: String,
-    val amount: String,
-    /** `+` thu, `-` chi, rỗng khi chuyển tiền. */
-    val sign: String,
-    /** Khoá icon của danh mục (do server/user đặt); `null` thì dùng icon theo loại giao dịch. */
-    val iconKey: String?,
-)
-
 sealed interface HomeIntent {
     data class Open(val target: HomeTarget) : HomeIntent
 
     /** Màn hình resume: tính lại "hôm nay" (qua đêm, qua tháng) để kỳ "tháng này" và nhãn ngày không bị cũ. */
     data object Refresh : HomeIntent
+
+    /** Kéo xuống hoặc chạm badge: gửi ngay thay đổi chưa đồng bộ và kéo dữ liệu mới. */
+    data object SyncNow : HomeIntent
+    data object AcknowledgeSyncIssues : HomeIntent
+    data object MessageShown : HomeIntent
 }
 
 sealed interface HomeEffect {

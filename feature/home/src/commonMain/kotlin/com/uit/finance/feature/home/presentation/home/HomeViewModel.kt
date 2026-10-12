@@ -1,19 +1,28 @@
 package com.uit.finance.feature.home.presentation.home
 
 import androidx.lifecycle.viewModelScope
+import com.uit.finance.core.common.result.onFailure
 import com.uit.finance.core.common.time.Clock
 import com.uit.finance.core.presentation.mvi.MviViewModel
+import com.uit.finance.core.sync.domain.usecase.AcknowledgeSyncIssuesUseCase
+import com.uit.finance.core.sync.domain.usecase.ObserveSyncOverviewUseCase
+import com.uit.finance.core.sync.domain.usecase.SyncNowUseCase
+import com.uit.finance.core.ui.sync.toSyncMessage
 import com.uit.finance.feature.home.domain.usecase.ObserveHomeDashboardUseCase
 import kotlinx.coroutines.ExperimentalCoroutinesApi
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.flatMapLatest
 import kotlinx.coroutines.flow.launchIn
 import kotlinx.coroutines.flow.onEach
+import kotlinx.coroutines.launch
 import kotlinx.datetime.LocalDate
 
 @OptIn(ExperimentalCoroutinesApi::class) // flatMapLatest
 internal class HomeViewModel(
     observeDashboard: ObserveHomeDashboardUseCase,
+    observeSync: ObserveSyncOverviewUseCase,
+    private val syncNow: SyncNowUseCase,
+    private val acknowledgeSyncIssues: AcknowledgeSyncIssuesUseCase,
     private val mapper: HomeUiMapper,
     private val clock: Clock,
 ) : MviViewModel<HomeState, HomeIntent, HomeEffect>(HomeState()) {
@@ -27,15 +36,33 @@ internal class HomeViewModel(
             .flatMapLatest { date -> observeDashboard(date) }
             .onEach { dashboard -> setState { mapper.map(dashboard, current = this) } }
             .launchIn(viewModelScope)
+        observeSync()
+            .onEach { overview -> setState { copy(sync = overview) } }
+            .launchIn(viewModelScope)
     }
 
     override fun onIntent(intent: HomeIntent) = when (intent) {
         is HomeIntent.Open -> sendEffect(HomeEffect.Navigate(intent.target))
         HomeIntent.Refresh -> refreshToday()
+        HomeIntent.SyncNow -> startSync()
+        HomeIntent.AcknowledgeSyncIssues -> {
+            viewModelScope.launch { acknowledgeSyncIssues() }
+            Unit
+        }
+        HomeIntent.MessageShown -> setState { copy(message = null) }
     }
 
     /** `StateFlow` bỏ qua giá trị trùng, nên resume trong cùng ngày không query lại. */
     private fun refreshToday() {
         today.value = clock.today()
+    }
+
+    private fun startSync() {
+        if (currentState.isRefreshing) return
+        setState { copy(isRefreshing = true) }
+        viewModelScope.launch {
+            syncNow().onFailure { error -> setState { copy(message = error.toSyncMessage()) } }
+            setState { copy(isRefreshing = false) }
+        }
     }
 }

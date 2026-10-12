@@ -9,11 +9,12 @@ import com.uit.finance.core.ledger.domain.model.Transaction
 /** Ví kèm số dư hiện tại (tính từ lịch sử, D4). */
 data class AccountOverview(val account: Account, val balance: Money)
 
-/** Giao dịch kèm ví và danh mục đã tra sẵn để màn hình không phải tự ghép. `null` khi chưa pull về. */
+/** Giao dịch kèm ví, ví nhận (chuyển tiền) và danh mục đã tra sẵn để màn hình không phải tự ghép. `null` khi chưa pull về. */
 data class RecentTransaction(
     val transaction: Transaction,
     val account: Account?,
     val category: Category?,
+    val counterAccount: Account? = null,
 )
 
 /** Mọi số liệu trang chủ cần, gom từ `core/ledger` trong một lần phát. */

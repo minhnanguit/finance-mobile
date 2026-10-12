@@ -8,7 +8,10 @@ import org.koin.core.module.dsl.factoryOf
 import org.koin.core.module.dsl.viewModelOf
 import org.koin.dsl.module
 
-/** Cần trong graph: 4 repository của `coreLedgerModule`, `Clock` (core/common), `MoneyFormatter` (core/presentation). */
+/**
+ * Cần trong graph: 4 repository của `coreLedgerModule`, use case sync của `coreSyncModule`, `Clock`
+ * (core/common), `MoneyFormatter` (core/presentation), `TransactionItemFormatter` (core/ui).
+ */
 val homeFeatureModule: Module = module {
     // domain
     factoryOf(::ObserveHomeDashboardUseCase)

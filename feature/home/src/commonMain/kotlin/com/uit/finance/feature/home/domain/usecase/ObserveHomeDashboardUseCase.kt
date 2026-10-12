@@ -51,6 +51,7 @@ class ObserveHomeDashboardUseCase(
                         transaction = transaction,
                         account = accountById[transaction.accountId],
                         category = transaction.categoryId?.let(categoryById::get),
+                        counterAccount = transaction.counterAccountId?.let(accountById::get),
                     )
                 },
             )
