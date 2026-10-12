@@ -24,8 +24,8 @@ data class FormattedMoney(
  * đi qua đây, không tự ghép chuỗi.
  */
 class MoneyFormatter(
-    private val groupingSeparator: Char = '.',
-    private val decimalSeparator: Char = ',',
+    private val groupingSeparator: Char = NumberSymbols.GROUPING,
+    private val decimalSeparator: Char = NumberSymbols.DECIMAL,
 ) {
     fun format(money: Money): FormattedMoney {
         val digits = Currencies.minorDigits(money.currency)

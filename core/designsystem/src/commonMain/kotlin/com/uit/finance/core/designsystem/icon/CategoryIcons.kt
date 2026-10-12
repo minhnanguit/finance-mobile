@@ -17,10 +17,10 @@ private val CategoryIconCatalog: Map<String, ImageVector> by lazy {
         put("shopping_bag", FinanceIcons.Shopping)
         put("receipt", FinanceIcons.Receipt)
         put("home", FinanceIcons.Home)
-        put("favorite", FinanceIcons.Charity)
+        put("favorite", FinanceIcons.Health) // backend dùng "favorite" cho Sức khoẻ
         put("school", FinanceIcons.Education)
         put("movie", FinanceIcons.Entertainment)
-        put("family", FinanceIcons.Charity)
+        put("family", FinanceIcons.Family)
         put("percent", FinanceIcons.Fee)
         put("more_horiz", FinanceIcons.More)
         put("payments", FinanceIcons.Salary)
@@ -63,3 +63,14 @@ private val CategoryIconCatalog: Map<String, ImageVector> by lazy {
         put("other", FinanceIcons.OtherMoney)
     }
 }
+
+/**
+ * Khoá icon cho user chọn khi tạo/sửa danh mục, mỗi khoá một hình khác nhau. Dùng tên Material Icons giống
+ * danh mục mặc định của server để danh mục tự tạo và danh mục có sẵn chung một bộ khoá.
+ */
+val categoryIconChoices: List<String> = listOf(
+    "restaurant", "shopping_bag", "groceries", "directions_car", "bus", "fuel", "receipt", "home",
+    "utilities", "internet", "phone", "family", "favorite", "charity", "school", "movie", "games",
+    "clothing", "fitness", "travel", "card_giftcard", "payments", "redeem", "trending_up", "savings",
+    "goal", "percent", "more_horiz",
+)

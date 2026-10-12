@@ -1,9 +1,13 @@
 package com.uit.finance.core.designsystem.icon
 
 import androidx.compose.ui.graphics.vector.ImageVector
+import com.composables.icons.lucide.Archive
+import com.composables.icons.lucide.ArchiveRestore
+import com.composables.icons.lucide.ArrowDown
 import com.composables.icons.lucide.ArrowDownLeft
 import com.composables.icons.lucide.ArrowDownUp
 import com.composables.icons.lucide.ArrowLeftRight
+import com.composables.icons.lucide.ArrowUp
 import com.composables.icons.lucide.ArrowUpRight
 import com.composables.icons.lucide.BadgePercent
 import com.composables.icons.lucide.Banknote
@@ -14,6 +18,7 @@ import com.composables.icons.lucide.Car
 import com.composables.icons.lucide.ChartColumn
 import com.composables.icons.lucide.ChartPie
 import com.composables.icons.lucide.Check
+import com.composables.icons.lucide.ChevronDown
 import com.composables.icons.lucide.ChevronLeft
 import com.composables.icons.lucide.ChevronRight
 import com.composables.icons.lucide.CircleDollarSign
@@ -38,6 +43,7 @@ import com.composables.icons.lucide.Landmark
 import com.composables.icons.lucide.Lock
 import com.composables.icons.lucide.LogOut
 import com.composables.icons.lucide.Lucide
+import com.composables.icons.lucide.NotebookPen
 import com.composables.icons.lucide.Pencil
 import com.composables.icons.lucide.Phone
 import com.composables.icons.lucide.PiggyBank
@@ -46,6 +52,7 @@ import com.composables.icons.lucide.Plus
 import com.composables.icons.lucide.Receipt
 import com.composables.icons.lucide.RefreshCw
 import com.composables.icons.lucide.Search
+import com.composables.icons.lucide.Shapes
 import com.composables.icons.lucide.Shield
 import com.composables.icons.lucide.Shirt
 import com.composables.icons.lucide.ShoppingBag
@@ -54,11 +61,13 @@ import com.composables.icons.lucide.SlidersHorizontal
 import com.composables.icons.lucide.Smartphone
 import com.composables.icons.lucide.Sparkles
 import com.composables.icons.lucide.Stethoscope
+import com.composables.icons.lucide.Store
 import com.composables.icons.lucide.Tag
 import com.composables.icons.lucide.Target
 import com.composables.icons.lucide.Trash2
 import com.composables.icons.lucide.TrendingUp
 import com.composables.icons.lucide.UserRound
+import com.composables.icons.lucide.Users
 import com.composables.icons.lucide.Utensils
 import com.composables.icons.lucide.Wallet
 import com.composables.icons.lucide.Wifi
@@ -102,6 +111,14 @@ object FinanceIcons {
     val Clock: ImageVector get() = Lucide.Clock
     val Tag: ImageVector get() = Lucide.Tag
     val Inbox: ImageVector get() = Lucide.Inbox
+    val Archive: ImageVector get() = Lucide.Archive
+    val Unarchive: ImageVector get() = Lucide.ArchiveRestore
+    val MoveUp: ImageVector get() = Lucide.ArrowUp
+    val MoveDown: ImageVector get() = Lucide.ArrowDown
+    val Expand: ImageVector get() = Lucide.ChevronDown
+    val Categories: ImageVector get() = Lucide.Shapes
+    val Note: ImageVector get() = Lucide.NotebookPen
+    val Payee: ImageVector get() = Lucide.Store
 
     // ---- Tiền & ví ----
     val Wallet: ImageVector get() = Lucide.Wallet
@@ -139,5 +156,6 @@ object FinanceIcons {
     val Bonus: ImageVector get() = Lucide.Sparkles
     val Goal: ImageVector get() = Lucide.Target
     val Charity: ImageVector get() = Lucide.Heart
+    val Family: ImageVector get() = Lucide.Users
     val OtherMoney: ImageVector get() = Lucide.CircleDollarSign
 }
