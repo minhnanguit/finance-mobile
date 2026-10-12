@@ -27,6 +27,9 @@ description: Thêm hoặc sửa màn hình / component Compose Multiplatform tro
 | Tiền | `AmountText(amount, currency, sign)` — chuỗi do `MoneyFormatter` (core/presentation) format trong ViewModel/mapper |
 | Danh sách | `FinanceListItem` + `IconTile` (đầu dòng) + `AmountText` (cuối dòng); tiêu đề mục `SectionHeader` |
 | Thẻ ví / số liệu | `AccountCard` (màu từ `FinanceTheme.colors.accountCards[i % size]`), `StatTile`, `PagerIndicator`, `Avatar`, `LabelChip` |
+| Form | `AmountField` (số tiền, chuỗi qua `MoneyInput`), `SegmentedControl`, `ChoiceTile` (lưới chọn), `SelectionField` + `OptionSheet` / `DatePickerSheet`, `ColorSwatchPicker` |
+| Danh sách / màn | `FinanceTopBar`, `FinanceFab`, `OverflowMenu`, `SwipeToDeleteBox`, `RefreshContainer` (kéo làm mới), `MessageSnackbarHost` (thông báo trong state) |
+| Theo model ledger | `core/ui`: `TransactionListItem` + `TransactionItemFormatter`, `AccountType.label()/icon()`, `categoryTileColors`, `toLedgerUiText()` / `messageFor()`, `SyncStatusIndicator` |
 | Icon | `Icon(FinanceIcons.X, contentDescription = …)` — thêm icon mới vào `FinanceIcons.kt` (map sang Lucide; **không** import `com.composables.icons` ở nơi khác). Icon danh mục: `categoryIcon(key)` |
 
 Thiếu component → thêm vào `core/designsystem/component/` theo phong cách các file có sẵn, rồi mới dùng.

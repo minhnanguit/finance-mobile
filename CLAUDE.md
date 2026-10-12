@@ -8,7 +8,7 @@ Client Kotlin Multiplatform (Android + iOS) dùng **Compose Multiplatform UI chu
 - Package gốc: `com.uit.finance` · compileSdk 36 · minSdk 26 · targetSdk 36
 - Kiến trúc đã **chốt** ở `../ARCHITECTURE.md` (repo-level, tiếng Việt). Không tự đổi.
 - Hợp đồng API: `api/openapi.yaml` là bản **copy nguyên văn** từ `finance-backend`, pin theo `api/VERSION` (hiện `2.1.0`). **Không sửa tay file này.**
-- Feature hiện có: `feature/auth` (reference feature: SignedOut / Profile; login/register diễn ra trên **Keycloak** qua system browser, ADR-004) · `feature/home` (Trang chủ: thẻ ví, thu/chi tháng này, giao dịch gần đây — đọc từ `core/ledger` qua `ObserveHomeDashboardUseCase`).
+- Feature hiện có: `feature/auth` (reference feature: SignedOut / Profile; login/register diễn ra trên **Keycloak** qua system browser, ADR-004) · `feature/home` (Trang chủ: thẻ ví, thu/chi tháng này, giao dịch gần đây, badge đồng bộ) · `feature/accounts` (danh sách ví, tạo/sửa ví) · `feature/transactions` (lịch sử, thêm/sửa giao dịch + phí chuyển, danh mục).
 - UI theo bản thiết kế tham chiếu Purrweb "Finance Mobile iOS App" (dribbble.com/shots/21793126): Montserrat, sage `#94C1B2` / cam đào `#FFC789` / nền `#121212`. Token và component ở `core/designsystem`; icon là Lucide nhưng **chỉ** import trong `FinanceIcons.kt`.
 - Dữ liệu ledger (ví, danh mục, giao dịch) + sync offline-first: `core/ledger` + `core/sync`, theo `../docs/LEDGER-PLAN.md`.
 - `finance-backend` là repo riêng — **không sửa từ đây**.
@@ -29,7 +29,7 @@ Mọi lệnh thường dùng đều là target trong `Makefile`. Gõ `make` đ�
 | `make crash` | Chỉ theo dõi warning + crash |
 | `make apk` | Build APK debug, không cài |
 | `make test` | Unit test **mọi module KMP** (chạy trên host JVM) |
-| `make arch` | 21 luật Konsist |
+| `make arch` | 23 luật Konsist |
 | `make lint` | Android Lint cho `composeApp` |
 | `make tunnel URL=https://…` | Trỏ build debug tới URL HTTPS của `make tunnel` bên backend (ghi `finance.publicBaseUrl` vào `local.properties`). Có URL thì APK **tắt** cleartext |
 | `make tunnel-off` | Quay về loopback `10.0.2.2` / `localhost` (http) |
@@ -81,12 +81,21 @@ core/session          UserSession: sau /me mở DB của user + chạy sync; đ�
 core/designsystem     FinanceTheme (Color/Typography Montserrat/Shape/Spacing 4dp/Motion), FinanceIcons (facade Lucide) +
                       categoryIcon(key), component: AccountCard (+contourPattern), QuickActionButton, FinanceListItem,
                       IconTile, AmountText, StatTile, SectionHeader, PagerIndicator, Avatar, CircleIconButton, LabelChip,
-                      EmptyState, pressScale, PrimaryButton, FinanceTextField, LoadingIndicator, ErrorBanner, ConfirmDialog
+                      EmptyState, pressScale, PrimaryButton, FinanceTextField, LoadingIndicator, ErrorBanner, ConfirmDialog,
+                      form: AmountField, SegmentedControl, ChoiceTile, SelectionField, OptionSheet, DatePickerSheet,
+                      ColorSwatchPicker · màn: FinanceTopBar, FinanceFab, OverflowMenu, SwipeToDeleteBox, RefreshContainer,
+                      MessageSnackbarHost, SyncStatusBadge, MoneyListItem · CategoryPalette, MoneyDirection
+core/ui               UI biết model ledger, dùng chung giữa feature: nhãn/icon/chiều tiền (LedgerVisuals), TransactionItemFormatter +
+                      TransactionListItem, mã lỗi ledger.* → UiText (toLedgerUiText / messageFor), SyncStatusIndicator (coreUiModule)
 core/testing          TestDispatcherProvider, TestClock, FakeUuidGenerator, MainDispatcherRule
+core/ledger-testing   Fake repository của core/ledger + core/sync (FakeSyncKit) cho commonTest của các feature
 feature/auth          domain / data / presentation trong CÙNG một Gradle module
 feature/home          Trang chủ: domain (ObserveHomeDashboardUseCase gom ví + số dư + thu/chi tháng + giao dịch gần đây từ
                       repository của core/ledger) + presentation (HomeUiMapper format, HomeScreen theo bản thiết kế)
-architecture-test     21 luật Konsist (JVM)
+feature/accounts      domain (use case ví: tổng quan, lưu, lưu trữ, xoá, đổi thứ tự) + presentation (list, editor)
+feature/transactions  domain (lịch sử, form, lưu giao dịch + phí D3, danh mục) + presentation (history, editor, categories,
+                      categoryeditor). Vuốt xoá = xoá trễ để hoàn tác (S4 xoá luôn thắng)
+architecture-test     23 luật Konsist (JVM)
 ```
 
 Chiều phụ thuộc: **`presentation → domain ← data`**. Feature không phụ thuộc feature. Core không phụ thuộc feature.
@@ -98,7 +107,7 @@ Mỗi Gradle module expose **đúng một** Koin module public (`coreNetworkModu
 
 | File | Nội dung |
 |---|---|
-| `architecture-boundaries.md` | presentation ↛ data, domain thuần, feature isolation, 21 luật Konsist |
+| `architecture-boundaries.md` | presentation ↛ data, domain thuần, feature isolation, 23 luật Konsist |
 | `mvi-and-state.md` | MviViewModel, State/Intent/Effect, Route vs Screen |
 | `kmp-and-platform.md` | source set, expect/actual, Dispatchers, giới hạn iOS |
 | `contract-pinning.md` | `api/openapi.yaml` pin, generated client chỉ ở `core/network` |

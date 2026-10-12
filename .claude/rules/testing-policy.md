@@ -3,7 +3,7 @@
 | Lệnh | Chạy gì | Cần gì |
 |---|---|---|
 | `make test` | Unit test mọi module KMP (target Android/JVM, chạy trên host) | JDK + Android SDK |
-| `make arch` | 21 luật Konsist (đọc **source**, không phải bytecode) | JDK |
+| `make arch` | 23 luật Konsist (đọc **source**, không phải bytecode) | JDK |
 | `make apk` | Build APK — smoke test biên dịch | Android SDK |
 
 CI chạy cả ba (job `android`) + build iOS (job `ios`, cần macOS + Xcode).
@@ -12,7 +12,7 @@ CI chạy cả ba (job `android`) + build iOS (job `ios`, cần macOS + Xcode).
 
 | Đối tượng | Nơi | Công cụ |
 |---|---|---|
-| Domain model, use case | `<module>/src/commonTest/…/domain/` | `kotlin.test` + fake repository (mẫu `FakeAuthRepository` trong `feature/auth/src/commonTest/…/testing/`) |
+| Domain model, use case | `<module>/src/commonTest/…/domain/` | `kotlin.test` + fake repository (mẫu `FakeAuthRepository` trong `feature/auth/src/commonTest/…/testing/`). Feature dùng ledger/sync: fake dùng chung ở `core/ledger-testing` (`FakeAccountRepository`…, `FakeSyncKit`) |
 | Repository (data) | `commonTest/…/data/repository/` | Fake remote + fake `SessionStore` (mẫu `AuthRepositoryImplTest`) |
 | ViewModel | `commonTest/…/presentation/` | **Turbine** cho `state`/`effects` (mẫu `SignedOutViewModelTest`), `TestDispatcherProvider` |
 | Ktor client, plugin | `core/network/src/commonTest/` | `ktor-client-mock` (mẫu `HttpClientFactoryTest`, `IdempotencyKeyPluginTest`, `TestSupport.kt`) |
