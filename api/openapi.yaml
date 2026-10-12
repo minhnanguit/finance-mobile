@@ -231,7 +231,7 @@ components:
         code:
           type: string
           nullable: true
-          description: Mã lỗi khi REJECTED / CONFLICT / RETRY, ví dụ `ledger.archived`
+          description: Mã lỗi khi REJECTED / CONFLICT / RETRY, ví dụ `ledger.in_use`
         current:
           $ref: '#/components/schemas/SyncChange'
     SyncPullResponse:

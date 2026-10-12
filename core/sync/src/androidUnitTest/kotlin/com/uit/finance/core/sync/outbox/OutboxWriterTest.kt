@@ -35,8 +35,8 @@ class OutboxWriterTest {
 
     @Test
     fun `không gộp vào op nằm giữa hàng - trạng thái mới không được vượt lên trước op ghi sau nó`() {
-        // Tạo ví → ghi giao dịch vào ví → archive ví. Gộp archive vào op tạo ví thì server nhận "ví đã archive"
-        // trước giao dịch và từ chối giao dịch (ledger.archived).
+        // Tạo ví → ghi giao dịch vào ví → sửa ví. Gộp lần sửa vào op tạo ví thì server nhận trạng thái mới
+        // trước giao dịch: thứ tự trên server khác thứ tự user đã làm.
         writer.upsert(database, "account", "a1", payload("Ví"))
         writer.upsert(database, "transaction", "t1", payload("phở"), listOf(SyncRef("account", "a1")))
         writer.upsert(database, "account", "a1", payload("Ví (archived)"))

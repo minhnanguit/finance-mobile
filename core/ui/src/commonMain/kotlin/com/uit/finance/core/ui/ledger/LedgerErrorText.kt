@@ -21,10 +21,6 @@ fun FieldError.toLedgerUiText(): UiText = when (message) {
     LedgerErrorCode.INVALID_FIELD -> invalidField(field)
     LedgerErrorCode.CATEGORY_KIND_MISMATCH -> key("category_kind_mismatch", "Danh mục không khớp loại giao dịch.")
     LedgerErrorCode.INVALID_TRANSFER -> key("invalid_transfer", "Chuyển tiền cần hai ví khác nhau và cùng tiền tệ.")
-    LedgerErrorCode.ARCHIVED -> when (field) {
-        "categoryId" -> key("archived.category", "Danh mục này đã được lưu trữ. Hãy chọn danh mục khác.")
-        else -> key("archived.account", "Ví này đã được lưu trữ. Hãy chọn ví khác.")
-    }
     LedgerErrorCode.CURRENCY_LOCKED -> key("currency_locked", "Ví đã có giao dịch nên không đổi được tiền tệ.")
     LedgerErrorCode.IN_USE -> key("in_use", "Đã có giao dịch dùng tới nên không xoá được. Hãy lưu trữ thay vì xoá.")
     LedgerErrorCode.KIND_IMMUTABLE -> key("kind_immutable", "Không đổi được loại thu/chi của danh mục.")

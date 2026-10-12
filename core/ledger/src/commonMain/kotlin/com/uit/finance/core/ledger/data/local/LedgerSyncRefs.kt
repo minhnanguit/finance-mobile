@@ -6,8 +6,8 @@ import com.uit.finance.core.network.api.model.SyncEntity
 import com.uit.finance.core.sync.outbox.SyncRef
 
 /*
- * Bản ghi mà op trỏ tới. Outbox dựa vào đây để không gửi "archive/xoá ví" trước giao dịch còn nằm trong
- * ví đó (server sẽ từ chối giao dịch: ledger.archived / ledger.in_use), xem OutboxWriter.
+ * Bản ghi mà op trỏ tới. Outbox dựa vào đây để không gửi "xoá/sửa ví" trước giao dịch còn nằm trong ví đó
+ * (server sẽ từ chối: ledger.in_use, hoặc áp lệch thứ tự user đã thấy), xem OutboxWriter.
  */
 
 internal fun Transaction.syncRefs(): List<SyncRef> = buildList {

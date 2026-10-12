@@ -78,9 +78,9 @@ internal class TransactionRepositoryImpl(
         // Một transaction DB cho cả nhóm: dòng nào vi phạm luật thì không dòng nào được lưu (D3: chuyển + phí).
         return store.write { database ->
             candidates.zip(drafts).map { (candidate, draft) ->
-                val account = requireAttachable(database, draft.accountId, previous = null)
+                val account = requireAccount(database, draft.accountId)
                 candidate.copy(amount = Money(draft.amountMinor, account.currency))
-                    .also { checkReferences(database, it, account, previous = null) }
+                    .also { checkReferences(database, it, account) }
                     .also { persist(database, it) }
             }
         }
@@ -92,10 +92,10 @@ internal class TransactionRepositoryImpl(
         if (errors.isNotEmpty()) return AppResult.Failure(AppError.Validation(errors))
 
         return store.write { database ->
-            val previous = requireActive(database, transaction.id)
-            val account = requireAttachable(database, normalized.accountId, previous = previous.accountId)
+            requireActive(database, transaction.id)
+            val account = requireAccount(database, normalized.accountId)
             normalized.copy(amount = Money(normalized.amount.amountMinor, account.currency))
-                .also { checkReferences(database, it, account, previous) }
+                .also { checkReferences(database, it, account) }
                 .also { persist(database, it) }
         }
     }
@@ -114,44 +114,33 @@ internal class TransactionRepositoryImpl(
             LedgerRules.shape(transaction.type, transaction.accountId, transaction.counterAccountId, transaction.categoryId)
 
     /**
-     * Cùng luật với backend (`TransactionRules`): ví đến cùng tiền tệ, danh mục đúng loại. Không gắn mới
-     * vào ví/danh mục đã archive; giao dịch cũ đã nằm sẵn trong đó vẫn sửa được.
+     * Cùng luật với backend (`TransactionRules`): ví đến cùng tiền tệ, danh mục đúng loại. Ví/danh mục đã archive
+     * vẫn trỏ tới được — archive chỉ ẩn khỏi danh sách chọn ở UI (ADR-005 §3).
      */
-    private fun checkReferences(database: FinanceDatabase, transaction: Transaction, account: Account, previous: Transaction?) {
+    private fun checkReferences(database: FinanceDatabase, transaction: Transaction, account: Account) {
         if (transaction.type == TransactionType.TRANSFER) {
             val counterId = requireNotNull(transaction.counterAccountId)
-            val counter = requireAttachable(database, counterId, previous?.counterAccountId, field = "counterAccountId")
+            val counter = requireAccount(database, counterId, field = "counterAccountId")
             if (counter.currency != account.currency) rejectWith("counterAccountId", LedgerErrorCode.INVALID_TRANSFER)
         } else {
             val categoryId = requireNotNull(transaction.categoryId)
-            val category = requireCategory(database, categoryId, previous?.categoryId)
+            val category = requireCategory(database, categoryId)
             val expected = if (transaction.type == TransactionType.INCOME) CategoryKind.INCOME else CategoryKind.EXPENSE
             if (category.kind != expected) rejectWith("categoryId", LedgerErrorCode.CATEGORY_KIND_MISMATCH)
         }
     }
 
-    private fun requireAttachable(
-        database: FinanceDatabase,
-        accountId: String,
-        previous: String?,
-        field: String = "accountId",
-    ): Account {
-        val account = database.accountQueries.selectById(accountId).executeAsOneOrNull()
+    private fun requireAccount(database: FinanceDatabase, accountId: String, field: String = "accountId"): Account =
+        database.accountQueries.selectById(accountId).executeAsOneOrNull()
             ?.takeIf { it.deleted == 0L }
             ?.toDomain()
             ?: rejectWith(field, LedgerErrorCode.NOT_FOUND)
-        if (account.archived && accountId != previous) rejectWith(field, LedgerErrorCode.ARCHIVED)
-        return account
-    }
 
-    private fun requireCategory(database: FinanceDatabase, categoryId: String, previous: String?): Category {
-        val category = database.categoryQueries.selectById(categoryId).executeAsOneOrNull()
+    private fun requireCategory(database: FinanceDatabase, categoryId: String): Category =
+        database.categoryQueries.selectById(categoryId).executeAsOneOrNull()
             ?.takeIf { it.deleted == 0L }
             ?.toDomain()
             ?: rejectWith("categoryId", LedgerErrorCode.NOT_FOUND)
-        if (category.archived && categoryId != previous) rejectWith("categoryId", LedgerErrorCode.ARCHIVED)
-        return category
-    }
 
     private fun requireActive(database: FinanceDatabase, transactionId: String): Transaction =
         database.ledgerTransactionQueries.selectById(transactionId).executeAsOneOrNull()

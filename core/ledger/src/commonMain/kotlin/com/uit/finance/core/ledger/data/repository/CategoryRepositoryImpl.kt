@@ -97,7 +97,7 @@ internal class CategoryRepositoryImpl(
         outbox.delete(database, SyncEntity.CATEGORY, categoryId)
     }
 
-    /** Tối đa 2 cấp, cha cùng kind, cha chưa archive; chỉ kiểm khi cha thật sự đổi (ADR-005 §2). */
+    /** Tối đa 2 cấp, cha cùng kind (cha đã archive vẫn được); chỉ kiểm khi cha thật sự đổi (ADR-005 §2). */
     private fun checkNewParent(database: FinanceDatabase, category: Category, previousParentId: String?) {
         val parentId = category.parentId ?: return
         if (parentId == previousParentId) return
@@ -107,7 +107,6 @@ internal class CategoryRepositoryImpl(
         }
         val parent = requireActive(database, parentId, field = "parentId")
         if (parent.parentId != null || parent.kind != category.kind) rejectWith("parentId", LedgerErrorCode.INVALID_PARENT)
-        if (parent.archived) rejectWith("parentId", LedgerErrorCode.ARCHIVED)
     }
 
     private fun persist(database: FinanceDatabase, category: Category) {

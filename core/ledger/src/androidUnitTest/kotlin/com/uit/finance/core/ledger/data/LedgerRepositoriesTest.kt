@@ -201,7 +201,7 @@ class LedgerRepositoriesTest {
     }
 
     @Test
-    fun `danh mục sai loại và ví đã archive bị chặn khi gắn mới`() = runTest {
+    fun `danh mục sai loại bị chặn - ví và danh mục đã archive vẫn ghi được như server`() = runTest {
         val repos = repos()
         val wallet = repos.wallet()
         val salary = repos.category(CategoryKind.INCOME)
@@ -209,10 +209,11 @@ class LedgerRepositoriesTest {
 
         val mismatch = repos.transactions.record(expense(wallet, salary))
         repos.accounts.setArchived(wallet.id, true)
-        val archived = repos.transactions.record(expense(wallet, food))
+        repos.categories.setArchived(food.id, true)
+        val intoArchived = repos.transactions.record(expense(wallet, food))
 
         assertEquals(LedgerErrorCode.CATEGORY_KIND_MISMATCH, mismatch.fieldErrors().single().message)
-        assertEquals(LedgerErrorCode.ARCHIVED, archived.fieldErrors().single().message)
+        assertIs<AppResult.Success<*>>(intoArchived)
     }
 
     @Test

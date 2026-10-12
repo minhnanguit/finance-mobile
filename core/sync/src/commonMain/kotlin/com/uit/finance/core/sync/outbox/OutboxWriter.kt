@@ -17,8 +17,8 @@ data class SyncRef(val entity: String, val entityId: String)
  *
  * Thứ tự gửi = thứ tự ghi, vì server áp từng op độc lập theo đúng thứ tự trong batch:
  * - Chỉ gộp vào op **cuối cùng của cả hàng** (sửa liên tiếp cùng một bản ghi). Gộp vào op nằm giữa hàng sẽ
- *   kéo trạng thái mới lên trước các op ghi sau nó: tạo ví → ghi giao dịch → archive ví mà gộp lại thành
- *   "ví đã archive" ở đầu hàng thì giao dịch bị server từ chối (`ledger.archived`) và bị xoá khỏi máy.
+ *   kéo trạng thái mới lên trước các op ghi sau nó, nên server kiểm luật theo thứ tự khác thứ user đã làm:
+ *   op ghi sau có thể bị từ chối vì trạng thái "tương lai" của bản ghi nó trỏ tới.
  * - [SyncRef] ghi lại bản ghi mà op trỏ tới; op đổi bản ghi đó sau này sẽ đợi op này xong (Outbox.sq).
  *
  * Gộp thì đổi op id: kết quả của lần gửi dở với op id cũ không còn khớp dòng nào, bản mới được gửi lại.

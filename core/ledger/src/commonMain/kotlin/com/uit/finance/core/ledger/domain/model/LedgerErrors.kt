@@ -8,7 +8,6 @@ object LedgerErrorCode {
     const val INVALID_FIELD = "ledger.invalid_field"
     const val CATEGORY_KIND_MISMATCH = "ledger.category_kind_mismatch"
     const val INVALID_TRANSFER = "ledger.invalid_transfer"
-    const val ARCHIVED = "ledger.archived"
     const val CURRENCY_LOCKED = "ledger.currency_locked"
     const val IN_USE = "ledger.in_use"
     const val KIND_IMMUTABLE = "ledger.kind_immutable"
