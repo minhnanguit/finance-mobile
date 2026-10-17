@@ -8,10 +8,10 @@ Client Kotlin Multiplatform (Android + iOS) dùng **Compose Multiplatform UI chu
 - Package gốc: `com.uit.finance` · compileSdk 36 · minSdk 26 · targetSdk 36
 - Kiến trúc đã **chốt** ở `../ARCHITECTURE.md` (repo-level, tiếng Việt). Không tự đổi.
 - Hợp đồng API: `api/openapi.yaml` là bản **copy nguyên văn** từ `finance-backend`, pin theo `api/VERSION` (hiện `2.2.0`). **Không sửa tay file này.**
-- Feature hiện có: `feature/auth` (reference feature: SignedOut / Profile; login/register diễn ra trên **Keycloak** qua system browser, ADR-004) · `feature/home` (Trang chủ: thẻ ví, thu/chi tháng này, giao dịch gần đây, badge đồng bộ) · `feature/accounts` (danh sách ví, tạo/sửa ví) · `feature/transactions` (lịch sử, thêm/sửa giao dịch + phí chuyển, danh mục).
+- Feature hiện có: `feature/auth` (reference feature: SignedOut / Profile; login/register diễn ra trên **Keycloak** qua system browser, ADR-004) · `feature/home` (Trang chủ: thẻ ví, thu/chi tháng này, giao dịch gần đây, badge đồng bộ) · `feature/accounts` (danh sách ví, tạo/sửa ví) · `feature/transactions` (lịch sử, thêm/sửa giao dịch + phí chuyển, danh mục) · `feature/budgets` (tab Ngân sách: tiến độ theo tháng, tạo/sửa/xoá).
 - UI theo bản thiết kế tham chiếu Purrweb "Finance Mobile iOS App" (dribbble.com/shots/21793126): Montserrat, sage `#94C1B2` / cam đào `#FFC789` / nền `#121212`. Token và component ở `core/designsystem`; icon là Lucide nhưng **chỉ** import trong `FinanceIcons.kt`.
 - Dữ liệu ledger (ví, danh mục, giao dịch) + sync offline-first: `core/ledger` + `core/sync`, theo `../docs/LEDGER-PLAN.md`.
-- Ngân sách theo danh mục (ADR-007 backend, `../docs/BUDGET-PLAN.md`): dữ liệu + sync ở `core/budget`; "đã chi" tính từ giao dịch qua `SpendingRepository` (core/ledger), không lưu. Màn hình (`feature/budgets`) chưa có.
+- Ngân sách theo danh mục (ADR-007 backend, `../docs/BUDGET-PLAN.md`): dữ liệu + sync ở `core/budget`; "đã chi" tính từ giao dịch qua `SpendingRepository` (core/ledger), không lưu; màn hình ở `feature/budgets`.
 - `finance-backend` là repo riêng — **không sửa từ đây**.
 
 ## 2. Commands
@@ -89,9 +89,11 @@ core/designsystem     FinanceTheme (Color/Typography Montserrat/Shape/Spacing 4d
                       EmptyState, pressScale, PrimaryButton, FinanceTextField, LoadingIndicator, ErrorBanner, ConfirmDialog,
                       form: AmountField, SegmentedControl, ChoiceTile, SelectionField, OptionSheet, DatePickerSheet,
                       ColorSwatchPicker · màn: FinanceTopBar, FinanceFab, OverflowMenu, SwipeToDeleteBox, RefreshContainer,
-                      MessageSnackbarHost, SyncStatusBadge, MoneyListItem · CategoryPalette, MoneyDirection
+                      MessageSnackbarHost, SyncStatusBadge, MoneyListItem, BudgetProgressBar (ProgressTone Normal/Warning/Over)
+                      · CategoryPalette, MoneyDirection · token FinanceTheme.colors.warning (sắp chạm giới hạn)
 core/ui               UI biết model ledger, dùng chung giữa feature: nhãn/icon/chiều tiền (LedgerVisuals), TransactionItemFormatter +
-                      TransactionListItem, mã lỗi ledger.* → UiText (toLedgerUiText / messageFor), SyncStatusIndicator (coreUiModule)
+                      TransactionListItem, mã lỗi ledger.* → UiText (toLedgerUiText / messageFor), mã lỗi budget.* → UiText
+                      (toBudgetUiText / budgetMessageFor), SyncStatusIndicator (coreUiModule)
 core/testing          TestDispatcherProvider, TestClock, FakeUuidGenerator, MainDispatcherRule
 core/ledger-testing   Fake repository của core/ledger + core/sync (FakeSyncKit) cho commonTest của các feature
 core/budget-testing   FakeBudgetRepository cho commonTest của các feature
@@ -101,6 +103,9 @@ feature/home          Trang chủ: domain (ObserveHomeDashboardUseCase gom ví +
 feature/accounts      domain (use case ví: tổng quan, lưu, lưu trữ, xoá, đổi thứ tự) + presentation (list, editor)
 feature/transactions  domain (lịch sử, form, lưu giao dịch + phí D3, danh mục) + presentation (history, editor, categories,
                       categoryeditor). Vuốt xoá = xoá trễ để hoàn tác (S4 xoá luôn thắng)
+feature/budgets       domain (BudgetMath: màu G9, % G10, mỗi ngày còn được chi G11; ObserveBudgetProgressUseCase gom ngân sách +
+                      đã chi + danh mục; form data, lưu, xoá, ObserveTodayUseCase) + presentation (list: ‹ tháng ›, tự sang
+                      tháng mới lúc nửa đêm, đọc lại "hôm nay" khi resume; editor: tạo/sửa số tiền/xoá qua menu ⋮)
 architecture-test     24 luật Konsist (JVM)
 ```
 

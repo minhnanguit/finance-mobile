@@ -30,6 +30,8 @@ import com.uit.finance.feature.accounts.presentation.navigation.AccountEditorDes
 import com.uit.finance.feature.accounts.presentation.navigation.AccountsDestination
 import com.uit.finance.feature.accounts.presentation.navigation.accountsNavGraph
 import com.uit.finance.feature.auth.domain.model.LocalDataStatus
+import com.uit.finance.feature.budgets.presentation.navigation.BudgetEditorDestination
+import com.uit.finance.feature.budgets.presentation.navigation.budgetsNavGraph
 import com.uit.finance.feature.auth.domain.usecase.ObserveLocalDataStatusUseCase
 import com.uit.finance.feature.auth.domain.usecase.ObserveSessionUseCase
 import com.uit.finance.feature.auth.presentation.navigation.LocalDataRequiredDestination
@@ -109,6 +111,10 @@ private fun MainNavHost(isAuthenticated: Boolean) {
                     onOpenCategories = { kind -> navController.navigateSingleTop(CategoriesDestination(kind.name)) },
                     onOpenCategory = { id, kind -> navController.navigateSingleTop(CategoryEditorDestination(id, kind.name)) },
                     onCreateAccount = { navController.navigateSingleTop(AccountEditorDestination()) },
+                )
+                budgetsNavGraph(
+                    onBack = { navController.navigateUp() },
+                    onOpenEditor = { id -> navController.navigateSingleTop(BudgetEditorDestination(id)) },
                 )
                 placeholderNavGraph(onBack = { navController.navigateUp() })
             }

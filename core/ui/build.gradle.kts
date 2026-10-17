@@ -12,6 +12,7 @@ kotlin {
             api(projects.core.designsystem)
             api(projects.core.presentation)
             api(projects.core.ledger) // model + mã lỗi; chỉ dùng package domain của ledger
+            api(projects.core.budget) // mã lỗi budget.*; chỉ dùng package domain
             api(projects.core.sync) // SyncOverview cho badge đồng bộ
             implementation(libs.koin.core)
         }
