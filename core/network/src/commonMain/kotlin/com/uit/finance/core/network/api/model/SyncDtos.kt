@@ -12,6 +12,7 @@ object SyncEntity {
     const val ACCOUNT: String = "account"
     const val CATEGORY: String = "category"
     const val TRANSACTION: String = "transaction"
+    const val BUDGET: String = "budget"
 }
 
 enum class SyncActionDto { UPSERT, DELETE }
@@ -102,6 +103,25 @@ data class TransactionPayload(
 ) {
     /** Không in số tiền, người nhận, ghi chú (ADR-006 B8). */
     override fun toString(): String = "TransactionPayload(type=$type, status=$status, accountId=$accountId)"
+}
+
+/** Schema `BudgetData` (contract 2.2.0, ADR-007). `startMonth` luôn là ngày 1 của tháng. */
+data class BudgetPayload(
+    val categoryId: String,
+    val currency: String,
+    val amountMinor: Long,
+    val startMonth: LocalDate,
+) {
+    /** Không in số tiền (ADR-006 B8). */
+    override fun toString(): String = "BudgetPayload(categoryId=$categoryId, currency=$currency, startMonth=$startMonth)"
+}
+
+/**
+ * Như [SyncPayloadCodec] cho entity `budget`. Tách riêng để module ledger không phải biết ngân sách tồn tại.
+ */
+interface BudgetPayloadCodec {
+    fun encode(payload: BudgetPayload): JsonObject
+    fun decodeBudget(data: JsonObject): BudgetPayload
 }
 
 /**

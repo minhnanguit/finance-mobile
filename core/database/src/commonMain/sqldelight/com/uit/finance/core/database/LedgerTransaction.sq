@@ -53,6 +53,22 @@ WHERE deleted = 0 AND status = 'CONFIRMED' AND type IN ('INCOME', 'EXPENSE')
 GROUP BY type, currency
 ORDER BY currency ASC, type ASC;
 
+-- Tổng chi theo danh mục gốc + tiền tệ trong [fromDate, toDate] cho ngân sách (ADR-007 §1): chỉ EXPENSE
+-- CONFIRMED chưa xoá; chi của danh mục con cộng vào cha (G2); ví đã archive vẫn tính. Danh mục chưa sync tới
+-- (LEFT JOIN rỗng) thì coi chính nó là gốc. Dùng index occurred_on, chỉ quét khoảng ngày được hỏi.
+-- Cộng tách thương/dư cho 10⁹ giống selectCashFlowBetween để không ném "integer overflow".
+selectExpenseByRootCategory:
+SELECT COALESCE(c.parent_id, t.category_id) AS root_category_id, t.currency,
+    CAST(
+        COALESCE(SUM(t.amount_minor / 1000000000), 0) * 1000000000 + COALESCE(SUM(t.amount_minor % 1000000000), 0)
+    AS INTEGER) AS total_minor
+FROM ledger_transaction t
+LEFT JOIN category c ON c.id = t.category_id
+WHERE t.deleted = 0 AND t.status = 'CONFIRMED' AND t.type = 'EXPENSE' AND t.category_id IS NOT NULL
+  AND t.occurred_on >= :fromDate AND t.occurred_on <= :toDate
+GROUP BY root_category_id, t.currency
+ORDER BY root_category_id ASC, t.currency ASC;
+
 markDeleted:
 UPDATE ledger_transaction SET deleted = 1 WHERE id = ?;
 

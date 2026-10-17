@@ -4,6 +4,7 @@ import com.uit.finance.core.ledger.data.local.LedgerStore
 import com.uit.finance.core.ledger.data.repository.AccountRepositoryImpl
 import com.uit.finance.core.ledger.data.repository.BalanceRepositoryImpl
 import com.uit.finance.core.ledger.data.repository.CategoryRepositoryImpl
+import com.uit.finance.core.ledger.data.repository.SpendingRepositoryImpl
 import com.uit.finance.core.ledger.data.repository.TransactionRepositoryImpl
 import com.uit.finance.core.ledger.data.sync.AccountSyncApplier
 import com.uit.finance.core.ledger.data.sync.CategorySyncApplier
@@ -11,6 +12,7 @@ import com.uit.finance.core.ledger.data.sync.TransactionSyncApplier
 import com.uit.finance.core.ledger.domain.repository.AccountRepository
 import com.uit.finance.core.ledger.domain.repository.BalanceRepository
 import com.uit.finance.core.ledger.domain.repository.CategoryRepository
+import com.uit.finance.core.ledger.domain.repository.SpendingRepository
 import com.uit.finance.core.ledger.domain.repository.TransactionRepository
 import com.uit.finance.core.sync.engine.SyncChangeApplier
 import org.koin.dsl.bind
@@ -40,6 +42,7 @@ val coreLedgerModule = module {
         )
     }
     single<BalanceRepository> { BalanceRepositoryImpl(store = get(), dispatchers = get()) }
+    single<SpendingRepository> { SpendingRepositoryImpl(store = get(), dispatchers = get()) }
 
     // SyncEngine nhận mọi applier qua getAll<SyncChangeApplier>().
     single { AccountSyncApplier(codec = get()) } bind SyncChangeApplier::class

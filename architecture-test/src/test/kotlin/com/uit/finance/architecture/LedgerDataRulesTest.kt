@@ -13,7 +13,7 @@ class LedgerDataRulesTest {
     private val ARCHITECTURE_PACKAGE = "$ROOT.architecture"
 
     private val ledgerQueries = listOf("accountQueries", "categoryQueries", "ledgerTransactionQueries")
-    private val ledgerRows = listOf("Account", "Category", "Ledger_transaction", "SelectBalances")
+    private val ledgerRows = listOf("Account", "Category", "Ledger_transaction", "SelectBalances", "SelectExpenseByRootCategory")
         .map { "$ROOT.core.database.$it" }
 
     @Test

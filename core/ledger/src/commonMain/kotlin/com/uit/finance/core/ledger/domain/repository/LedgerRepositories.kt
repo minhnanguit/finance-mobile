@@ -6,11 +6,13 @@ import com.uit.finance.core.ledger.domain.model.AccountDraft
 import com.uit.finance.core.ledger.domain.model.BalanceSummary
 import com.uit.finance.core.ledger.domain.model.CashFlow
 import com.uit.finance.core.ledger.domain.model.Category
+import com.uit.finance.core.ledger.domain.model.CategorySpend
 import com.uit.finance.core.ledger.domain.model.CategoryDraft
 import com.uit.finance.core.ledger.domain.model.Transaction
 import com.uit.finance.core.ledger.domain.model.TransactionDraft
 import kotlinx.coroutines.flow.Flow
 import kotlinx.datetime.LocalDate
+import kotlinx.datetime.YearMonth
 
 /*
  * Mọi lần ghi lưu vào DB của user trên máy rồi mới gửi lên server khi có mạng (offline-first, ADR-002):
@@ -66,4 +68,12 @@ interface BalanceRepository {
 
     /** Tổng thu/chi CONFIRMED trong [from, to] (gồm cả hai đầu), tách theo tiền tệ; bỏ TRANSFER (D2). */
     fun observeCashFlow(from: LocalDate, to: LocalDate): Flow<CashFlow>
+}
+
+interface SpendingRepository {
+    /**
+     * "Đã chi" của mọi danh mục gốc trong [month] (theo `occurredOn`, G7), tách theo tiền tệ. Luôn tính ra từ
+     * giao dịch, không lưu (G6); tự cập nhật khi ghi giao dịch. Tổng vượt Long thì kẹt ở biên.
+     */
+    fun observeMonthlyExpense(month: YearMonth): Flow<List<CategorySpend>>
 }
