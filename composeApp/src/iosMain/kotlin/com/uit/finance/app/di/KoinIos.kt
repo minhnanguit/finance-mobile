@@ -25,7 +25,7 @@ actual fun defaultApiBaseUrl(): String =
  * `10.0.2.2` cho Android emulator, còn simulator gọi `localhost` ⇒ issuer lệch, bị reject (đúng thiết kế).
  */
 actual fun defaultOidcIssuer(): String =
-    if (isDebugBuild) (AppEnvironment.publicBaseUrl ?: "http://localhost:8081") + OIDC_REALM_PATH else RELEASE_OIDC_ISSUER
+    if (isDebugBuild) (AppEnvironment.publicBaseUrl ?: "http://localhost:8082") + OIDC_REALM_PATH else RELEASE_OIDC_ISSUER
 
 @OptIn(ExperimentalNativeApi::class)
 actual val isDebugBuild: Boolean = kotlin.native.Platform.isDebugBinary
