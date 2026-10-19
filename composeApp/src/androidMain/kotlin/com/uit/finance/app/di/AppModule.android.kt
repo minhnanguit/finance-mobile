@@ -10,6 +10,6 @@ actual fun defaultApiBaseUrl(): String =
     if (BuildConfig.DEBUG) AppEnvironment.publicBaseUrl ?: "http://10.0.2.2:8080" else RELEASE_API_BASE_URL
 
 actual fun defaultOidcIssuer(): String =
-    if (BuildConfig.DEBUG) (AppEnvironment.publicBaseUrl ?: "http://10.0.2.2:8081") + OIDC_REALM_PATH else RELEASE_OIDC_ISSUER
+    if (BuildConfig.DEBUG) (AppEnvironment.publicBaseUrl ?: "http://10.0.2.2:8082") + OIDC_REALM_PATH else RELEASE_OIDC_ISSUER
 
 actual val isDebugBuild: Boolean = BuildConfig.DEBUG
