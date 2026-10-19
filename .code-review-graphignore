@@ -1,0 +1,3 @@
+# Exclude generated Gradle output at any depth.
+build/
+bin/
