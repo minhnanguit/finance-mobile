@@ -14,7 +14,10 @@ CREATE TABLE ledger_transaction (
     occurred_at INTEGER,
     payee TEXT,
     note TEXT,
-    deleted INTEGER NOT NULL DEFAULT 0
+    deleted INTEGER NOT NULL DEFAULT 0,
+    -- searchTextOf(payee, note): bỏ dấu, viết thường để tìm kiếm (docs/SEARCH-PLAN.md F4). Chỉ ghi qua
+    -- FinanceDatabase.save(transaction) ở core/ledger; NULL chỉ còn ở dòng cũ chưa backfill (migration 2.sqm).
+    search_text TEXT
 );
 
 CREATE INDEX ledger_transaction_occurred_idx ON ledger_transaction(occurred_on DESC, id);
@@ -25,9 +28,9 @@ CREATE INDEX ledger_transaction_category_idx ON ledger_transaction(category_id);
 upsert:
 INSERT OR REPLACE INTO ledger_transaction(
     id, type, status, account_id, counter_account_id, amount_minor, currency,
-    category_id, occurred_on, occurred_at, payee, note, deleted
+    category_id, occurred_on, occurred_at, payee, note, deleted, search_text
 )
-VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?);
+VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?);
 
 selectById:
 SELECT * FROM ledger_transaction WHERE id = ?;
