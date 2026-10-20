@@ -9,6 +9,8 @@ import com.uit.finance.core.ledger.domain.model.Category
 import com.uit.finance.core.ledger.domain.model.CategoryDraft
 import com.uit.finance.core.ledger.domain.model.Transaction
 import com.uit.finance.core.ledger.domain.model.TransactionDraft
+import com.uit.finance.core.ledger.domain.model.TransactionFilter
+import com.uit.finance.core.ledger.domain.model.TransactionTotals
 import kotlinx.coroutines.flow.Flow
 import kotlinx.datetime.LocalDate
 
@@ -49,6 +51,15 @@ interface TransactionRepository {
     /** Mới nhất trước: ngày giảm dần, rồi giờ, rồi id. */
     fun observeRecent(limit: Int): Flow<List<Transaction>>
     fun observe(transactionId: String): Flow<Transaction?>
+
+    /**
+     * Giao dịch khớp [filter], cùng thứ tự với [observeRecent], tối đa [limit] dòng. Tự cập nhật khi có giao dịch
+     * mới, và khi đổi tên hay đổi cha của danh mục (tìm theo tên danh mục, lọc danh mục cha gồm con).
+     */
+    fun observeFiltered(filter: TransactionFilter, limit: Int): Flow<List<Transaction>>
+
+    /** Dòng tổng của [observeFiltered] với cùng [filter], không giới hạn số dòng. */
+    fun observeFilteredTotals(filter: TransactionFilter): Flow<TransactionTotals>
     suspend fun record(draft: TransactionDraft): AppResult<Transaction>
 
     /**

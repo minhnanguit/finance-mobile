@@ -12,24 +12,35 @@ class LedgerDataRulesTest {
     /** Chính các luật này chứa những chuỗi bị cấm (IDE có thể chép chúng ra `bin/`). */
     private val ARCHITECTURE_PACKAGE = "$ROOT.architecture"
 
-    private val ledgerQueries = listOf("accountQueries", "categoryQueries", "ledgerTransactionQueries")
-    private val ledgerRows = listOf("Account", "Category", "Ledger_transaction", "SelectBalances")
-        .map { "$ROOT.core.database.$it" }
+    private val ledgerQueries = listOf("accountQueries", "categoryQueries", "ledgerTransactionQueries", "ledgerSearchQueries")
+    private val ledgerRows = listOf(
+        "Account", "Category", "Ledger_transaction", "SelectBalances",
+        "SelectFilteredTotals", "SelectMissingSearchText",
+    ).map { "$ROOT.core.database.$it" }
+
+    /**
+     * `core/database` là nơi sinh code; chạm bảng ledger ở đó chỉ để sửa dữ liệu trong migration (backfill
+     * `search_text`, docs/SEARCH-PLAN.md F8), trước khi DB được công bố cho repository.
+     */
+    private val DATABASE_PACKAGE = "$ROOT.core.database"
 
     @Test
     fun `only core-ledger touches the ledger tables`() {
         productionScope.files
-            .filter { !it.packageName.startsWith("$ROOT.core.ledger") && !it.packageName.startsWith(ARCHITECTURE_PACKAGE) }
+            .filter { file ->
+                listOf("$ROOT.core.ledger", DATABASE_PACKAGE, ARCHITECTURE_PACKAGE).none { file.packageName.startsWith(it) }
+            }
             .assertFalse { file ->
                 ledgerQueries.any { file.text.contains(it) } || file.hasImport { it.name in ledgerRows }
             }
     }
 
-    // ADR-006 B8: log và Sentry không bao giờ được thấy số tiền, ghi chú, người nhận.
+    // ADR-006 B8: log và Sentry không bao giờ được thấy số tiền, ghi chú, người nhận, từ khoá tìm kiếm.
+    // Bộ lọc giao dịch mang từ khoá, nên cũng không được log (docs/SEARCH-PLAN.md F1, F11).
     @Test
-    fun `logs never carry amounts, notes or payees`() {
+    fun `logs never carry amounts, notes, payees or search terms`() {
         val logCall = Regex("""\b(logger|log|Logger|kermit)\.(v|d|i|w|e|a)\s*(\([^)]*\))?\s*\{[^}]*""")
-        val sensitive = Regex("""\b(note|payee|amount\w*|openingBalance\w*)\b""")
+        val sensitive = Regex("""\b(note|payee|amount\w*|openingBalance\w*|query|keyword|searchText|search_text|filter)\b""")
         productionScope.files.filter { !it.packageName.startsWith(ARCHITECTURE_PACKAGE) }.assertFalse { file ->
             logCall.findAll(file.text).any { sensitive.containsMatchIn(it.value) } ||
                 file.text.lines().any { it.contains("println(") && sensitive.containsMatchIn(it) }

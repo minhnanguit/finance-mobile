@@ -13,17 +13,23 @@ import com.uit.finance.core.common.result.map
 import com.uit.finance.core.common.time.Clock
 import com.uit.finance.core.database.FinanceDatabase
 import com.uit.finance.core.ledger.data.local.LedgerStore
+import com.uit.finance.core.ledger.data.local.TransactionSearch
+import com.uit.finance.core.ledger.data.local.filtered
+import com.uit.finance.core.ledger.data.local.filteredTotals
 import com.uit.finance.core.ledger.data.local.rejectWith
 import com.uit.finance.core.ledger.data.local.save
 import com.uit.finance.core.ledger.data.local.syncRefs
 import com.uit.finance.core.ledger.data.local.toDomain
 import com.uit.finance.core.ledger.data.local.toPayload
+import com.uit.finance.core.ledger.data.local.toTotals
 import com.uit.finance.core.ledger.domain.model.Account
 import com.uit.finance.core.ledger.domain.model.Category
 import com.uit.finance.core.ledger.domain.model.CategoryKind
 import com.uit.finance.core.ledger.domain.model.LedgerErrorCode
 import com.uit.finance.core.ledger.domain.model.Transaction
 import com.uit.finance.core.ledger.domain.model.TransactionDraft
+import com.uit.finance.core.ledger.domain.model.TransactionFilter
+import com.uit.finance.core.ledger.domain.model.TransactionTotals
 import com.uit.finance.core.ledger.domain.model.TransactionType
 import com.uit.finance.core.ledger.domain.repository.TransactionRepository
 import com.uit.finance.core.ledger.domain.validation.LedgerLimits
@@ -32,7 +38,10 @@ import com.uit.finance.core.ledger.domain.validation.normalizedOrNull
 import com.uit.finance.core.network.api.model.SyncEntity
 import com.uit.finance.core.network.api.model.SyncPayloadCodec
 import com.uit.finance.core.sync.outbox.OutboxWriter
+import kotlinx.coroutines.ExperimentalCoroutinesApi
 import kotlinx.coroutines.flow.Flow
+import kotlinx.coroutines.flow.distinctUntilChanged
+import kotlinx.coroutines.flow.flatMapLatest
 import kotlinx.coroutines.flow.map
 
 internal class TransactionRepositoryImpl(
@@ -53,6 +62,33 @@ internal class TransactionRepositoryImpl(
         database.ledgerTransactionQueries.selectById(transactionId).asFlow().mapToOneOrNull(dispatchers.io)
             .map { row -> row?.takeIf { it.deleted == 0L }?.toDomain() }
     }
+
+    @OptIn(ExperimentalCoroutinesApi::class)
+    override fun observeFiltered(filter: TransactionFilter, limit: Int): Flow<List<Transaction>> =
+        store.observe(emptyList()) { database ->
+            database.observeSearch(filter)
+                .flatMapLatest { search ->
+                    database.ledgerSearchQueries.filtered(search, limit.toLong()).asFlow().mapToList(dispatchers.io)
+                }
+                .map { rows -> rows.map { it.toDomain() } }
+        }
+
+    @OptIn(ExperimentalCoroutinesApi::class)
+    override fun observeFilteredTotals(filter: TransactionFilter): Flow<TransactionTotals> =
+        store.observe(TransactionTotals.EMPTY) { database ->
+            database.observeSearch(filter)
+                .flatMapLatest { search -> database.ledgerSearchQueries.filteredTotals(search).asFlow().mapToList(dispatchers.io) }
+                .map { rows -> rows.toTotals() }
+        }
+
+    /**
+     * Tham số SQL của [filter], tính lại khi danh mục đổi: đổi tên hay đổi cha làm đổi kết quả tìm theo tên danh mục
+     * và lọc cha gồm con (F6). Danh mục đổi mà tham số không đổi thì không chạy lại câu lọc.
+     */
+    private fun FinanceDatabase.observeSearch(filter: TransactionFilter): Flow<TransactionSearch> =
+        categoryQueries.selectActive().asFlow().mapToList(dispatchers.io)
+            .map { rows -> TransactionSearch.of(filter, rows.map { it.toDomain() }) }
+            .distinctUntilChanged()
 
     override suspend fun record(draft: TransactionDraft): AppResult<Transaction> = recordAll(listOf(draft)).map { it.single() }
 

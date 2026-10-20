@@ -5,6 +5,8 @@ package com.uit.finance.core.ledger.testing
 import com.uit.finance.core.common.money.Money
 import com.uit.finance.core.common.result.AppError
 import com.uit.finance.core.common.result.AppResult
+import com.uit.finance.core.common.text.foldForSearch
+import com.uit.finance.core.common.text.searchTextOf
 import com.uit.finance.core.ledger.domain.model.Account
 import com.uit.finance.core.ledger.domain.model.AccountBalance
 import com.uit.finance.core.ledger.domain.model.AccountDraft
@@ -16,7 +18,9 @@ import com.uit.finance.core.ledger.domain.model.CategoryDraft
 import com.uit.finance.core.ledger.domain.model.CategoryKind
 import com.uit.finance.core.ledger.domain.model.Transaction
 import com.uit.finance.core.ledger.domain.model.TransactionDraft
+import com.uit.finance.core.ledger.domain.model.TransactionFilter
 import com.uit.finance.core.ledger.domain.model.TransactionStatus
+import com.uit.finance.core.ledger.domain.model.TransactionTotals
 import com.uit.finance.core.ledger.domain.model.TransactionType
 import com.uit.finance.core.ledger.domain.repository.AccountRepository
 import com.uit.finance.core.ledger.domain.repository.BalanceRepository
@@ -26,6 +30,8 @@ import kotlin.time.ExperimentalTime
 import kotlin.time.Instant
 import kotlinx.coroutines.flow.Flow
 import kotlinx.coroutines.flow.MutableStateFlow
+import kotlinx.coroutines.flow.combine
+import kotlinx.coroutines.flow.flowOf
 import kotlinx.coroutines.flow.map
 import kotlinx.coroutines.flow.update
 import kotlinx.datetime.LocalDate
@@ -120,11 +126,21 @@ class FakeCategoryRepository : FakeWriter(), CategoryRepository {
     }
 }
 
-class FakeTransactionRepository(private val accounts: FakeAccountRepository? = null) : FakeWriter(), TransactionRepository {
+/**
+ * [observeFiltered] lọc thật trên list trong bộ nhớ, cùng luật với câu SQL (docs/SEARCH-PLAN.md): bỏ dấu, cha gồm
+ * con, chuyển tiền khớp ví nhận. Truyền [categories] để tìm theo tên danh mục và lọc danh mục cha.
+ */
+class FakeTransactionRepository(
+    private val accounts: FakeAccountRepository? = null,
+    private val categories: FakeCategoryRepository? = null,
+) : FakeWriter(), TransactionRepository {
     val transactions = MutableStateFlow<List<Transaction>>(emptyList())
 
     /** Limit của mỗi lần `observeRecent`, theo thứ tự gọi. */
     val requestedLimits = mutableListOf<Int>()
+
+    /** Filter + limit của mỗi lần `observeFiltered`, theo thứ tự gọi. */
+    val requestedFilters = mutableListOf<Pair<TransactionFilter, Int>>()
     val recordedBatches = mutableListOf<List<TransactionDraft>>()
     val deletedIds = mutableListOf<String>()
     private var nextId = 0
@@ -139,6 +155,51 @@ class FakeTransactionRepository(private val accounts: FakeAccountRepository? = n
 
     override fun observe(transactionId: String): Flow<Transaction?> =
         transactions.map { list -> list.firstOrNull { it.id == transactionId } }
+
+    override fun observeFiltered(filter: TransactionFilter, limit: Int): Flow<List<Transaction>> {
+        requestedFilters += filter to limit
+        return matching(filter).map { it.take(limit) }
+    }
+
+    override fun observeFilteredTotals(filter: TransactionFilter): Flow<TransactionTotals> = matching(filter).map { matched ->
+        val confirmed = matched.filter { it.status == TransactionStatus.CONFIRMED }
+        fun totalsOf(type: TransactionType) = confirmed.filter { it.type == type }
+            .groupBy { it.amount.currency }.entries.sortedBy { it.key }
+            .map { (currency, items) -> Money(items.sumOf { it.amount.amountMinor }, currency) }
+        TransactionTotals(
+            count = matched.size,
+            draftCount = matched.count { it.status == TransactionStatus.DRAFT },
+            cashFlow = CashFlow(income = totalsOf(TransactionType.INCOME), expense = totalsOf(TransactionType.EXPENSE)),
+        )
+    }
+
+    private fun matching(filter: TransactionFilter): Flow<List<Transaction>> {
+        val normalized = filter.normalized()
+        return combine(transactions, categories?.categories ?: flowOf(emptyList())) { list, categoryList ->
+            val match = FilterMatcher(normalized, categoryList)
+            list.filter(match::matches).sortedByDescending { it.occurredOn }
+        }
+    }
+
+    private class FilterMatcher(private val filter: TransactionFilter, private val categories: List<Category>) {
+        private val query = filter.query?.foldForSearch().orEmpty()
+        private val categoryIds = filter.categoryIds?.let(::withChildren)
+        private val textCategoryIds = withChildren(categories.filter { query in it.name.foldForSearch() }.map { it.id }.toSet())
+
+        private fun withChildren(ids: Set<String>): Set<String> = ids + categories.filter { it.parentId in ids }.map { it.id }
+
+        fun matches(transaction: Transaction): Boolean = with(transaction) {
+            val from = filter.from
+            val to = filter.to
+            (from == null || occurredOn >= from) &&
+                (to == null || occurredOn <= to) &&
+                filter.types.let { it == null || type in it } &&
+                filter.accountIds.let { it == null || accountId in it || counterAccountId in it } &&
+                categoryIds.let { it == null || categoryId in it } &&
+                filter.status.let { it == null || status == it } &&
+                (query.isEmpty() || query in searchTextOf(payee, note) || categoryId in textCategoryIds)
+        }
+    }
 
     override suspend fun record(draft: TransactionDraft): AppResult<Transaction> = when (val result = recordAll(listOf(draft))) {
         is AppResult.Success -> AppResult.Success(result.value.single())
