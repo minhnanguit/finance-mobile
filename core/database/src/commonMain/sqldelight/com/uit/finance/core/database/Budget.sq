@@ -1,0 +1,34 @@
+-- Ngân sách theo danh mục chi (ADR-007). Không đặt FK (xem Account.sq): pull có thể đưa ngân sách về
+-- trước danh mục của nó. "Đã chi" không lưu ở đây, luôn tính từ ledger_transaction (G6).
+-- start_month: ngày ISO yyyy-MM-01. Chỉ core/budget được dùng.
+CREATE TABLE budget (
+    id TEXT NOT NULL PRIMARY KEY,
+    category_id TEXT NOT NULL,
+    currency TEXT NOT NULL,
+    amount_minor INTEGER NOT NULL,
+    start_month TEXT NOT NULL,
+    deleted INTEGER NOT NULL DEFAULT 0
+);
+
+upsert:
+INSERT OR REPLACE INTO budget(id, category_id, currency, amount_minor, start_month, deleted)
+VALUES (?, ?, ?, ?, ?, ?);
+
+selectById:
+SELECT * FROM budget WHERE id = ?;
+
+selectActive:
+SELECT * FROM budget WHERE deleted = 0 ORDER BY currency ASC, category_id ASC, id ASC;
+
+countActive:
+SELECT COUNT(*) FROM budget WHERE deleted = 0;
+
+-- G3: mỗi cặp (danh mục, tiền tệ) tối đa 1 ngân sách chưa xoá.
+selectActiveFor:
+SELECT * FROM budget WHERE deleted = 0 AND category_id = ? AND currency = ?;
+
+markDeleted:
+UPDATE budget SET deleted = 1 WHERE id = ?;
+
+remove:
+DELETE FROM budget WHERE id = ?;

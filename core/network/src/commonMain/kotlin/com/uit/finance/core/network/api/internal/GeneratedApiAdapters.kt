@@ -3,6 +3,8 @@ package com.uit.finance.core.network.api.internal
 import com.uit.finance.core.network.api.SyncApi
 import com.uit.finance.core.network.api.UserApi
 import com.uit.finance.core.network.api.model.AccountPayload
+import com.uit.finance.core.network.api.model.BudgetPayload
+import com.uit.finance.core.network.api.model.BudgetPayloadCodec
 import com.uit.finance.core.network.api.model.CategoryPayload
 import com.uit.finance.core.network.api.model.SyncActionDto
 import com.uit.finance.core.network.api.model.SyncChangeDto
@@ -16,6 +18,7 @@ import com.uit.finance.core.network.api.model.UserProfileDto
 import com.uit.finance.core.network.generated.api.MeApi as GeneratedMeApi
 import com.uit.finance.core.network.generated.api.SyncApi as GeneratedSyncApi
 import com.uit.finance.core.network.generated.model.AccountData
+import com.uit.finance.core.network.generated.model.BudgetData
 import com.uit.finance.core.network.generated.model.CategoryData
 import com.uit.finance.core.network.generated.model.SyncChange
 import com.uit.finance.core.network.generated.model.SyncOpResult
@@ -199,5 +202,29 @@ internal class GeneratedSyncPayloadCodec(private val json: Json) : SyncPayloadCo
 
     private inline fun <E> enumOf(entries: List<E>, raw: String, value: (E) -> String): E =
         entries.firstOrNull { value(it) == raw } ?: throw IllegalArgumentException("Unknown enum value for sync payload")
+}
+
+/** Payload ngân sách đi qua model generated `BudgetData` (contract 2.2.0). */
+internal class GeneratedBudgetPayloadCodec(private val json: Json) : BudgetPayloadCodec {
+
+    override fun encode(payload: BudgetPayload): JsonObject = json.encodeToJsonElement(
+        BudgetData.serializer(),
+        BudgetData(
+            categoryId = payload.categoryId,
+            currency = payload.currency,
+            amountMinor = payload.amountMinor,
+            startMonth = payload.startMonth,
+        ),
+    ).jsonObject
+
+    override fun decodeBudget(data: JsonObject): BudgetPayload =
+        json.decodeFromJsonElement(BudgetData.serializer(), data).let {
+            BudgetPayload(
+                categoryId = it.categoryId,
+                currency = it.currency,
+                amountMinor = it.amountMinor,
+                startMonth = it.startMonth,
+            )
+        }
 }
 

@@ -7,8 +7,8 @@ import kotlin.test.Test
 import kotlin.test.assertEquals
 
 /**
- * DB của user đã có trên máy (schema 1, Phase 4) phải nâng lên đúng schema mới mà không mất gì: migration
- * `1.sqm` và các file `.sq` phải cho ra cùng một schema. Lệch nhau thì máy cũ và máy mới chạy hai schema khác
+ * DB của user đã có trên máy (schema 1 hoặc 2) phải nâng lên đúng schema mới mà không mất gì: các migration
+ * `*.sqm` và các file `.sq` phải cho ra cùng một schema. Lệch nhau thì máy cũ và máy mới chạy hai schema khác
  * nhau mà không ai biết.
  */
 class UserDatabaseMigrationTest {
@@ -36,6 +36,30 @@ class UserDatabaseMigrationTest {
         // Bản cũ dừng hẳn op sau 5 lần RETRY; bản mới không bỏ op nào, op cũ được gửi lại.
         val eligible = FinanceDatabase(driver).outboxQueries.selectEligible(now = 0, limit = 10).executeAsList()
         assertEquals(listOf("op-1"), eligible.map { it.op_id })
+    }
+
+    @Test
+    fun `DB ở schema 2 nâng lên có bảng budget - dữ liệu ledger và op chờ gửi giữ nguyên`() {
+        val driver = schemaOneDriver().also { FinanceDatabase.Schema.migrate(it, oldVersion = 1, newVersion = 2) }
+        driver.execute(
+            null,
+            "INSERT INTO account(id, name, type, currency, opening_balance_minor, sort_order) VALUES ('a1', 'Ví', 'CASH', 'VND', 0, 0)",
+            0,
+        )
+        driver.execute(
+            null,
+            "INSERT INTO outbox(op_id, entity, entity_id, action, payload, created_at) VALUES ('op-1', 'account', 'a1', 'UPSERT', '{}', 0)",
+            0,
+        )
+
+        FinanceDatabase.Schema.migrate(driver, oldVersion = 2, newVersion = FinanceDatabase.Schema.version)
+
+        val database = FinanceDatabase(driver)
+        assertEquals(3L, FinanceDatabase.Schema.version)
+        assertEquals("a1", database.accountQueries.selectById("a1").executeAsOne().id)
+        assertEquals(listOf("op-1"), database.outboxQueries.selectEligible(now = 0, limit = 10).executeAsList().map { it.op_id })
+        database.budgetQueries.upsert("b1", "c1", "VND", 3_000_000, "2026-10-01", 0)
+        assertEquals(1L, database.budgetQueries.countActive().executeAsOne())
     }
 
     /** Schema 1 đóng băng đúng như đã phát hành ở Phase 4 (commit 9c84e89). Không sửa. */

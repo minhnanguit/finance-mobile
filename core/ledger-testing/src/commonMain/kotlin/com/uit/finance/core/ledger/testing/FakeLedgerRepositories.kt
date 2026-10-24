@@ -14,6 +14,7 @@ import com.uit.finance.core.ledger.domain.model.CashFlow
 import com.uit.finance.core.ledger.domain.model.Category
 import com.uit.finance.core.ledger.domain.model.CategoryDraft
 import com.uit.finance.core.ledger.domain.model.CategoryKind
+import com.uit.finance.core.ledger.domain.model.CategorySpend
 import com.uit.finance.core.ledger.domain.model.Transaction
 import com.uit.finance.core.ledger.domain.model.TransactionDraft
 import com.uit.finance.core.ledger.domain.model.TransactionStatus
@@ -21,6 +22,7 @@ import com.uit.finance.core.ledger.domain.model.TransactionType
 import com.uit.finance.core.ledger.domain.repository.AccountRepository
 import com.uit.finance.core.ledger.domain.repository.BalanceRepository
 import com.uit.finance.core.ledger.domain.repository.CategoryRepository
+import com.uit.finance.core.ledger.domain.repository.SpendingRepository
 import com.uit.finance.core.ledger.domain.repository.TransactionRepository
 import kotlin.time.ExperimentalTime
 import kotlin.time.Instant
@@ -29,6 +31,7 @@ import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.map
 import kotlinx.coroutines.flow.update
 import kotlinx.datetime.LocalDate
+import kotlinx.datetime.YearMonth
 
 /*
  * Fake trong bộ nhớ cho repository của core/ledger. Không kiểm luật nghiệp vụ (đó là việc của
@@ -186,6 +189,17 @@ class FakeBalanceRepository : BalanceRepository {
     override fun observeCashFlow(from: LocalDate, to: LocalDate): Flow<CashFlow> {
         requestedRange = from to to
         return cashFlow
+    }
+}
+
+/** "Đã chi" theo tháng đặt sẵn trong [spending]; tháng không có trong map thì rỗng. */
+class FakeSpendingRepository : SpendingRepository {
+    val spending = MutableStateFlow<Map<YearMonth, List<CategorySpend>>>(emptyMap())
+    val requestedMonths = mutableListOf<YearMonth>()
+
+    override fun observeMonthlyExpense(month: YearMonth): Flow<List<CategorySpend>> {
+        requestedMonths += month
+        return spending.map { it[month].orEmpty() }
     }
 }
 

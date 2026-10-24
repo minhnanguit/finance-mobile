@@ -41,6 +41,10 @@ private object Palette {
     val GreenBright = Color(0xFF6FD39F)
     val Red = Color(0xFFD64545)
     val RedBright = Color(0xFFFF8A80)
+
+    // Cảnh báo "sắp vượt" (ngân sách ≥ 80%). Hổ phách, khác hẳn cam đào thương hiệu.
+    val Amber = Color(0xFF9A5B00) // chữ/thanh trên nền sáng: 5.4:1 trên trắng
+    val AmberBright = Color(0xFFFFB74D)
 }
 
 internal val LightColors = lightColorScheme(
@@ -120,7 +124,7 @@ data class AccountCardColors(
     val chip: Color,
 )
 
-/** Màu ngữ nghĩa mà Material3 không có: chiều tiền và nền mờ cho ô icon theo chiều tiền. */
+/** Màu ngữ nghĩa mà Material3 không có: chiều tiền, nền mờ cho ô icon theo chiều tiền, cảnh báo. */
 @Immutable
 data class FinanceColors(
     val income: Color,
@@ -129,6 +133,8 @@ data class FinanceColors(
     val incomeContainer: Color,
     val expenseContainer: Color,
     val transferContainer: Color,
+    /** Sắp chạm giới hạn (ngân sách ≥ 80%). Đã vượt thì dùng `colorScheme.error`. */
+    val warning: Color,
     /** Thẻ ví thứ i dùng `accountCards[i % size]`. */
     val accountCards: List<AccountCardColors>,
 )
@@ -147,6 +153,7 @@ internal val LightFinanceColors = FinanceColors(
     incomeContainer = Palette.SageTint,
     expenseContainer = Palette.PeachTint,
     transferContainer = Palette.Mist,
+    warning = Palette.Amber,
     accountCards = listOf(
         card(Palette.Sage, Palette.SageInk, patternAlpha = 0.18f, chipAlpha = 0.14f),
         card(Palette.Peach, Palette.PeachInk, patternAlpha = 0.16f, chipAlpha = 0.12f),
@@ -162,6 +169,7 @@ internal val DarkFinanceColors = FinanceColors(
     incomeContainer = Palette.SageTintDark,
     expenseContainer = Palette.PeachTintDark,
     transferContainer = Palette.Ink3,
+    warning = Palette.AmberBright,
     accountCards = listOf(
         card(Palette.Sage, Palette.SageInk, patternAlpha = 0.18f, chipAlpha = 0.14f),
         card(Palette.Peach, Palette.PeachInk, patternAlpha = 0.16f, chipAlpha = 0.12f),

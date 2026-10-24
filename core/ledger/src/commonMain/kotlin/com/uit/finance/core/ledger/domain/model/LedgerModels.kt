@@ -86,6 +86,12 @@ data class CashFlow(val income: List<Money>, val expense: List<Money>) {
     }
 }
 
+/**
+ * Tổng chi của một danh mục **gốc** trong một tháng, một tiền tệ (ADR-007 §1): chi của danh mục con đã cộng
+ * vào cha. Chỉ `EXPENSE` + `CONFIRMED` chưa xoá; ví đã archive vẫn tính.
+ */
+data class CategorySpend(val categoryId: String, val spent: Money)
+
 // ---- Dữ liệu để tạo mới (id do client sinh khi lưu) ----
 
 data class AccountDraft(
