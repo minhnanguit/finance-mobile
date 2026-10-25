@@ -1,0 +1,7 @@
+-- Schema 2 → 3 (docs/SEARCH-PLAN.md F4, F8):
+--  * ledger_transaction.search_text: payee + ghi chú đã bỏ dấu, để tìm kiếm.
+-- Dòng cũ được điền ngay sau file này, vẫn trong migration: callback AfterVersion(2) ở UserDatabaseSchema.
+-- Đổi số file này (vd. merge sau một migration khác) thì đổi cả SEARCH_TEXT_MIGRATION trong UserDatabaseSchema.
+-- Phải khớp đúng LedgerTransaction.sq: DB tạo mới đi theo .sq, DB cũ đi qua đây (test: UserDatabaseMigrationTest).
+
+ALTER TABLE ledger_transaction ADD COLUMN search_text TEXT;

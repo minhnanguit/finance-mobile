@@ -48,8 +48,8 @@ Một feature = **một Gradle module** chứa cả ba package `domain/`, `data/
 
 | Luật | Ý nghĩa |
 |---|---|
-| Bảng ledger bị nhốt | Chỉ `core/ledger` (và `core/database` nơi sinh code) được dùng query/row class của `account`, `category`, `ledger_transaction` — mọi chỗ khác đi qua repository của `core/ledger` |
-| Log không chứa dữ liệu tiền | Lời gọi log không được nhắc `amount`, `note`, `payee` (B8). Payload sync có `toString()` đã che |
+| Bảng ledger bị nhốt | Chỉ `core/ledger` (và `core/database` nơi sinh code + backfill trong migration) được dùng query/row class của `account`, `category`, `ledger_transaction`, `LedgerSearch.sq` — mọi chỗ khác đi qua repository của `core/ledger` |
+| Log không chứa dữ liệu tiền | Lời gọi log không được nhắc `amount`, `note`, `payee`, `query`, `keyword`, `searchText`, `filter` (B8). Payload sync và `TransactionFilter` có `toString()` đã che |
 
 ### `DesignSystemRulesTest`
 

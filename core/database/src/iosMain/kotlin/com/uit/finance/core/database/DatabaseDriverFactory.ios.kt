@@ -14,7 +14,7 @@ import co.touchlab.sqliter.interop.SqliteErrorType
 actual class DatabaseDriverFactory : EncryptedDatabaseFiles {
 
     override fun create(fileName: String, passphrase: String): SqlDriver = NativeSqliteDriver(
-        schema = FinanceDatabase.Schema,
+        schema = UserDatabaseSchema,
         name = fileName,
         onConfiguration = { config ->
             config.copy(encryptionConfig = DatabaseConfiguration.Encryption(key = passphrase))

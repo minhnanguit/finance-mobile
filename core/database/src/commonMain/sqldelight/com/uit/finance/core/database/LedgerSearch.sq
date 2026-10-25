@@ -1,0 +1,57 @@
+-- Tìm kiếm + lọc lịch sử giao dịch (docs/SEARCH-PLAN.md). Chỉ có query; bảng ở LedgerTransaction.sq.
+-- Chỉ core/ledger được dùng (Konsist), trừ backfill chạy trong migration ở core/database.
+--
+-- Một câu tĩnh cho mọi tổ hợp điều kiện:
+--  * F2: khoảng ngày luôn có giá trị ("tất cả" = 0001-01-01 … 9999-12-31), ORDER BY bắt đầu bằng occurred_on DESC:
+--    SQLite đi theo ledger_transaction_occurred_idx và dừng khi đủ LIMIT, kể cả khi không lọc ngày.
+--    Không viết (:from IS NULL OR …): dạng đó làm SQLite bỏ index, quét cả bảng. Viết >= … <= thay cho BETWEEN vì
+--    SQLDelight 2.3 suy sai kiểu tham số thứ hai của BETWEEN (thành Boolean); với SQLite hai cách là một.
+--  * F3: list dùng cờ `:allX = 1`. Domain đã đổi tập rỗng thành "tất cả", nên không bao giờ lọc bằng list rỗng.
+--  * F6, F7: :query đã qua foldForSearch và escape `\ % _`; '' = không tìm. Khớp search_text, hoặc danh mục có
+--    tên khớp (:textCategoryIds, đã gồm danh mục con).
+-- selectFiltered và selectFilteredTotals phải giữ WHERE GIỐNG HỆT nhau: dòng tổng đếm đúng các dòng đang hiện.
+
+-- Thứ tự giống selectRecent (F9).
+selectFiltered:
+SELECT * FROM ledger_transaction
+WHERE deleted = 0
+  AND occurred_on >= :fromDate AND occurred_on <= :toDate
+  AND (:allTypes = 1 OR type IN :types)
+  AND (:allAccounts = 1 OR account_id IN :accountIds OR counter_account_id IN :accountIds)
+  AND (:allCategories = 1 OR category_id IN :categoryIds)
+  AND (:anyStatus = 1 OR status = :status)
+  AND (:query = '' OR search_text LIKE '%' || :query || '%' ESCAPE '\' OR category_id IN :textCategoryIds)
+ORDER BY occurred_on DESC, occurred_at DESC, id DESC
+LIMIT :limit;
+
+-- Dòng tổng (F10): mỗi nhóm (loại, trạng thái, tiền tệ) một dòng. Kotlin cộng row_count của mọi nhóm thành N
+-- (gồm nháp và chuyển tiền, đúng số dòng đang hiện); thu/chi chỉ lấy nhóm CONFIRMED, bỏ TRANSFER, nên khớp
+-- selectCashFlowBetween. Cộng tách thương/dư cho 10⁹ như selectCashFlowBetween: không ném "integer overflow".
+selectFilteredTotals:
+SELECT type, status, currency, COUNT(*) AS row_count,
+    CAST(
+        COALESCE(SUM(amount_minor / 1000000000), 0) * 1000000000 + COALESCE(SUM(amount_minor % 1000000000), 0)
+    AS INTEGER) AS total_minor
+FROM ledger_transaction
+WHERE deleted = 0
+  AND occurred_on >= :fromDate AND occurred_on <= :toDate
+  AND (:allTypes = 1 OR type IN :types)
+  AND (:allAccounts = 1 OR account_id IN :accountIds OR counter_account_id IN :accountIds)
+  AND (:allCategories = 1 OR category_id IN :categoryIds)
+  AND (:anyStatus = 1 OR status = :status)
+  AND (:query = '' OR search_text LIKE '%' || :query || '%' ESCAPE '\' OR category_id IN :textCategoryIds)
+GROUP BY type, status, currency
+ORDER BY currency ASC, type ASC, status ASC;
+
+-- Backfill (F8): dòng chưa có search_text, theo lô, đi theo khoá chính (mỗi lô là một lần dò index, không quét lại
+-- từ đầu bảng). Dòng đã xoá mềm cũng điền, để sau migration mọi dòng đều có search_text.
+selectMissingSearchText:
+SELECT id, payee, note FROM ledger_transaction
+WHERE search_text IS NULL AND id > :afterId
+ORDER BY id ASC
+LIMIT :limit;
+
+-- Chỉ điền ô còn trống: không bao giờ đè giá trị đã ghi qua FinanceDatabase.save(transaction).
+fillSearchText:
+UPDATE ledger_transaction SET search_text = :searchText
+WHERE id = :id AND search_text IS NULL;

@@ -12,7 +12,9 @@ import com.uit.finance.core.ledger.domain.model.CategoryDraft
 import com.uit.finance.core.ledger.domain.model.CategoryKind
 import com.uit.finance.core.ledger.domain.model.Transaction
 import com.uit.finance.core.ledger.domain.model.TransactionDraft
+import com.uit.finance.core.ledger.domain.model.TransactionFilter
 import com.uit.finance.core.ledger.domain.model.TransactionStatus
+import com.uit.finance.core.ledger.domain.model.TransactionTotals
 import com.uit.finance.core.ledger.domain.model.TransactionType
 import com.uit.finance.core.ledger.domain.repository.AccountRepository
 import com.uit.finance.core.ledger.domain.repository.CategoryRepository
@@ -191,6 +193,8 @@ private class InMemoryTransactions : TransactionRepository {
     }
 
     override fun observe(transactionId: String): Flow<Transaction?> = notUsed()
+    override fun observeFiltered(filter: TransactionFilter, limit: Int): Flow<List<Transaction>> = notUsed()
+    override fun observeFilteredTotals(filter: TransactionFilter): Flow<TransactionTotals> = notUsed()
     override suspend fun update(transaction: Transaction): AppResult<Transaction> = notUsed()
     override suspend fun recordAll(drafts: List<TransactionDraft>): AppResult<List<Transaction>> = notUsed()
 }

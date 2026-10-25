@@ -18,6 +18,7 @@ CI chạy cả ba (job `android`) + build iOS (job `ios`, cần macOS + Xcode).
 | Ktor client, plugin | `core/network/src/commonTest/` | `ktor-client-mock` (mẫu `HttpClientFactoryTest`, `IdempotencyKeyPluginTest`, `TestSupport.kt`) |
 | OIDC / Keycloak | `core/auth/src/commonTest/` | `FakeKeycloak` (MockEngine) + `FakeAuthorizationLauncher`. PKCE kiểm bằng vector RFC 7636 |
 | Thứ chỉ chạy trên JVM/Android (SQLDelight in-memory) | `src/androidUnitTest/` | Mẫu `OutboxWriterTest`, `OutboxOrderingTest`, `DefaultSyncEngineTest` (`core/sync`), `LedgerRepositoriesTest` (`core/ledger`), `UserDatabaseMigrationTest` + `SqlCipherUserDatabasesTest` (`core/database`) |
+| Hiệu năng trên SQLCipher thật | `core/ledger/src/androidInstrumentedTest/` | `SearchBenchmarkTest` (`make bench`, cần máy ảo). Không chạy trong `make test` / CI |
 | Luật kiến trúc | `architecture-test/` | Konsist — chỉ sửa khi user đồng ý |
 
 ## Quy tắc
