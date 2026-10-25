@@ -19,6 +19,7 @@ internal fun authorizationUrl(
     parameters.append("state", state)
     parameters.append("code_challenge", codeChallenge)
     parameters.append("code_challenge_method", "S256")
+    if (config.uiLocales.isNotEmpty()) parameters.append("ui_locales", config.uiLocales.joinToString(" "))
     if (prompt == AuthorizationPrompt.SignUp) parameters.append("prompt", "create")
 }.buildString()
 

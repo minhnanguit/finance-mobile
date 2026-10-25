@@ -24,6 +24,7 @@ class AuthorizationRequestTest {
             assertEquals("state-1", get("state"))
             assertEquals("challenge-1", get("code_challenge"))
             assertEquals("S256", get("code_challenge_method"))
+            assertEquals("vi en", get("ui_locales"))
             assertNull(get("prompt"))
         }
     }
