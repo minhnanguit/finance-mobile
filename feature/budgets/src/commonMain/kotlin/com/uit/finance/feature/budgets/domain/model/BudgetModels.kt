@@ -2,6 +2,7 @@ package com.uit.finance.feature.budgets.domain.model
 
 import com.uit.finance.core.budget.domain.model.Budget
 import com.uit.finance.core.common.money.Money
+import com.uit.finance.core.common.text.VietnameseOrder
 import com.uit.finance.core.ledger.domain.model.Account
 import com.uit.finance.core.ledger.domain.model.Category
 import com.uit.finance.core.ledger.domain.model.CategoryKind
@@ -76,7 +77,7 @@ data class BudgetFormData(
                 .ifEmpty { listOf(FALLBACK_CURRENCY) },
             categories = categories
                 .filter { it.kind == CategoryKind.EXPENSE && it.parentId == null && !it.archived }
-                .sortedBy { it.name.lowercase() },
+                .sortedWith(compareBy(VietnameseOrder) { it.name }),
             budgets = budgets,
             allCategories = categories,
         )

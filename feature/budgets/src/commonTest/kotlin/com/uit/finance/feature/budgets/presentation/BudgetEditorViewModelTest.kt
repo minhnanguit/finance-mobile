@@ -78,7 +78,7 @@ class BudgetEditorViewModelTest {
     private fun viewModel(budgetId: String? = null) = BudgetEditorViewModel(
         args = BudgetEditorArgs(budgetId),
         observeFormData = ObserveBudgetFormDataUseCase(budgets, categories, accounts),
-        saveBudget = SaveBudgetUseCase(budgets),
+        saveBudget = SaveBudgetUseCase(budgets, categories),
         deleteBudget = DeleteBudgetUseCase(budgets),
         clock = clock,
     )
@@ -192,5 +192,36 @@ class BudgetEditorViewModelTest {
             advanceUntilIdle()
             assertEquals(BudgetEditorEffect.Close, awaitItem())
         }
+    }
+
+    @Test
+    fun `đang sửa mà ngân sách bị xoá ở máy khác thì báo ngay và khoá lưu - giữ số đang gõ`() = runTest(dispatcher) {
+        val vm = viewModel("b-food")
+        advanceUntilIdle()
+        vm.onIntent(BudgetEditorIntent.AmountChanged("4500000"))
+
+        budgets.budgets.value = budgets.budgets.value.filterNot { it.id == "b-food" }
+        advanceUntilIdle()
+
+        val state = vm.state.value
+        assertTrue(state.isDeletedElsewhere)
+        assertFalse(state.canSave)
+        assertEquals(FieldError("budget", BudgetErrorCode.DELETED).toBudgetUiText(), state.error)
+        assertEquals("4500000", state.amount)
+        vm.onIntent(BudgetEditorIntent.DeleteClicked)
+        assertFalse(vm.state.value.deleteConfirmVisible)
+    }
+
+    @Test
+    fun `đổi tên danh mục ở máy khác thì form sửa cập nhật tên - không đè số đang gõ`() = runTest(dispatcher) {
+        val vm = viewModel("b-food")
+        advanceUntilIdle()
+        vm.onIntent(BudgetEditorIntent.AmountChanged("4500000"))
+
+        categories.categories.value = categories.categories.value.map { if (it.id == "food") it.copy(name = "Ăn ngoài") else it }
+        advanceUntilIdle()
+
+        assertEquals("Ăn ngoài", vm.state.value.categoryName)
+        assertEquals("4500000", vm.state.value.amount)
     }
 }

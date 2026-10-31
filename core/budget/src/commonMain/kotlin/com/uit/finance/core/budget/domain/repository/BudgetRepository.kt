@@ -17,8 +17,14 @@ interface BudgetRepository {
     /** Ngân sách chưa xoá, tự đổi theo user đang đăng nhập. */
     fun observeBudgets(): Flow<List<Budget>>
 
-    /** Cặp (danh mục, tiền tệ) đã có: `budget.duplicate` (G3). Quá 100: `budget.limit_reached`. */
-    suspend fun create(draft: BudgetDraft): AppResult<Budget>
+    /**
+     * Cặp (danh mục, tiền tệ) đã có: `budget.duplicate` (G3). Quá 100: `budget.limit_reached`.
+     *
+     * [countsTowardsLimit] chọn ngân sách nào được đếm vào giới hạn. Giống server (ADR-007 GS8), ngân sách của
+     * danh mục đã xoá / không còn cấp 1 mà tombstone chưa sync về thì không được chiếm chỗ; module này không đọc
+     * bảng danh mục nên người gọi truyền điều kiện vào.
+     */
+    suspend fun create(draft: BudgetDraft, countsTowardsLimit: (Budget) -> Boolean = { true }): AppResult<Budget>
 
     /** Chỉ số tiền sửa được (G8); áp cho mọi tháng (G5). */
     suspend fun updateAmount(budgetId: String, amountMinor: Long): AppResult<Budget>

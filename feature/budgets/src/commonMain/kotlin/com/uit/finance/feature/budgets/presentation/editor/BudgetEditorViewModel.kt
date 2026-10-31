@@ -1,7 +1,9 @@
 package com.uit.finance.feature.budgets.presentation.editor
 
 import androidx.lifecycle.viewModelScope
+import com.uit.finance.core.budget.domain.model.BudgetErrorCode
 import com.uit.finance.core.common.result.AppError
+import com.uit.finance.core.common.result.FieldError
 import com.uit.finance.core.common.result.fold
 import com.uit.finance.core.common.time.Clock
 import com.uit.finance.core.ledger.domain.model.Category
@@ -54,7 +56,8 @@ internal class BudgetEditorViewModel(
             copy(amount = MoneyInput.sanitize(intent.value, currency), amountError = null)
         }
         BudgetEditorIntent.SaveClicked -> save()
-        BudgetEditorIntent.DeleteClicked -> if (!currentState.isNew) setState { copy(deleteConfirmVisible = true) } else Unit
+        BudgetEditorIntent.DeleteClicked ->
+            if (!currentState.isNew && !currentState.isDeletedElsewhere) setState { copy(deleteConfirmVisible = true) } else Unit
         BudgetEditorIntent.DeleteConfirmed -> delete()
         BudgetEditorIntent.DeleteDismissed -> setState { copy(deleteConfirmVisible = false) }
         BudgetEditorIntent.ErrorDismissed -> setState { copy(error = null) }
@@ -71,17 +74,34 @@ internal class BudgetEditorViewModel(
             }
             return
         }
-        if (!first) return // form sửa chỉ điền một lần; user đang gõ thì không đè
         val budget = data.budgets.firstOrNull { it.id == args.budgetId }
         if (budget == null) {
-            sendEffect(BudgetEditorEffect.Close) // đã bị xoá (có thể ở máy khác)
+            if (first) {
+                sendEffect(BudgetEditorEffect.Close) // mở form cho một ngân sách không còn
+            } else {
+                // Bị xoá (có thể ở máy khác) trong lúc form đang mở: báo ngay và khoá Lưu, thay vì để user sửa xong
+                // mới nhận lỗi.
+                setState {
+                    copy(
+                        isDeletedElsewhere = true,
+                        deleteConfirmVisible = false,
+                        error = FieldError("budget", BudgetErrorCode.DELETED).toBudgetUiText(),
+                    )
+                }
+            }
+            return
+        }
+        val categoryName = data.allCategories.firstOrNull { it.id == budget.categoryId }?.name
+        if (!first) {
+            // Chỉ theo dõi tên danh mục; số tiền user đang gõ thì không đè.
+            setState { copy(categoryName = categoryName) }
             return
         }
         setState {
             copy(
                 isLoading = false,
                 categoryId = budget.categoryId,
-                categoryName = data.allCategories.firstOrNull { it.id == budget.categoryId }?.name,
+                categoryName = categoryName,
                 currency = budget.currency,
                 currencyOptions = listOf(budget.currency),
                 amount = MoneyInput.fromMinor(budget.amount.amountMinor, budget.currency),

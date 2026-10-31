@@ -42,7 +42,7 @@ internal class BudgetRepositoryImpl(
         database.budgetQueries.selectActive().asFlow().mapToList(dispatchers.io).map { rows -> rows.map { it.toDomain() } }
     }
 
-    override suspend fun create(draft: BudgetDraft): AppResult<Budget> {
+    override suspend fun create(draft: BudgetDraft, countsTowardsLimit: (Budget) -> Boolean): AppResult<Budget> {
         val errors = BudgetRules.amount(draft.amountMinor) + BudgetRules.currency(draft.currency) +
             BudgetRules.startMonth(draft.startMonth)
         if (errors.isNotEmpty()) return AppResult.Failure(AppError.Validation(errors))
@@ -51,7 +51,8 @@ internal class BudgetRepositoryImpl(
             if (database.budgetQueries.selectActiveFor(draft.categoryId, draft.currency).executeAsOneOrNull() != null) {
                 rejectWith("categoryId", BudgetErrorCode.DUPLICATE)
             }
-            if (database.budgetQueries.countActive().executeAsOne() >= BudgetLimits.MAX_BUDGETS) {
+            val counted = database.budgetQueries.selectActive().executeAsList().count { countsTowardsLimit(it.toDomain()) }
+            if (counted >= BudgetLimits.MAX_BUDGETS) {
                 rejectWith("budget", BudgetErrorCode.LIMIT_REACHED)
             }
             val budget = Budget(

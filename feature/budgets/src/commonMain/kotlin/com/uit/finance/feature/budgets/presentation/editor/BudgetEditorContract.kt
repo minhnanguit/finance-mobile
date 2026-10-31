@@ -20,6 +20,8 @@ data class BudgetEditorState(
     val currencyPickerVisible: Boolean = false,
     val deleteConfirmVisible: Boolean = false,
     val isSaving: Boolean = false,
+    /** Ngân sách bị xoá (có thể ở máy khác) trong lúc form đang mở: không lưu / xoá được nữa. */
+    val isDeletedElsewhere: Boolean = false,
     val amountError: UiText? = null,
     val categoryError: UiText? = null,
     val error: UiText? = null,
@@ -27,7 +29,7 @@ data class BudgetEditorState(
     /** Ô tiền tệ chỉ hiện khi tạo mới và user có ví nhiều tiền tệ (G15); khi sửa thì không đổi được (G8). */
     val canChooseCurrency: Boolean get() = isNew && currencyOptions.size > 1
 
-    val canSave: Boolean get() = categoryId != null && amount.isNotBlank() && !isSaving && !isLoading
+    val canSave: Boolean get() = categoryId != null && amount.isNotBlank() && !isSaving && !isLoading && !isDeletedElsewhere
 }
 
 data class CategoryOptionUi(val id: String, val name: String, val icon: String?, val color: String?)

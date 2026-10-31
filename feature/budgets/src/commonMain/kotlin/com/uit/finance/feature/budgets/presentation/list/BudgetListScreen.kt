@@ -175,15 +175,15 @@ private fun TotalsCard(totals: List<BudgetTotalUi>, modifier: Modifier = Modifie
             .animateContentSize(FinanceMotion.standard()),
         verticalArrangement = Arrangement.spacedBy(spacing.md),
     ) {
+        // Xếp dọc, mỗi số một dòng đủ bề ngang: ba cột ngang hàng bị cắt "VND 3.000.0…" ngay trên máy 1080px.
         totals.forEach { total ->
-            Row(horizontalArrangement = Arrangement.spacedBy(spacing.md)) {
-                TotalCell("Ngân sách", total.budgeted, content, Modifier.weight(1f))
-                TotalCell("Đã chi", total.spent, content, Modifier.weight(1f))
-                TotalCell(
+            Column(verticalArrangement = Arrangement.spacedBy(spacing.xs)) {
+                TotalRow("Ngân sách", total.budgeted, content)
+                TotalRow("Đã chi", total.spent, content)
+                TotalRow(
                     label = if (total.remaining.isNegative) "Vượt" else "Còn lại",
                     money = total.remaining,
                     color = if (total.remaining.isNegative) MaterialTheme.colorScheme.error else content,
-                    modifier = Modifier.weight(1f),
                 )
             }
         }
@@ -191,14 +191,19 @@ private fun TotalsCard(totals: List<BudgetTotalUi>, modifier: Modifier = Modifie
 }
 
 @Composable
-private fun TotalCell(label: String, money: MoneyUi, color: Color, modifier: Modifier = Modifier) {
-    Column(modifier, verticalArrangement = Arrangement.spacedBy(FinanceTheme.spacing.xs)) {
-        Text(label, style = MaterialTheme.typography.labelMedium, color = MaterialTheme.colorScheme.onPrimaryContainer)
+private fun TotalRow(label: String, money: MoneyUi, color: Color) {
+    Row(Modifier.fillMaxWidth(), verticalAlignment = Alignment.CenterVertically) {
+        Text(
+            text = label,
+            style = MaterialTheme.typography.labelLarge,
+            color = MaterialTheme.colorScheme.onPrimaryContainer,
+            modifier = Modifier.weight(1f).padding(end = FinanceTheme.spacing.sm),
+        )
         AmountText(
             amount = money.amount,
             currency = money.currency,
             amountColor = color,
-            style = MaterialTheme.typography.titleSmall,
+            style = MaterialTheme.typography.titleMedium,
             currencyStyle = MaterialTheme.typography.labelSmall,
         )
     }

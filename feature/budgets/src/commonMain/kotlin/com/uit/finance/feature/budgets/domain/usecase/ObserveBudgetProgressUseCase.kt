@@ -3,6 +3,7 @@ package com.uit.finance.feature.budgets.domain.usecase
 import com.uit.finance.core.budget.domain.model.Budget
 import com.uit.finance.core.budget.domain.repository.BudgetRepository
 import com.uit.finance.core.common.money.Money
+import com.uit.finance.core.common.text.VietnameseOrder
 import com.uit.finance.core.ledger.domain.model.Category
 import com.uit.finance.core.ledger.domain.model.CategorySpend
 import com.uit.finance.core.ledger.domain.repository.CategoryRepository
@@ -36,7 +37,7 @@ class ObserveBudgetProgressUseCase(
         val items = allBudgets
             .filter { it.appliesTo(month) } // tháng trước start_month không hiện (G4)
             .map { budget -> progress(budget, categoriesById[budget.categoryId], spentByKey, month, today) }
-            .sortedWith(compareByDescending<BudgetProgress> { it.ratio }.thenBy { it.category?.name?.lowercase() })
+            .sortedWith(compareByDescending<BudgetProgress> { it.ratio }.thenBy(nullsLast(VietnameseOrder)) { it.category?.name })
         BudgetOverview(month = month, items = items, totals = totals(items))
     }
 

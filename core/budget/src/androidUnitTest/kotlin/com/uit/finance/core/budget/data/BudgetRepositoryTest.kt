@@ -117,6 +117,16 @@ class BudgetRepositoryTest {
     }
 
     @Test
+    fun `ngân sách người gọi loại khỏi điều kiện đếm thì không chiếm chỗ giới hạn (GS8)`() = runTest {
+        val repository = repository()
+        repeat(BudgetLimits.MAX_BUDGETS) { repository.create(draft(categoryId = "c$it")).value() }
+
+        val created = repository.create(draft(categoryId = "extra")) { it.categoryId != "c0" }
+
+        assertEquals("extra", created.value().categoryId)
+    }
+
+    @Test
     fun `field sai bị chặn trước khi ghi - không có op nào`() = runTest {
         val repository = repository()
 

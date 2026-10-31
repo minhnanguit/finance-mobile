@@ -65,7 +65,7 @@ internal fun BudgetEditorScreen(
             title = if (state.isNew) "Tạo ngân sách" else "Sửa ngân sách",
             onBack = { onIntent(BudgetEditorIntent.BackClicked) },
             actions = {
-                if (!state.isNew) {
+                if (!state.isNew && !state.isDeletedElsewhere) {
                     OverflowMenu(
                         actions = listOf(
                             MenuAction("Xoá", FinanceIcons.Delete, destructive = true) { onIntent(BudgetEditorIntent.DeleteClicked) },

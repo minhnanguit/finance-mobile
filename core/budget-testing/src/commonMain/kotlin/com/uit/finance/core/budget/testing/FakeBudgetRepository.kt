@@ -27,7 +27,11 @@ class FakeBudgetRepository : BudgetRepository {
 
     override fun observeBudgets(): Flow<List<Budget>> = budgets
 
-    override suspend fun create(draft: BudgetDraft): AppResult<Budget> = write {
+    /** Điều kiện đếm giới hạn của lần `create` gần nhất, để test kiểm người gọi truyền gì. */
+    var lastLimitFilter: ((Budget) -> Boolean)? = null
+
+    override suspend fun create(draft: BudgetDraft, countsTowardsLimit: (Budget) -> Boolean): AppResult<Budget> = write {
+        lastLimitFilter = countsTowardsLimit
         created += draft
         Budget(
             id = "budget-${++nextId}",
