@@ -16,6 +16,9 @@ import com.uit.finance.core.ledger.domain.model.CashFlow
 import com.uit.finance.core.ledger.domain.model.Category
 import com.uit.finance.core.ledger.domain.model.CategoryDraft
 import com.uit.finance.core.ledger.domain.model.CategoryKind
+import com.uit.finance.core.ledger.domain.model.CategorySpend
+import com.uit.finance.core.ledger.domain.model.CategoryTotal
+import com.uit.finance.core.ledger.domain.model.MonthlyTotal
 import com.uit.finance.core.ledger.domain.model.Transaction
 import com.uit.finance.core.ledger.domain.model.TransactionDraft
 import com.uit.finance.core.ledger.domain.model.TransactionFilter
@@ -25,6 +28,7 @@ import com.uit.finance.core.ledger.domain.model.TransactionType
 import com.uit.finance.core.ledger.domain.repository.AccountRepository
 import com.uit.finance.core.ledger.domain.repository.BalanceRepository
 import com.uit.finance.core.ledger.domain.repository.CategoryRepository
+import com.uit.finance.core.ledger.domain.repository.SpendingRepository
 import com.uit.finance.core.ledger.domain.repository.TransactionRepository
 import kotlin.time.ExperimentalTime
 import kotlin.time.Instant
@@ -35,6 +39,8 @@ import kotlinx.coroutines.flow.flowOf
 import kotlinx.coroutines.flow.map
 import kotlinx.coroutines.flow.update
 import kotlinx.datetime.LocalDate
+import kotlinx.datetime.YearMonth
+import kotlinx.datetime.yearMonth
 
 /*
  * Fake trong bộ nhớ cho repository của core/ledger. Không kiểm luật nghiệp vụ (đó là việc của
@@ -237,7 +243,11 @@ class FakeTransactionRepository(
     }
 }
 
-class FakeBalanceRepository : BalanceRepository {
+/**
+ * Mặc định [observeCashFlow] trả [cashFlow] đặt sẵn cho mọi khoảng ngày. Truyền [transactions] thì tính thật theo
+ * khoảng ngày (CONFIRMED, bỏ TRANSFER), cùng luật với `selectCashFlowBetween`.
+ */
+class FakeBalanceRepository(private val transactions: MutableStateFlow<List<Transaction>>? = null) : BalanceRepository {
     val balances = MutableStateFlow(BalanceSummary.EMPTY)
     val cashFlow = MutableStateFlow(CashFlow.EMPTY)
     var requestedRange: Pair<LocalDate, LocalDate>? = null
@@ -246,8 +256,67 @@ class FakeBalanceRepository : BalanceRepository {
 
     override fun observeCashFlow(from: LocalDate, to: LocalDate): Flow<CashFlow> {
         requestedRange = from to to
-        return cashFlow
+        val source = transactions ?: return cashFlow
+        return source.map { list ->
+            val counted = list.filter { it.status == TransactionStatus.CONFIRMED && it.occurredOn >= from && it.occurredOn <= to }
+            fun totalsOf(type: TransactionType) = counted.filter { it.type == type }
+                .groupBy { it.amount.currency }.entries.sortedBy { it.key }
+                .map { (currency, items) -> Money(items.sumOf { it.amount.amountMinor }, currency) }
+            CashFlow(income = totalsOf(TransactionType.INCOME), expense = totalsOf(TransactionType.EXPENSE))
+        }
     }
+}
+
+/**
+ * - [observeMonthlyExpense]: "đã chi" theo tháng đặt sẵn trong [spending]; tháng không có trong map thì rỗng.
+ * - [observeCategoryTotals], [observeMonthlyTotals]: tính thật trên [transactions] + [categories] trong bộ nhớ, cùng
+ *   luật với `LedgerReport.sq` (CONFIRMED, bỏ TRANSFER, con cộng vào cha, danh mục lạ coi chính nó là gốc).
+ */
+class FakeSpendingRepository : SpendingRepository {
+    val spending = MutableStateFlow<Map<YearMonth, List<CategorySpend>>>(emptyMap())
+    val requestedMonths = mutableListOf<YearMonth>()
+
+    val transactions = MutableStateFlow<List<Transaction>>(emptyList())
+    val categories = MutableStateFlow<List<Category>>(emptyList())
+
+    /** Khoảng ngày của mỗi lần `observeCategoryTotals`, theo thứ tự gọi. */
+    val requestedCategoryRanges = mutableListOf<Pair<LocalDate, LocalDate>>()
+
+    override fun observeMonthlyExpense(month: YearMonth): Flow<List<CategorySpend>> {
+        requestedMonths += month
+        return spending.map { it[month].orEmpty() }
+    }
+
+    override fun observeCategoryTotals(
+        from: LocalDate,
+        to: LocalDate,
+        kind: CategoryKind,
+        groupByParent: Boolean,
+    ): Flow<List<CategoryTotal>> {
+        requestedCategoryRanges += from to to
+        val type = if (kind == CategoryKind.INCOME) TransactionType.INCOME else TransactionType.EXPENSE
+        return combine(transactions, categories) { list, categoryList ->
+            val parentOf = categoryList.associate { it.id to it.parentId }
+            list.counted()
+                .filter { it.type == type && it.occurredOn >= from && it.occurredOn <= to }
+                .groupBy { tx ->
+                    val id = tx.categoryId
+                    (if (groupByParent && id != null) parentOf[id] ?: id else id) to tx.amount.currency
+                }
+                .map { (key, items) -> CategoryTotal(key.first, Money(items.sumOf { it.amount.amountMinor }, key.second)) }
+                .sortedWith(compareBy({ it.categoryId }, { it.total.currency }))
+        }
+    }
+
+    override fun observeMonthlyTotals(from: YearMonth, to: YearMonth): Flow<List<MonthlyTotal>> = transactions.map { list ->
+        list.counted()
+            .filter { it.type != TransactionType.TRANSFER && it.occurredOn.yearMonth >= from && it.occurredOn.yearMonth <= to }
+            .groupBy { Triple(it.occurredOn.yearMonth, it.type, it.amount.currency) }
+            .map { (key, items) -> MonthlyTotal(key.first, key.second, Money(items.sumOf { it.amount.amountMinor }, key.third)) }
+            .sortedWith(compareBy({ it.month }, { it.total.currency }, { it.type }))
+    }
+
+    private fun List<Transaction>.counted() = filter { it.status == TransactionStatus.CONFIRMED }
 }
 
 // ---- Dữ liệu mẫu ----

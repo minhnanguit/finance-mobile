@@ -7,12 +7,17 @@ import com.uit.finance.core.ledger.domain.model.BalanceSummary
 import com.uit.finance.core.ledger.domain.model.CashFlow
 import com.uit.finance.core.ledger.domain.model.Category
 import com.uit.finance.core.ledger.domain.model.CategoryDraft
+import com.uit.finance.core.ledger.domain.model.CategoryKind
+import com.uit.finance.core.ledger.domain.model.CategorySpend
+import com.uit.finance.core.ledger.domain.model.CategoryTotal
+import com.uit.finance.core.ledger.domain.model.MonthlyTotal
 import com.uit.finance.core.ledger.domain.model.Transaction
 import com.uit.finance.core.ledger.domain.model.TransactionDraft
 import com.uit.finance.core.ledger.domain.model.TransactionFilter
 import com.uit.finance.core.ledger.domain.model.TransactionTotals
 import kotlinx.coroutines.flow.Flow
 import kotlinx.datetime.LocalDate
+import kotlinx.datetime.YearMonth
 
 /*
  * Mọi lần ghi lưu vào DB của user trên máy rồi mới gửi lên server khi có mạng (offline-first, ADR-002):
@@ -77,4 +82,27 @@ interface BalanceRepository {
 
     /** Tổng thu/chi CONFIRMED trong [from, to] (gồm cả hai đầu), tách theo tiền tệ; bỏ TRANSFER (D2). */
     fun observeCashFlow(from: LocalDate, to: LocalDate): Flow<CashFlow>
+}
+
+/**
+ * Số liệu gom cho báo cáo và ngân sách (docs/REPORTS-PLAN.md C1). Luôn tính ra từ giao dịch bằng SQL trên máy, không
+ * lưu; tự cập nhật khi ghi hay sync về giao dịch. Chỉ `CONFIRMED` chưa xoá, bỏ `TRANSFER`, tách theo tiền tệ; ví và
+ * danh mục đã archive vẫn tính. Tổng vượt Long thì kẹt ở biên thay vì làm chết Flow.
+ */
+interface SpendingRepository {
+    /**
+     * "Đã chi" của mọi danh mục gốc trong [month] (theo `occurredOn`, G7), tách theo tiền tệ. Luôn tính ra từ
+     * giao dịch, không lưu (G6); tự cập nhật khi ghi giao dịch. Tổng vượt Long thì kẹt ở biên.
+     */
+    fun observeMonthlyExpense(month: YearMonth): Flow<List<CategorySpend>>
+
+    /**
+     * Tổng [kind] theo danh mục trong [from, to] (gồm cả hai đầu). [groupByParent] = chi của danh mục con cộng vào
+     * cha. Giao dịch không có danh mục ra một nhóm `categoryId = null`, nên cộng mọi nhóm của một tiền tệ luôn bằng
+     * thu/chi của [BalanceRepository.observeCashFlow] cùng khoảng ngày.
+     */
+    fun observeCategoryTotals(from: LocalDate, to: LocalDate, kind: CategoryKind, groupByParent: Boolean): Flow<List<CategoryTotal>>
+
+    /** Tổng thu và chi theo từng tháng trong [from, to] (gồm cả hai tháng đầu cuối). Tháng trống không có dòng. */
+    fun observeMonthlyTotals(from: YearMonth, to: YearMonth): Flow<List<MonthlyTotal>>
 }

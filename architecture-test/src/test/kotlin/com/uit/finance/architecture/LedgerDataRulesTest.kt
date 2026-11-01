@@ -12,10 +12,10 @@ class LedgerDataRulesTest {
     /** Chính các luật này chứa những chuỗi bị cấm (IDE có thể chép chúng ra `bin/`). */
     private val ARCHITECTURE_PACKAGE = "$ROOT.architecture"
 
-    private val ledgerQueries = listOf("accountQueries", "categoryQueries", "ledgerTransactionQueries", "ledgerSearchQueries")
+    private val ledgerQueries = listOf("accountQueries", "categoryQueries", "ledgerTransactionQueries", "ledgerSearchQueries", "ledgerReportQueries")
     private val ledgerRows = listOf(
         "Account", "Category", "Ledger_transaction", "SelectBalances",
-        "SelectFilteredTotals", "SelectMissingSearchText",
+        "SelectFilteredTotals", "SelectMissingSearchText", "SelectCategoryTotals", "SelectMonthlyTotals",
     ).map { "$ROOT.core.database.$it" }
 
     /**

@@ -1,0 +1,40 @@
+-- Số liệu báo cáo + ngân sách (docs/REPORTS-PLAN.md R3, R4, R7). Chỉ có query; bảng ở LedgerTransaction.sq.
+-- Chỉ core/ledger được dùng (Konsist).
+--
+-- Cùng luật đếm với selectCashFlowBetween: CONFIRMED, chưa xoá, bỏ TRANSFER; ví và danh mục đã archive vẫn tính.
+-- Nên cộng mọi nhóm của một tiền tệ luôn bằng thu/chi ở Trang chủ (có test giữ).
+-- Lọc theo khoảng occurred_on: SQLite đi theo ledger_transaction_occurred_idx, chỉ quét khoảng ngày được hỏi.
+-- Cộng tách thương/dư cho 10⁹ như selectCashFlowBetween: chính xác trong biên Long, vượt thì CAST kẹp ở biên thay vì
+-- ném "integer overflow" làm chết Flow.
+
+-- Tổng theo danh mục (R3). LEFT JOIN vì schema không có FK và sync có thể về lệch thứ tự: INNER JOIN sẽ làm tổng thấp
+-- hơn Trang chủ. :groupByParent = 1 thì con cộng vào cha; danh mục chưa sync về máy thì coi chính nó là gốc (giống
+-- ngân sách). Không có danh mục thì group_id = NULL ("Chưa phân loại").
+selectCategoryTotals:
+SELECT
+    CASE WHEN :groupByParent = 1 THEN COALESCE(c.parent_id, t.category_id) ELSE t.category_id END AS group_id,
+    t.currency,
+    CAST(
+        COALESCE(SUM(t.amount_minor / 1000000000), 0) * 1000000000 + COALESCE(SUM(t.amount_minor % 1000000000), 0)
+    AS INTEGER) AS total_minor
+FROM ledger_transaction t
+LEFT JOIN category c ON c.id = t.category_id
+WHERE t.deleted = 0 AND t.status = 'CONFIRMED' AND t.type = :type
+  AND t.occurred_on >= :fromDate AND t.occurred_on <= :toDate
+GROUP BY group_id, t.currency
+ORDER BY group_id ASC, t.currency ASC;
+
+-- Cột xu hướng (R7): một câu cho cả 6 hoặc 12 tháng, mỗi (tháng, loại, tiền tệ) một dòng. Tháng trống Kotlin điền 0.
+selectMonthlyTotals:
+SELECT
+    substr(occurred_on, 1, 7) AS month,
+    type,
+    currency,
+    CAST(
+        COALESCE(SUM(amount_minor / 1000000000), 0) * 1000000000 + COALESCE(SUM(amount_minor % 1000000000), 0)
+    AS INTEGER) AS total_minor
+FROM ledger_transaction
+WHERE deleted = 0 AND status = 'CONFIRMED' AND type IN ('INCOME', 'EXPENSE')
+  AND occurred_on >= :fromDate AND occurred_on <= :toDate
+GROUP BY month, type, currency
+ORDER BY month ASC, currency ASC, type ASC;
