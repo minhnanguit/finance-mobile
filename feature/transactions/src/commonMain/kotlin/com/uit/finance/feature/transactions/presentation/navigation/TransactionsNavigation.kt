@@ -19,7 +19,7 @@ import kotlinx.serialization.Serializable
 
 /**
  * Lịch sử đã lọc sẵn, mở như màn con từ màn khác (báo cáo, ngân sách: "xem các giao dịch này"). Chỉ mang kiểu cơ bản
- * (F11): ngày ISO `yyyy-MM-dd`, id, tên `TransactionType`. **Không** mang từ khoá, để từ khoá không bị lưu vào
+ * (F11): ngày ISO `yyyy-MM-dd`, id, tên `TransactionType`. [accountIds] nhiều ví (báo cáo một tiền tệ = mọi ví của tiền tệ đó). **Không** mang từ khoá, để từ khoá không bị lưu vào
  * saved-state của navigation. Dựng bằng [of] cho đúng định dạng.
  */
 @Serializable
@@ -27,7 +27,7 @@ data class FilteredTransactionsDestination(
     val from: String? = null,
     val to: String? = null,
     val categoryId: String? = null,
-    val accountId: String? = null,
+    val accountIds: List<String> = emptyList(),
     val type: String? = null,
 ) {
     companion object {
@@ -35,9 +35,9 @@ data class FilteredTransactionsDestination(
             from: LocalDate? = null,
             to: LocalDate? = null,
             categoryId: String? = null,
-            accountId: String? = null,
+            accountIds: Collection<String> = emptyList(),
             type: TransactionType? = null,
-        ) = FilteredTransactionsDestination(from?.toString(), to?.toString(), categoryId, accountId, type?.name)
+        ) = FilteredTransactionsDestination(from?.toString(), to?.toString(), categoryId, accountIds.sorted(), type?.name)
     }
 }
 
@@ -95,7 +95,7 @@ private fun FilteredTransactionsDestination.toFilter() = HistoryFilter.prefilled
     from = from?.let(LocalDate.Formats.ISO::parseOrNull),
     to = to?.let(LocalDate.Formats.ISO::parseOrNull),
     categoryId = categoryId,
-    accountId = accountId,
+    accountIds = accountIds.toSet(),
     type = TransactionType.entries.firstOrNull { it.name == type },
 )
 

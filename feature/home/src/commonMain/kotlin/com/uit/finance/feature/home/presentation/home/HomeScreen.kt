@@ -1,5 +1,6 @@
 package com.uit.finance.feature.home.presentation.home
 
+import androidx.compose.foundation.clickable
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.PaddingValues
@@ -20,6 +21,7 @@ import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.getValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
+import androidx.compose.ui.draw.clip
 import androidx.compose.ui.graphics.graphicsLayer
 import androidx.compose.ui.text.SpanStyle
 import androidx.compose.ui.text.buildAnnotatedString
@@ -125,7 +127,9 @@ internal fun HomeScreen(
             }
             item(key = "actions") { QuickActions(onOpen = open, modifier = horizontal) }
             if (monthSummary != null) {
-                item(key = "month") { MonthSummary(summary = monthSummary, modifier = horizontal) }
+                item(key = "month") {
+                    MonthSummary(summary = monthSummary, onOpenReports = { open(HomeTarget.Reports) }, modifier = horizontal)
+                }
             }
             item(key = "recent-header") {
                 SectionHeader(
@@ -282,12 +286,18 @@ private fun QuickActions(onOpen: (HomeTarget) -> Unit, modifier: Modifier = Modi
 }
 
 @Composable
-private fun MonthSummary(summary: MonthSummaryUi, modifier: Modifier = Modifier) {
+private fun MonthSummary(summary: MonthSummaryUi, onOpenReports: () -> Unit, modifier: Modifier = Modifier) {
     val spacing = FinanceTheme.spacing
     val colors = FinanceTheme.colors
     Column(modifier, verticalArrangement = Arrangement.spacedBy(spacing.sm)) {
-        SectionHeader(title = "Tháng này")
-        Row(horizontalArrangement = Arrangement.spacedBy(spacing.sm)) {
+        SectionHeader(title = "Tháng này", actionLabel = "Xem báo cáo", onAction = onOpenReports)
+        // Chạm thẻ thu/chi cũng mở Báo cáo (docs/REPORTS-PLAN.md mục 1).
+        Row(
+            modifier = Modifier
+                .clip(MaterialTheme.shapes.medium)
+                .clickable(onClickLabel = "Xem báo cáo", onClick = onOpenReports),
+            horizontalArrangement = Arrangement.spacedBy(spacing.sm),
+        ) {
             StatTile(
                 label = "Tiền vào",
                 amount = summary.income,

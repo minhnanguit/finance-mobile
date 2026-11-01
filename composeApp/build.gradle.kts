@@ -61,6 +61,7 @@ kotlin {
             implementation(projects.feature.home)
             implementation(projects.feature.accounts)
             implementation(projects.feature.transactions)
+            implementation(projects.feature.reports)
         }
         commonTest.dependencies {
             implementation(projects.core.testing)

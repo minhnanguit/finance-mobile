@@ -71,14 +71,14 @@ data class HistoryFilter(
             from: LocalDate? = null,
             to: LocalDate? = null,
             categoryId: String? = null,
-            accountId: String? = null,
+            accountIds: Set<String> = emptySet(),
             type: TransactionType? = null,
         ) = HistoryFilter(
             datePreset = if (from == null && to == null) DatePreset.ALL else DatePreset.CUSTOM,
             customFrom = from,
             customTo = to,
             types = setOfNotNull(type),
-            accountIds = setOfNotNull(accountId),
+            accountIds = accountIds,
             categoryIds = setOfNotNull(categoryId),
         )
     }

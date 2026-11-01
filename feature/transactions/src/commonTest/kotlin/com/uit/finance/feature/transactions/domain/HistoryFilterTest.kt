@@ -71,7 +71,7 @@ class HistoryFilterTest {
 
     @Test
     fun `điền sẵn từ màn khác dùng khoảng ngày cố định`() {
-        val prefilled = HistoryFilter.prefilled(from = date(2023, 10, 1), to = date(2023, 10, 31), accountId = "a")
+        val prefilled = HistoryFilter.prefilled(from = date(2023, 10, 1), to = date(2023, 10, 31), accountIds = setOf("a"))
 
         assertEquals(DatePreset.CUSTOM, prefilled.datePreset)
         assertEquals(date(2023, 10, 1) to date(2023, 10, 31), prefilled.dateRange(today))
