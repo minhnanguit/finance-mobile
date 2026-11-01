@@ -94,9 +94,10 @@ test: ## Chạy unit test của mọi module trên máy JVM
 arch: ## Kiểm tra luật kiến trúc Konsist (presentation !-> data, domain thuần...)
 	$(GRADLE) :architecture-test:test
 
-bench: ## Đo tìm kiếm trên SQLCipher thật với 50k giao dịch (cần máy ảo đang chạy), kết quả in ra cuối
+bench: ## Đo tìm kiếm + báo cáo trên SQLCipher thật với 50k giao dịch (cần máy ảo đang chạy), kết quả in ra cuối
 	$(GRADLE) :core:ledger:connectedDebugAndroidTest
 	@$(ADBD) logcat -d -s SearchBenchmark:I | tail -n 30
+	@$(ADBD) logcat -d -s ReportBenchmark:I | tail -n 20
 
 lint: ## Chạy Android Lint cho module app
 	$(GRADLE) :composeApp:lintDebug
