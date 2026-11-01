@@ -47,4 +47,34 @@ class MoneyFormatterTest {
         val english = MoneyFormatter(groupingSeparator = ',', decimalSeparator = '.')
         assertEquals("175,400.80", english.format(Money(17_540_080, "CNY")).amount)
     }
+
+    @Test
+    fun `formatCompact - rút gọn kiểu Việt Nam - một chữ số lẻ - bỏ phần lẻ 0`() {
+        val formatter = MoneyFormatter()
+        assertEquals("18,4tr", formatter.formatCompact(Money(18_400_000, "VND")))
+        assertEquals("520k", formatter.formatCompact(Money(520_000, "VND")))
+        assertEquals("1,5k", formatter.formatCompact(Money(1_500, "VND")))
+        assertEquals("999", formatter.formatCompact(Money(999, "VND")))
+        assertEquals("125tr", formatter.formatCompact(Money(125_300_000, "VND")))
+        assertEquals("1,2 tỷ", formatter.formatCompact(Money(1_230_000_000, "VND")))
+        assertEquals("-6tr", formatter.formatCompact(Money(-6_000_000, "VND")))
+        assertEquals("0", formatter.formatCompact(Money(0, "VND")))
+    }
+
+    @Test
+    fun `formatCompact - chọn đơn vị sau khi làm tròn - không ra 1000k`() {
+        val formatter = MoneyFormatter()
+        assertEquals("1tr", formatter.formatCompact(Money(999_950, "VND")))
+        assertEquals("1K", formatter.formatCompact(Money(999_60, "USD")))
+        assertEquals("1 tỷ", formatter.formatCompact(Money(999_960_000, "VND")))
+        assertEquals("999k", formatter.formatCompact(Money(999_400, "VND")))
+        assertEquals("100k", formatter.formatCompact(Money(99_960, "VND")))
+    }
+
+    @Test
+    fun `formatCompact - tiền tệ có phần lẻ tính theo đơn vị chính - dùng K M B`() {
+        val formatter = MoneyFormatter()
+        assertEquals("1,2K", formatter.formatCompact(Money(1_234_56, "USD")))
+        assertEquals("12,5", formatter.formatCompact(Money(12_50, "USD")))
+    }
 }

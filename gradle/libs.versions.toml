@@ -40,6 +40,9 @@ kermit = "2.2.0"
 coil = "3.4.0"
 # Lucide (MIT) đóng gói sẵn ImageVector cho CMP (Android + iOS). Chỉ core/designsystem import; feature dùng FinanceIcons.
 composables-icons = "2.2.1"
+# Biểu đồ cột xu hướng của Báo cáo (Apache-2.0). 3.2.x là dòng cuối build với CMP 1.11 + Kotlin 2.3.21; 3.3.0+ cần
+# Kotlin 2.4. Chỉ core/designsystem import (Konsist); donut tự vẽ bằng Canvas (docs/REPORTS-PLAN.md L1–L3).
+vico = "3.2.3"
 
 # --- Testing / tooling ---
 turbine = "1.2.1"
@@ -97,6 +100,7 @@ compose-ui = { module = "org.jetbrains.compose.ui:ui", version.ref = "compose-mu
 # Font/ảnh trong composeResources (Montserrat của design system)
 compose-components-resources = { module = "org.jetbrains.compose.components:components-resources", version.ref = "compose-multiplatform" }
 composables-icons-lucide = { module = "com.composables:icons-lucide-cmp", version.ref = "composables-icons" }
+vico-compose = { module = "com.patrykandpatrick.vico:compose", version.ref = "vico" }
 
 # JetBrains lifecycle / navigation (multiplatform)
 jetbrains-lifecycle-viewmodel = { module = "org.jetbrains.androidx.lifecycle:lifecycle-viewmodel", version.ref = "jetbrains-lifecycle" }

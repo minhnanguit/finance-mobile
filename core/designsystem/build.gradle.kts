@@ -10,6 +10,8 @@ kotlin {
             implementation(libs.compose.components.resources)
             // Bộ icon Lucide: chỉ module này được import; mọi nơi khác đi qua FinanceIcons.
             implementation(libs.composables.icons.lucide)
+            // Biểu đồ cột (Vico): chỉ module này được import; feature dùng TrendBarChart.
+            implementation(libs.vico.compose)
         }
     }
 }
