@@ -65,7 +65,7 @@ Logout → OidcClient.endSession(refresh_token) (không mở browser) → luôn 
 
 | Cấu hình | Debug Android | Debug iOS | Release |
 |---|---|---|---|
-| `defaultApiBaseUrl()` | `http://10.0.2.2:8080` | `http://localhost:8080` | placeholder |
+| `defaultApiBaseUrl()` | `http://10.0.2.2:18473` | `http://localhost:18473` | placeholder |
 | `defaultOidcIssuer()` | `http://10.0.2.2:8081/realms/finance` | `http://localhost:8081/realms/finance` ⚠️ | placeholder |
 
 Host release là placeholder — **verify before use**.

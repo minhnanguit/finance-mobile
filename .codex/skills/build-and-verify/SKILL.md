@@ -13,7 +13,7 @@ description: Build và verify finance-mobile trên Android/iOS trước khi bàn
 | Android SDK | compileSdk 36, `sdk.dir` trong `local.properties` (git-ignored) | Cần kiểm tra file tồn tại |
 | Xcode | 16+ **chỉ cho iOS** | **Không có** — mọi task link framework / `xcodebuild` sẽ fail |
 | XcodeGen | `brew install xcodegen` (chỉ iOS) | Cùng điều kiện trên |
-| Backend | `finance-backend/deploy/docker-compose.yml` ở `localhost:8080` | Cần mở Docker Desktop trước |
+| Backend | `make run` trong `finance-backend` ở `localhost:18473` | Cần mở Docker Desktop trước |
 
 Thiếu Xcode thì **nói rõ với user** phần iOS chưa verify được, đừng tìm cách vòng qua.
 

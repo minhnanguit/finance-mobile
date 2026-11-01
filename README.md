@@ -12,7 +12,7 @@ MVI per feature, offline-first with SQLDelight + outbox, contract-first API).
 | Android SDK | compileSdk 36; set `sdk.dir` in `local.properties` (git-ignored) |
 | Xcode | 16+ **only for iOS** – Kotlin/Native and the `iosApp` wrapper need it |
 | XcodeGen | `brew install xcodegen` (iOS only) |
-| Backend | `finance-backend/deploy/docker-compose.yml` on `localhost:8080` |
+| Backend | `make run` in `finance-backend` on `localhost:18473` |
 
 Gradle 8.13 wrapper, Kotlin 2.3.21, AGP 8.13.2, Compose Multiplatform 1.11.1 (Material3 1.9.0) — all versions live in
 `gradle/libs.versions.toml`.
@@ -41,7 +41,7 @@ sdk.dir=/Users/<you>/Library/Android/sdk
 Every routine command is a `make` target — run `make` with no argument to list them all.
 
 ```sh
-# Android (emulator reaches the host backend via http://10.0.2.2:8080 in debug builds)
+# Android (emulator reaches the host backend via http://10.0.2.2:18473 in debug builds)
 make emulator wait    # boot the AVD (default Pixel_8) and wait until it is ready
 make install open     # build + install the debug APK, then launch it
 make log              # stream logcat for this app only

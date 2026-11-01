@@ -42,7 +42,7 @@
 	</array>
 	<key>NSAppTransportSecurity</key>
 	<dict>
-		<!-- Debug only: local backend over http://localhost:8080 -->
+		<!-- Debug only: local backend over http://localhost:18473 -->
 		<key>NSAllowsLocalNetworking</key>
 		<true/>
 	</dict>

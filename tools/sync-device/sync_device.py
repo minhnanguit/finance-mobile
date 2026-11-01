@@ -4,7 +4,7 @@
 /api/v1/sync/push và /api/v1/sync/pull bằng token thật. Chỉ dùng stdlib.
 
     export FINANCE_BASE=https://xxx.trycloudflare.com   # URL Keycloak/API mà app đang dùng (issuer của token)
-    export FINANCE_API=http://localhost:8080             # tuỳ chọn: gọi API thẳng, khỏi đi vòng qua tunnel
+    export FINANCE_API=http://localhost:18473             # tuỳ chọn: gọi API thẳng, khỏi đi vòng qua tunnel
     python3 -I sync_device.py login B user@example.test 'mật khẩu'
     python3 -I sync_device.py pull B                      # in thay đổi từ cursor đã lưu, rồi lưu cursor mới
     python3 -I sync_device.py push B < ops.json           # ops.json = mảng SyncOperation theo contract

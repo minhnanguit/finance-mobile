@@ -14,7 +14,7 @@ PKCE y như app nên **không** cần bật direct grant trên Keycloak. Chỉ d
 
 ```bash
 export FINANCE_BASE=https://xxx.trycloudflare.com
-export FINANCE_API=http://localhost:8080      # tuỳ chọn: gọi API thẳng, nhanh hơn đi vòng tunnel
+export FINANCE_API=http://localhost:18473      # tuỳ chọn: gọi API thẳng, nhanh hơn đi vòng tunnel
 python3 -I sync_device.py login B user@example.test 'mật khẩu'
 python3 -I sync_device.py pull B > changes.json
 python3 -I sync_device.py push B < ops.json   # mảng SyncOperation theo api/openapi.yaml
