@@ -1,0 +1,12 @@
+<resources>
+    <string name="signed_out_brand">Finance</string>
+    <string name="signed_out_title">Chào mừng đến Finance</string>
+    <string name="signed_out_subtitle">Tự tin kiểm soát tài chính\ncủa bạn</string>
+    <string name="signed_out_create_account">Tạo tài khoản</string>
+    <string name="signed_out_sign_in">Đăng nhập</string>
+    <string name="signed_out_security">An toàn và riêng tư</string>
+    <string name="other_accounts_title">Máy này còn dữ liệu của tài khoản khác</string>
+    <string name="other_accounts_message">Sổ thu chi của tài khoản đăng nhập trước đó vẫn còn trên máy. Dữ liệu đã được mã hoá và tài khoản này không thể xem. Xoá dữ liệu để giải phóng bộ nhớ và bảo vệ người dùng trước?</string>
+    <string name="other_accounts_delete">Xoá</string>
+    <string name="other_accounts_keep">Giữ lại</string>
+</resources>

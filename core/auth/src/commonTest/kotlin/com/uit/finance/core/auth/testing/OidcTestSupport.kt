@@ -24,7 +24,12 @@ internal const val AUTH_ENDPOINT = "$ISSUER/protocol/openid-connect/auth"
 internal const val TOKEN_ENDPOINT = "$ISSUER/protocol/openid-connect/token"
 internal const val LOGOUT_ENDPOINT = "$ISSUER/protocol/openid-connect/logout"
 
-internal val testConfig = OidcConfig(issuer = ISSUER, clientId = "finance-mobile", redirectUri = REDIRECT_URI)
+internal val testConfig = OidcConfig(
+    issuer = ISSUER,
+    clientId = "finance-mobile",
+    redirectUri = REDIRECT_URI,
+    uiLocales = listOf("vi", "en"),
+)
 
 internal fun discoveryJson(issuer: String = ISSUER): String = """
     {"issuer":"$issuer","authorization_endpoint":"$AUTH_ENDPOINT","token_endpoint":"$TOKEN_ENDPOINT",

@@ -10,7 +10,7 @@ data class OidcConfig(
     val clientId: String,
     val redirectUri: String,
     val scopes: List<String> = listOf("openid", "profile", "email"),
-    val uiLocales: List<String> = listOf("vi", "en"),
+    val uiLocales: List<String> = emptyList(),
 ) {
     init {
         require(issuer.startsWith("http://") || issuer.startsWith("https://")) { "issuer phải là URL tuyệt đối: $issuer" }
@@ -18,4 +18,11 @@ data class OidcConfig(
         require("openid" in scopes) { "scope phải có 'openid'" }
         require(uiLocales.none(String::isBlank)) { "uiLocales không được chứa locale rỗng" }
     }
+}
+
+/** Orders the supported Keycloak locales from the user's current app/device language. */
+fun preferredUiLocales(languageCode: String): List<String> {
+    val preferred = languageCode.substringBefore('-').substringBefore('_').lowercase()
+    val supported = listOf("vi", "en")
+    return if (preferred in supported) listOf(preferred) + supported.filterNot { it == preferred } else supported.reversed()
 }

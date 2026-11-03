@@ -14,6 +14,9 @@ import androidx.compose.foundation.layout.height
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.safeDrawingPadding
 import androidx.compose.foundation.layout.size
+import androidx.compose.foundation.layout.heightIn
+import androidx.compose.foundation.rememberScrollState
+import androidx.compose.foundation.verticalScroll
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
@@ -35,9 +38,20 @@ import com.uit.finance.core.designsystem.component.SecondaryOutlinedButton
 import com.uit.finance.core.designsystem.theme.FinanceTheme
 import com.uit.finance.feature.auth.generated.resources.Res
 import com.uit.finance.feature.auth.generated.resources.welcome_wallet
+import com.uit.finance.feature.auth.generated.resources.other_accounts_delete
+import com.uit.finance.feature.auth.generated.resources.other_accounts_keep
+import com.uit.finance.feature.auth.generated.resources.other_accounts_message
+import com.uit.finance.feature.auth.generated.resources.other_accounts_title
+import com.uit.finance.feature.auth.generated.resources.signed_out_brand
+import com.uit.finance.feature.auth.generated.resources.signed_out_create_account
+import com.uit.finance.feature.auth.generated.resources.signed_out_security
+import com.uit.finance.feature.auth.generated.resources.signed_out_sign_in
+import com.uit.finance.feature.auth.generated.resources.signed_out_subtitle
+import com.uit.finance.feature.auth.generated.resources.signed_out_title
 import com.uit.finance.feature.auth.domain.model.SignInMode
 import org.koin.compose.viewmodel.koinViewModel
 import org.jetbrains.compose.resources.painterResource
+import org.jetbrains.compose.resources.stringResource
 
 @Composable
 internal fun SignedOutRoute(
@@ -102,6 +116,7 @@ internal fun SignedOutScreen(
             modifier = Modifier
                 .fillMaxSize()
                 .safeDrawingPadding()
+                .verticalScroll(rememberScrollState())
                 .padding(horizontal = spacing.lg),
             horizontalAlignment = Alignment.CenterHorizontally,
         ) {
@@ -112,7 +127,7 @@ internal fun SignedOutScreen(
             ) {
                 FinanceLogo(Modifier.size(spacing.xl))
                 Text(
-                    text = "Finance",
+                    text = stringResource(Res.string.signed_out_brand),
                     style = MaterialTheme.typography.titleLarge,
                     color = FinanceTheme.colors.welcomeText,
                     fontWeight = FontWeight.Bold,
@@ -121,7 +136,7 @@ internal fun SignedOutScreen(
 
             Spacer(Modifier.height(spacing.lg))
             Text(
-                text = "Welcome to Finance",
+                text = stringResource(Res.string.signed_out_title),
                 style = MaterialTheme.typography.headlineLarge,
                 color = FinanceTheme.colors.welcomeText,
                 fontWeight = FontWeight.Bold,
@@ -129,7 +144,7 @@ internal fun SignedOutScreen(
             )
             Spacer(Modifier.height(spacing.sm))
             Text(
-                text = "Take control of your money\nwith confidence",
+                text = stringResource(Res.string.signed_out_subtitle),
                 style = MaterialTheme.typography.bodyLarge,
                 color = FinanceTheme.colors.welcomeTextSecondary,
                 textAlign = TextAlign.Center,
@@ -141,7 +156,7 @@ internal fun SignedOutScreen(
                 contentDescription = null,
                 modifier = Modifier
                     .fillMaxWidth(0.86f)
-                    .weight(1f),
+                    .heightIn(min = spacing.xxl * 5, max = spacing.xxl * 8),
                 contentScale = ContentScale.Fit,
             )
             Spacer(Modifier.height(spacing.md))
@@ -152,7 +167,7 @@ internal fun SignedOutScreen(
             }
 
             PrimaryButton(
-                text = "Create an account",
+                text = stringResource(Res.string.signed_out_create_account),
                 onClick = { onIntent(SignedOutIntent.SignUpClicked) },
                 enabled = !state.isBusy,
                 loading = state.inProgress == SignInMode.SignUp,
@@ -160,14 +175,14 @@ internal fun SignedOutScreen(
             )
             Spacer(Modifier.height(spacing.md))
             SecondaryOutlinedButton(
-                text = "Sign in",
+                text = stringResource(Res.string.signed_out_sign_in),
                 onClick = { onIntent(SignedOutIntent.SignInClicked) },
                 enabled = !state.isBusy,
                 large = true,
             )
             Spacer(Modifier.height(spacing.lg))
             Text(
-                text = "Secure and private",
+                text = stringResource(Res.string.signed_out_security),
                 style = MaterialTheme.typography.bodySmall,
                 color = FinanceTheme.colors.welcomeTextSecondary,
             )
@@ -177,10 +192,10 @@ internal fun SignedOutScreen(
 
     if (state.otherAccountsPrompt) {
         ConfirmDialog(
-            title = "Máy này còn dữ liệu của tài khoản khác",
-            message = "Sổ thu chi của tài khoản đăng nhập trước đó vẫn còn trên máy (đã mã hoá, tài khoản này không xem được). Xoá đi để giải phóng bộ nhớ và bảo vệ người kia?",
-            confirmLabel = "Xoá",
-            dismissLabel = "Giữ lại",
+            title = stringResource(Res.string.other_accounts_title),
+            message = stringResource(Res.string.other_accounts_message),
+            confirmLabel = stringResource(Res.string.other_accounts_delete),
+            dismissLabel = stringResource(Res.string.other_accounts_keep),
             destructive = true,
             onConfirm = { onIntent(SignedOutIntent.WipeOtherAccounts) },
             onDismiss = { onIntent(SignedOutIntent.KeepOtherAccounts) },
