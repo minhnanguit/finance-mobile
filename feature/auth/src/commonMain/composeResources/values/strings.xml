@@ -1,0 +1,12 @@
+<resources>
+    <string name="signed_out_brand">Finance</string>
+    <string name="signed_out_title">Welcome to Finance</string>
+    <string name="signed_out_subtitle">Take control of your money\nwith confidence</string>
+    <string name="signed_out_create_account">Create an account</string>
+    <string name="signed_out_sign_in">Sign in</string>
+    <string name="signed_out_security">Secure and private</string>
+    <string name="other_accounts_title">Data from another account remains on this device</string>
+    <string name="other_accounts_message">The previous account's financial data is still stored here. It is encrypted and cannot be viewed by this account. Delete it to free storage and protect the previous user?</string>
+    <string name="other_accounts_delete">Delete</string>
+    <string name="other_accounts_keep">Keep</string>
+</resources>
