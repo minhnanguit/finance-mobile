@@ -46,6 +46,35 @@ class MoneyFormatter(
         return FormattedMoney(currency = money.currency, amount = amount, isNegative = isNegative)
     }
 
+    /**
+     * Số rút gọn cho trục biểu đồ và giữa biểu đồ tròn (docs/REPORTS-PLAN.md V6): `18,4tr`, `520k`, `1,2 tỷ`. Không kèm
+     * mã tiền tệ; tiền tệ khác VND dùng `K/M/B`. Một chữ số lẻ khi dưới 100 đơn vị, bỏ `,0`.
+     */
+    fun formatCompact(money: Money): String {
+        var scale = 1.0
+        repeat(Currencies.minorDigits(money.currency)) { scale *= 10 }
+        val major = money.amountMinor / scale
+        val absolute = kotlin.math.abs(major)
+        val vnd = money.currency == "VND"
+        val units = listOf(1.0 to "", 1e3 to (if (vnd) "k" else "K"), 1e6 to (if (vnd) "tr" else "M"), 1e9 to (if (vnd) " tỷ" else "B"))
+        var index = units.indexOfLast { absolute >= it.first }.coerceAtLeast(0)
+        // Chọn đơn vị theo số SAU khi làm tròn: 999.950 → "1tr", không phải "1.000k".
+        while (index < units.lastIndex && roundedCompact(absolute / units[index].first) >= 1000.0) index++
+        val (unit, suffix) = units[index]
+        val value = absolute / unit
+        val tenths = kotlin.math.round(value * 10).toLong()
+        val number = if (value >= 100 || tenths % 10 == 0L) {
+            groupThousands(kotlin.math.round(value).toLong())
+        } else {
+            "${tenths / 10}$decimalSeparator${tenths % 10}"
+        }
+        return (if (major < 0) "-" else "") + number + suffix
+    }
+
+    /** Giá trị [formatCompact] sẽ in: một chữ số lẻ dưới 100, số nguyên từ 100. */
+    private fun roundedCompact(value: Double): Double =
+        if (value >= 100) kotlin.math.round(value) else kotlin.math.round(value * 10) / 10
+
     private fun groupThousands(value: Long): String {
         val digits = value.toString()
         return buildString {

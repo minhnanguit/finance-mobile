@@ -26,7 +26,7 @@ Dùng khi và chỉ khi hành vi khác nhau theo nền tảng. Mẫu có sẵn:
 | `AuthorizationLauncher` (interface + Koin platform module, `core/auth`) | Custom Tabs qua `AuthorizationActivity` + `RedirectReceiverActivity` | `ASWebAuthenticationSession` (ephemeral) |
 | `secureRandomBytes()` (`core/common/security`) | `SecureRandom` | `SecRandomCopyBytes` |
 | `sha256()` (`core/auth/pkce`) | `MessageDigest` | `CC_SHA256` |
-| `defaultApiBaseUrl()`, `isDebugBuild` (composeApp) | `10.0.2.2:8080` khi debug | loopback simulator |
+| `defaultApiBaseUrl()`, `isDebugBuild` (composeApp) | `10.0.2.2:18473` khi debug | loopback simulator |
 
 Đặt tên file: `X.kt` (expect) / `X.android.kt` / `X.ios.kt`.
 DI theo nền tảng: `di/PlatformXModule.android.kt` / `.ios.kt` — expect `val platformXModule: Module`.

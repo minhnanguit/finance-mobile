@@ -40,6 +40,7 @@ import com.composables.icons.lucide.Heart
 import com.composables.icons.lucide.House
 import com.composables.icons.lucide.Inbox
 import com.composables.icons.lucide.Landmark
+import com.composables.icons.lucide.ListFilter
 import com.composables.icons.lucide.Lock
 import com.composables.icons.lucide.LogOut
 import com.composables.icons.lucide.Lucide
@@ -96,6 +97,7 @@ object FinanceIcons {
     val More: ImageVector get() = Lucide.Ellipsis
     val MoreVertical: ImageVector get() = Lucide.EllipsisVertical
     val Search: ImageVector get() = Lucide.Search
+    val Filter: ImageVector get() = Lucide.ListFilter
     val Edit: ImageVector get() = Lucide.Pencil
     val Delete: ImageVector get() = Lucide.Trash2
     val Check: ImageVector get() = Lucide.Check

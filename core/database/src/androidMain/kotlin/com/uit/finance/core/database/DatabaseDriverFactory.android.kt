@@ -12,7 +12,7 @@ actual class DatabaseDriverFactory(private val context: Context) : EncryptedData
     override fun create(fileName: String, passphrase: String): SqlDriver {
         SqlCipherLibrary.ensureLoaded()
         return AndroidSqliteDriver(
-            schema = FinanceDatabase.Schema,
+            schema = UserDatabaseSchema,
             context = context,
             name = fileName,
             factory = SupportOpenHelperFactory(passphrase.encodeToByteArray()),

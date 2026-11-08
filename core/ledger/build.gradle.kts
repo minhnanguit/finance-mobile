@@ -19,5 +19,18 @@ kotlin {
         androidUnitTest.dependencies {
             implementation(libs.sqldelight.sqlite.driver)
         }
+        // Benchmark tìm kiếm trên SQLCipher thật (docs/SEARCH-PLAN.md Phase 3). Cần máy ảo: `make bench`.
+        androidInstrumentedTest.dependencies {
+            implementation(projects.core.testing)
+            implementation(libs.androidx.test.runner)
+            implementation(libs.androidx.test.ext.junit)
+            implementation(libs.junit)
+        }
+    }
+}
+
+android {
+    defaultConfig {
+        testInstrumentationRunner = "androidx.test.runner.AndroidJUnitRunner"
     }
 }

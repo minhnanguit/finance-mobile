@@ -5,6 +5,8 @@ package com.uit.finance.core.ledger.testing
 import com.uit.finance.core.common.money.Money
 import com.uit.finance.core.common.result.AppError
 import com.uit.finance.core.common.result.AppResult
+import com.uit.finance.core.common.text.foldForSearch
+import com.uit.finance.core.common.text.searchTextOf
 import com.uit.finance.core.ledger.domain.model.Account
 import com.uit.finance.core.ledger.domain.model.AccountBalance
 import com.uit.finance.core.ledger.domain.model.AccountDraft
@@ -15,9 +17,13 @@ import com.uit.finance.core.ledger.domain.model.Category
 import com.uit.finance.core.ledger.domain.model.CategoryDraft
 import com.uit.finance.core.ledger.domain.model.CategoryKind
 import com.uit.finance.core.ledger.domain.model.CategorySpend
+import com.uit.finance.core.ledger.domain.model.CategoryTotal
+import com.uit.finance.core.ledger.domain.model.MonthlyTotal
 import com.uit.finance.core.ledger.domain.model.Transaction
 import com.uit.finance.core.ledger.domain.model.TransactionDraft
+import com.uit.finance.core.ledger.domain.model.TransactionFilter
 import com.uit.finance.core.ledger.domain.model.TransactionStatus
+import com.uit.finance.core.ledger.domain.model.TransactionTotals
 import com.uit.finance.core.ledger.domain.model.TransactionType
 import com.uit.finance.core.ledger.domain.repository.AccountRepository
 import com.uit.finance.core.ledger.domain.repository.BalanceRepository
@@ -28,10 +34,13 @@ import kotlin.time.ExperimentalTime
 import kotlin.time.Instant
 import kotlinx.coroutines.flow.Flow
 import kotlinx.coroutines.flow.MutableStateFlow
+import kotlinx.coroutines.flow.combine
+import kotlinx.coroutines.flow.flowOf
 import kotlinx.coroutines.flow.map
 import kotlinx.coroutines.flow.update
 import kotlinx.datetime.LocalDate
 import kotlinx.datetime.YearMonth
+import kotlinx.datetime.yearMonth
 
 /*
  * Fake trong bộ nhớ cho repository của core/ledger. Không kiểm luật nghiệp vụ (đó là việc của
@@ -123,11 +132,21 @@ class FakeCategoryRepository : FakeWriter(), CategoryRepository {
     }
 }
 
-class FakeTransactionRepository(private val accounts: FakeAccountRepository? = null) : FakeWriter(), TransactionRepository {
+/**
+ * [observeFiltered] lọc thật trên list trong bộ nhớ, cùng luật với câu SQL (docs/SEARCH-PLAN.md): bỏ dấu, cha gồm
+ * con, chuyển tiền khớp ví nhận. Truyền [categories] để tìm theo tên danh mục và lọc danh mục cha.
+ */
+class FakeTransactionRepository(
+    private val accounts: FakeAccountRepository? = null,
+    private val categories: FakeCategoryRepository? = null,
+) : FakeWriter(), TransactionRepository {
     val transactions = MutableStateFlow<List<Transaction>>(emptyList())
 
     /** Limit của mỗi lần `observeRecent`, theo thứ tự gọi. */
     val requestedLimits = mutableListOf<Int>()
+
+    /** Filter + limit của mỗi lần `observeFiltered`, theo thứ tự gọi. */
+    val requestedFilters = mutableListOf<Pair<TransactionFilter, Int>>()
     val recordedBatches = mutableListOf<List<TransactionDraft>>()
     val deletedIds = mutableListOf<String>()
     private var nextId = 0
@@ -142,6 +161,51 @@ class FakeTransactionRepository(private val accounts: FakeAccountRepository? = n
 
     override fun observe(transactionId: String): Flow<Transaction?> =
         transactions.map { list -> list.firstOrNull { it.id == transactionId } }
+
+    override fun observeFiltered(filter: TransactionFilter, limit: Int): Flow<List<Transaction>> {
+        requestedFilters += filter to limit
+        return matching(filter).map { it.take(limit) }
+    }
+
+    override fun observeFilteredTotals(filter: TransactionFilter): Flow<TransactionTotals> = matching(filter).map { matched ->
+        val confirmed = matched.filter { it.status == TransactionStatus.CONFIRMED }
+        fun totalsOf(type: TransactionType) = confirmed.filter { it.type == type }
+            .groupBy { it.amount.currency }.entries.sortedBy { it.key }
+            .map { (currency, items) -> Money(items.sumOf { it.amount.amountMinor }, currency) }
+        TransactionTotals(
+            count = matched.size,
+            draftCount = matched.count { it.status == TransactionStatus.DRAFT },
+            cashFlow = CashFlow(income = totalsOf(TransactionType.INCOME), expense = totalsOf(TransactionType.EXPENSE)),
+        )
+    }
+
+    private fun matching(filter: TransactionFilter): Flow<List<Transaction>> {
+        val normalized = filter.normalized()
+        return combine(transactions, categories?.categories ?: flowOf(emptyList())) { list, categoryList ->
+            val match = FilterMatcher(normalized, categoryList)
+            list.filter(match::matches).sortedByDescending { it.occurredOn }
+        }
+    }
+
+    private class FilterMatcher(private val filter: TransactionFilter, private val categories: List<Category>) {
+        private val query = filter.query?.foldForSearch().orEmpty()
+        private val categoryIds = filter.categoryIds?.let(::withChildren)
+        private val textCategoryIds = withChildren(categories.filter { query in it.name.foldForSearch() }.map { it.id }.toSet())
+
+        private fun withChildren(ids: Set<String>): Set<String> = ids + categories.filter { it.parentId in ids }.map { it.id }
+
+        fun matches(transaction: Transaction): Boolean = with(transaction) {
+            val from = filter.from
+            val to = filter.to
+            (from == null || occurredOn >= from) &&
+                (to == null || occurredOn <= to) &&
+                filter.types.let { it == null || type in it } &&
+                filter.accountIds.let { it == null || accountId in it || counterAccountId in it } &&
+                categoryIds.let { it == null || categoryId in it } &&
+                filter.status.let { it == null || status == it } &&
+                (query.isEmpty() || query in searchTextOf(payee, note) || categoryId in textCategoryIds)
+        }
+    }
 
     override suspend fun record(draft: TransactionDraft): AppResult<Transaction> = when (val result = recordAll(listOf(draft))) {
         is AppResult.Success -> AppResult.Success(result.value.single())
@@ -179,7 +243,11 @@ class FakeTransactionRepository(private val accounts: FakeAccountRepository? = n
     }
 }
 
-class FakeBalanceRepository : BalanceRepository {
+/**
+ * Mặc định [observeCashFlow] trả [cashFlow] đặt sẵn cho mọi khoảng ngày. Truyền [transactions] thì tính thật theo
+ * khoảng ngày (CONFIRMED, bỏ TRANSFER), cùng luật với `selectCashFlowBetween`.
+ */
+class FakeBalanceRepository(private val transactions: MutableStateFlow<List<Transaction>>? = null) : BalanceRepository {
     val balances = MutableStateFlow(BalanceSummary.EMPTY)
     val cashFlow = MutableStateFlow(CashFlow.EMPTY)
     var requestedRange: Pair<LocalDate, LocalDate>? = null
@@ -188,19 +256,67 @@ class FakeBalanceRepository : BalanceRepository {
 
     override fun observeCashFlow(from: LocalDate, to: LocalDate): Flow<CashFlow> {
         requestedRange = from to to
-        return cashFlow
+        val source = transactions ?: return cashFlow
+        return source.map { list ->
+            val counted = list.filter { it.status == TransactionStatus.CONFIRMED && it.occurredOn >= from && it.occurredOn <= to }
+            fun totalsOf(type: TransactionType) = counted.filter { it.type == type }
+                .groupBy { it.amount.currency }.entries.sortedBy { it.key }
+                .map { (currency, items) -> Money(items.sumOf { it.amount.amountMinor }, currency) }
+            CashFlow(income = totalsOf(TransactionType.INCOME), expense = totalsOf(TransactionType.EXPENSE))
+        }
     }
 }
 
-/** "Đã chi" theo tháng đặt sẵn trong [spending]; tháng không có trong map thì rỗng. */
+/**
+ * - [observeMonthlyExpense]: "đã chi" theo tháng đặt sẵn trong [spending]; tháng không có trong map thì rỗng.
+ * - [observeCategoryTotals], [observeMonthlyTotals]: tính thật trên [transactions] + [categories] trong bộ nhớ, cùng
+ *   luật với `LedgerReport.sq` (CONFIRMED, bỏ TRANSFER, con cộng vào cha, danh mục lạ coi chính nó là gốc).
+ */
 class FakeSpendingRepository : SpendingRepository {
     val spending = MutableStateFlow<Map<YearMonth, List<CategorySpend>>>(emptyMap())
     val requestedMonths = mutableListOf<YearMonth>()
+
+    val transactions = MutableStateFlow<List<Transaction>>(emptyList())
+    val categories = MutableStateFlow<List<Category>>(emptyList())
+
+    /** Khoảng ngày của mỗi lần `observeCategoryTotals`, theo thứ tự gọi. */
+    val requestedCategoryRanges = mutableListOf<Pair<LocalDate, LocalDate>>()
 
     override fun observeMonthlyExpense(month: YearMonth): Flow<List<CategorySpend>> {
         requestedMonths += month
         return spending.map { it[month].orEmpty() }
     }
+
+    override fun observeCategoryTotals(
+        from: LocalDate,
+        to: LocalDate,
+        kind: CategoryKind,
+        groupByParent: Boolean,
+    ): Flow<List<CategoryTotal>> {
+        requestedCategoryRanges += from to to
+        val type = if (kind == CategoryKind.INCOME) TransactionType.INCOME else TransactionType.EXPENSE
+        return combine(transactions, categories) { list, categoryList ->
+            val parentOf = categoryList.associate { it.id to it.parentId }
+            list.counted()
+                .filter { it.type == type && it.occurredOn >= from && it.occurredOn <= to }
+                .groupBy { tx ->
+                    val id = tx.categoryId
+                    (if (groupByParent && id != null) parentOf[id] ?: id else id) to tx.amount.currency
+                }
+                .map { (key, items) -> CategoryTotal(key.first, Money(items.sumOf { it.amount.amountMinor }, key.second)) }
+                .sortedWith(compareBy({ it.categoryId }, { it.total.currency }))
+        }
+    }
+
+    override fun observeMonthlyTotals(from: YearMonth, to: YearMonth): Flow<List<MonthlyTotal>> = transactions.map { list ->
+        list.counted()
+            .filter { it.type != TransactionType.TRANSFER && it.occurredOn.yearMonth >= from && it.occurredOn.yearMonth <= to }
+            .groupBy { Triple(it.occurredOn.yearMonth, it.type, it.amount.currency) }
+            .map { (key, items) -> MonthlyTotal(key.first, key.second, Money(items.sumOf { it.amount.amountMinor }, key.third)) }
+            .sortedWith(compareBy({ it.month }, { it.total.currency }, { it.type }))
+    }
+
+    private fun List<Transaction>.counted() = filter { it.status == TransactionStatus.CONFIRMED }
 }
 
 // ---- Dữ liệu mẫu ----

@@ -41,7 +41,7 @@ class SpendingRepositoryTest {
         deleted: Long = 0,
         counterAccountId: String? = null,
     ) = database.ledgerTransactionQueries.upsert(
-        "t${++nextId}", type, status, "wallet", counterAccountId, amount, currency, categoryId, on, null, null, null, deleted,
+        "t${++nextId}", type, status, "wallet", counterAccountId, amount, currency, categoryId, on, null, null, null, deleted, null,
     )
 
     private suspend fun TestScope.octoberSpend(): List<CategorySpend> {

@@ -3,6 +3,7 @@
 package com.uit.finance.core.ledger.data.local
 
 import com.uit.finance.core.common.money.Money
+import com.uit.finance.core.common.text.searchTextOf
 import com.uit.finance.core.database.FinanceDatabase
 import com.uit.finance.core.ledger.domain.model.Account
 import com.uit.finance.core.ledger.domain.model.AccountType
@@ -82,6 +83,7 @@ internal fun FinanceDatabase.save(category: Category) = categoryQueries.upsert(
     0L,
 )
 
+/** Nơi **duy nhất** ghi `search_text` (F4): `record`, `update` và `TransactionSyncApplier` đều đi qua đây. */
 internal fun FinanceDatabase.save(transaction: Transaction) = ledgerTransactionQueries.upsert(
     transaction.id,
     transaction.type.name,
@@ -96,6 +98,7 @@ internal fun FinanceDatabase.save(transaction: Transaction) = ledgerTransactionQ
     transaction.payee,
     transaction.note,
     0L,
+    searchTextOf(transaction.payee, transaction.note),
 )
 
 // ---- Domain ↔ payload của contract ----

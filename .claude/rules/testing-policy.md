@@ -3,7 +3,7 @@
 | Lệnh | Chạy gì | Cần gì |
 |---|---|---|
 | `make test` | Unit test mọi module KMP (target Android/JVM, chạy trên host) | JDK + Android SDK |
-| `make arch` | 24 luật Konsist (đọc **source**, không phải bytecode) | JDK |
+| `make arch` | 25 luật Konsist (đọc **source**, không phải bytecode) | JDK |
 | `make apk` | Build APK — smoke test biên dịch | Android SDK |
 
 CI chạy cả ba (job `android`) + build iOS (job `ios`, cần macOS + Xcode).
@@ -18,6 +18,7 @@ CI chạy cả ba (job `android`) + build iOS (job `ios`, cần macOS + Xcode).
 | Ktor client, plugin | `core/network/src/commonTest/` | `ktor-client-mock` (mẫu `HttpClientFactoryTest`, `IdempotencyKeyPluginTest`, `TestSupport.kt`) |
 | OIDC / Keycloak | `core/auth/src/commonTest/` | `FakeKeycloak` (MockEngine) + `FakeAuthorizationLauncher`. PKCE kiểm bằng vector RFC 7636 |
 | Thứ chỉ chạy trên JVM/Android (SQLDelight in-memory) | `src/androidUnitTest/` | Mẫu `OutboxWriterTest`, `OutboxOrderingTest`, `DefaultSyncEngineTest` (`core/sync`), `LedgerRepositoriesTest` (`core/ledger`), `UserDatabaseMigrationTest` + `SqlCipherUserDatabasesTest` (`core/database`) |
+| Hiệu năng trên SQLCipher thật | `core/ledger/src/androidInstrumentedTest/` | `SearchBenchmarkTest`, `ReportBenchmarkTest` (`make bench`, cần máy ảo). Không chạy trong `make test` / CI |
 | Luật kiến trúc | `architecture-test/` | Konsist — chỉ sửa khi user đồng ý |
 
 ## Quy tắc

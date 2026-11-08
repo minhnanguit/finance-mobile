@@ -34,7 +34,7 @@ info:
     - Xoá `/api/v1/auth/register`, `/login`, `/refresh`, `/logout` cùng các schema đi kèm.
     - `UserProfile.id` là internal id, không phải `sub` của Keycloak.
 servers:
-  - url: http://localhost:8080
+  - url: http://localhost:18473
     description: Môi trường local
 tags:
   - name: me

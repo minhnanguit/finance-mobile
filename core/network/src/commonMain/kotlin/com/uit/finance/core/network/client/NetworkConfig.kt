@@ -1,7 +1,7 @@
 package com.uit.finance.core.network.client
 
 data class NetworkConfig(
-    /** e.g. `http://10.0.2.2:8080` on the Android emulator, `http://localhost:8080` on the iOS simulator. */
+    /** e.g. `http://10.0.2.2:18473` on the Android emulator, `http://localhost:18473` on the iOS simulator. */
     val baseUrl: String,
     val connectTimeoutMillis: Long = 10_000,
     val requestTimeoutMillis: Long = 30_000,

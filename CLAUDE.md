@@ -8,7 +8,7 @@ Client Kotlin Multiplatform (Android + iOS) dùng **Compose Multiplatform UI chu
 - Package gốc: `com.uit.finance` · compileSdk 36 · minSdk 26 · targetSdk 36
 - Kiến trúc đã **chốt** ở `../ARCHITECTURE.md` (repo-level, tiếng Việt). Không tự đổi.
 - Hợp đồng API: `api/openapi.yaml` là bản **copy nguyên văn** từ `finance-backend`, pin theo `api/VERSION` (hiện `2.2.0`). **Không sửa tay file này.**
-- Feature hiện có: `feature/auth` (reference feature: SignedOut / Profile; login/register diễn ra trên **Keycloak** qua system browser, ADR-004) · `feature/home` (Trang chủ: thẻ ví, thu/chi tháng này, giao dịch gần đây, badge đồng bộ) · `feature/accounts` (danh sách ví, tạo/sửa ví) · `feature/transactions` (lịch sử, thêm/sửa giao dịch + phí chuyển, danh mục) · `feature/budgets` (tab Ngân sách: tiến độ theo tháng, tạo/sửa/xoá).
+- Feature hiện có: `feature/auth` (reference feature: SignedOut / Profile; login/register diễn ra trên **Keycloak** qua system browser, ADR-004) · `feature/home` (Trang chủ: thẻ ví, thu/chi tháng này, giao dịch gần đây, badge đồng bộ) · `feature/accounts` (danh sách ví, tạo/sửa ví) · `feature/transactions` (lịch sử + tìm kiếm/lọc/dòng tổng, thêm/sửa giao dịch + phí chuyển, danh mục) · `feature/reports` (báo cáo thu/chi theo tháng/năm, donut theo danh mục, cột xu hướng, `../docs/REPORTS-PLAN.md`) · `feature/budgets` (tab Ngân sách: tiến độ theo tháng, tạo/sửa/xoá).
 - UI theo bản thiết kế tham chiếu Purrweb "Finance Mobile iOS App" (dribbble.com/shots/21793126): Montserrat, sage `#94C1B2` / cam đào `#FFC789` / nền `#121212`. Token và component ở `core/designsystem`; icon là Lucide nhưng **chỉ** import trong `FinanceIcons.kt`.
 - Dữ liệu ledger (ví, danh mục, giao dịch) + sync offline-first: `core/ledger` + `core/sync`, theo `../docs/LEDGER-PLAN.md`.
 - Ngân sách theo danh mục (ADR-007 backend, `../docs/BUDGET-PLAN.md`): dữ liệu + sync ở `core/budget`; "đã chi" tính từ giao dịch qua `SpendingRepository` (core/ledger), không lưu; màn hình ở `feature/budgets`.
@@ -30,7 +30,8 @@ Mọi lệnh thường dùng đều là target trong `Makefile`. Gõ `make` đ�
 | `make crash` | Chỉ theo dõi warning + crash |
 | `make apk` | Build APK debug, không cài |
 | `make test` | Unit test **mọi module KMP** (chạy trên host JVM) |
-| `make arch` | 24 luật Konsist |
+| `make arch` | 25 luật Konsist |
+| `make bench` | Benchmark tìm kiếm + báo cáo trên SQLCipher thật, 50k giao dịch (instrumented test, **cần máy ảo đang chạy**); in bảng số đo từ logcat |
 | `make lint` | Android Lint cho `composeApp` |
 | `make tunnel URL=https://…` | Trỏ build debug tới URL HTTPS của `make tunnel` bên backend (ghi `finance.publicBaseUrl` vào `local.properties`). Có URL thì APK **tắt** cleartext |
 | `make tunnel-off` | Quay về loopback `10.0.2.2` / `localhost` (http) |
@@ -58,7 +59,8 @@ build-logic/          4 convention plugin: finance.kmp.library / .kmp.compose / 
 gradle/libs.versions.toml   version catalog — MỌI version nằm ở đây
 
 core/common           AppResult / AppError / FieldError, Money (Long minor units), DispatcherProvider,
-                      UuidGenerator, Clock + observeToday (Flow "hôm nay", phát lại lúc 00:00), PlatformInfo. Kotlin thuần
+                      UuidGenerator, Clock + observeToday (phát lại lúc 00:00), PlatformInfo, foldForSearch / searchTextOf
+                      (bỏ dấu NFC+NFD để tìm kiếm). Kotlin thuần
 core/presentation     MviViewModel<State, Intent, Effect>, UiText + AppError.toUiText(), MoneyFormatter (corePresentationModule),
                       DateLabels (toRelativeLabel / toLongLabel)
 core/network          Ktor client (ContentNegotiation, logging sanitize, timeout, bearer + refresh rotation,
@@ -67,8 +69,10 @@ core/auth             OIDC client Keycloak: PKCE S256, discovery, token/refresh/
                       (Android Custom Tabs · iOS ASWebAuthenticationSession), implement TokenRefresher
 core/database         SQLDelight FinanceDatabase **mỗi user một file** `finance-<userId>.db`, mã hoá SQLCipher (khoá 256-bit
                       trong SecureStorage): outbox (+ outbox_ref), sync_cursor, sync_rejection, sync_deferred, account,
-                      category, ledger_transaction, budget. Schema version 3, migration ở `sqldelight/migrations/*.sqm` (đổi bảng
-                      = thêm file .sqm + cập nhật UserDatabaseMigrationTest). UserDatabaseProvider (StateFlow DB đang mở) +
+                      category, ledger_transaction (+ search_text), budget. Query tìm/lọc riêng ở `LedgerSearch.sq`, số liệu báo cáo/ngân sách ở `LedgerReport.sq`. Schema version 4,
+                      migration ở `sqldelight/migrations/*.sqm` (đổi bảng = thêm file .sqm + cập nhật
+                      UserDatabaseMigrationTest); bước sửa dữ liệu sau migration (backfill) ở `UserDatabaseSchema` (AfterVersion),
+                      driver Android + iOS đều mở DB qua đó. UserDatabaseProvider (StateFlow DB đang mở) +
                       UserDatabases (open/close/delete; chỉ xoá file khi sai khoá/mất khoá thật)
 core/datastore        SecureStorage (Android Keystore AES/GCM · iOS Keychain AfterFirstUnlockThisDeviceOnly), AppSettings,
                       SessionStore, DatabaseKeyStore
@@ -77,8 +81,9 @@ core/sync             OutboxWriter (chỉ gộp vào op cuối hàng + SyncRef),
                       bản ghi chưa đọc được cất vào sync_deferred; stop() trước khi đổi/đóng DB), SyncRemoteDataSource,
                       OutboxRepository (unsent/stuck/retryAllNow), SyncIssueRepository, SyncScheduler
 core/ledger           Model + validate ví/danh mục/giao dịch, repository (ghi entity + outbox 1 transaction),
-                      số dư Flow từ SUM, SpendingRepository ("đã chi" theo danh mục gốc + tiền tệ cho ngân sách),
-                      SyncChangeApplier áp thay đổi từ server. Module duy nhất đụng bảng ledger
+                      số dư Flow từ SUM, SyncChangeApplier áp thay đổi từ server, TransactionFilter + observeFiltered /
+                      observeFilteredTotals (docs/SEARCH-PLAN.md), SpendingRepository + ReportPeriod cho báo cáo/ngân sách ("đã chi" theo danh mục gốc)
+                      (docs/REPORTS-PLAN.md). Module duy nhất đụng bảng ledger
 core/budget           Model + validate ngân sách (khớp ADR-007), BudgetRepository (bản ghi + outbox + outbox_ref tới danh
                       mục trong 1 transaction), BudgetSyncChangeApplier (discard khi REJECTED budget.duplicate). Module duy
                       nhất đụng bảng budget. Payload qua BudgetPayloadCodec (core/network)
@@ -87,10 +92,12 @@ core/designsystem     FinanceTheme (Color/Typography Montserrat/Shape/Spacing 4d
                       categoryIcon(key), component: AccountCard (+contourPattern), QuickActionButton, FinanceListItem,
                       IconTile, AmountText, StatTile, SectionHeader, PagerIndicator, Avatar, CircleIconButton, LabelChip,
                       EmptyState, pressScale, PrimaryButton, FinanceTextField, LoadingIndicator, ErrorBanner, ConfirmDialog,
+                      SearchField, FilterChipRow + RemovableChip, SelectableChip, CircleIconButton(badgeCount),
                       form: AmountField, SegmentedControl, ChoiceTile, SelectionField, OptionSheet, DatePickerSheet,
                       ColorSwatchPicker · màn: FinanceTopBar, FinanceFab, OverflowMenu, SwipeToDeleteBox, RefreshContainer,
-                      MessageSnackbarHost, SyncStatusBadge, MoneyListItem, BudgetProgressBar (ProgressTone Normal/Warning/Over)
-                      · CategoryPalette, MoneyDirection · token FinanceTheme.colors.warning (sắp chạm giới hạn)
+                      MessageSnackbarHost, SyncStatusBadge, MoneyListItem · biểu đồ: DonutChart (Canvas), TrendBarChart (Vico, chỉ
+                      import ở đây), PeriodSwitcher + swipeToChangePeriod, CategoryShareRow · CategoryPalette, MoneyDirection, BudgetProgressBar
+                      (ProgressTone Normal/Warning/Over) · token FinanceTheme.colors.warning (sắp chạm giới hạn)
 core/ui               UI biết model ledger, dùng chung giữa feature: nhãn/icon/chiều tiền (LedgerVisuals), TransactionItemFormatter +
                       TransactionListItem, mã lỗi ledger.* → UiText (toLedgerUiText / messageFor), mã lỗi budget.* → UiText
                       (toBudgetUiText / budgetMessageFor), SyncStatusIndicator (coreUiModule)
@@ -101,12 +108,15 @@ feature/auth          domain / data / presentation trong CÙNG một Gradle modu
 feature/home          Trang chủ: domain (ObserveHomeDashboardUseCase gom ví + số dư + thu/chi tháng + giao dịch gần đây từ
                       repository của core/ledger) + presentation (HomeUiMapper format, HomeScreen theo bản thiết kế)
 feature/accounts      domain (use case ví: tổng quan, lưu, lưu trữ, xoá, đổi thứ tự) + presentation (list, editor)
-feature/transactions  domain (lịch sử, form, lưu giao dịch + phí D3, danh mục) + presentation (history, editor, categories,
-                      categoryeditor). Vuốt xoá = xoá trễ để hoàn tác (S4 xoá luôn thắng)
+feature/transactions  domain (lịch sử + HistoryFilter/preset ngày, dòng tổng, form, lưu giao dịch + phí D3, danh mục) +
+                      presentation (history: ô tìm 300 ms, sheet lọc, chip, dòng tổng; editor, categories, categoryeditor).
+                      FilteredTransactionsDestination = lịch sử lọc sẵn cho màn khác mở. Vuốt xoá = xoá trễ để hoàn tác (S4)
+feature/reports       domain (ObserveReportOverviewUseCase: thu/chi kỳ, so cùng kỳ, top 5 + Khác, xu hướng; ObserveCategoryBreakdownUseCase)
+                      + presentation (overview, breakdown). Mở lịch sử đã lọc qua callback, composeApp map sang FilteredTransactionsDestination
 feature/budgets       domain (BudgetMath: màu G9, % G10, mỗi ngày còn được chi G11; ObserveBudgetProgressUseCase gom ngân sách +
                       đã chi + danh mục; form data, lưu, xoá, ObserveTodayUseCase) + presentation (list: ‹ tháng ›, tự sang
                       tháng mới lúc nửa đêm, đọc lại "hôm nay" khi resume; editor: tạo/sửa số tiền/xoá qua menu ⋮)
-architecture-test     24 luật Konsist (JVM)
+architecture-test     25 luật Konsist (JVM)
 ```
 
 Chiều phụ thuộc: **`presentation → domain ← data`**. Feature không phụ thuộc feature. Core không phụ thuộc feature.
@@ -118,7 +128,7 @@ Mỗi Gradle module expose **đúng một** Koin module public (`coreNetworkModu
 
 | File | Nội dung |
 |---|---|
-| `architecture-boundaries.md` | presentation ↛ data, domain thuần, feature isolation, 24 luật Konsist |
+| `architecture-boundaries.md` | presentation ↛ data, domain thuần, feature isolation, 25 luật Konsist |
 | `mvi-and-state.md` | MviViewModel, State/Intent/Effect, Route vs Screen |
 | `kmp-and-platform.md` | source set, expect/actual, Dispatchers, giới hạn iOS |
 | `contract-pinning.md` | `api/openapi.yaml` pin, generated client chỉ ở `core/network` |

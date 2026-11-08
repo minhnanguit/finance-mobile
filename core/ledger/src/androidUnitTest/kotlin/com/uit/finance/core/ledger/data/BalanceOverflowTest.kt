@@ -35,7 +35,7 @@ class BalanceOverflowTest {
             repeat(count) { index ->
                 database.ledgerTransactionQueries.upsert(
                     "$accountId-$type-$index", type, "CONFIRMED", accountId, counterAccountId, amount, "VND",
-                    null, "2023-11-14", null, null, null, 0,
+                    null, "2023-11-14", null, null, null, 0, "",
                 )
             }
         }

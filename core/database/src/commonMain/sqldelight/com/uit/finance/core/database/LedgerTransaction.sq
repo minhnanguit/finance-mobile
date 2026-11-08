@@ -14,7 +14,10 @@ CREATE TABLE ledger_transaction (
     occurred_at INTEGER,
     payee TEXT,
     note TEXT,
-    deleted INTEGER NOT NULL DEFAULT 0
+    deleted INTEGER NOT NULL DEFAULT 0,
+    -- searchTextOf(payee, note): bỏ dấu, viết thường để tìm kiếm (docs/SEARCH-PLAN.md F4). Chỉ ghi qua
+    -- FinanceDatabase.save(transaction) ở core/ledger; NULL chỉ còn ở dòng cũ chưa backfill (migration 2.sqm).
+    search_text TEXT
 );
 
 CREATE INDEX ledger_transaction_occurred_idx ON ledger_transaction(occurred_on DESC, id);
@@ -25,9 +28,9 @@ CREATE INDEX ledger_transaction_category_idx ON ledger_transaction(category_id);
 upsert:
 INSERT OR REPLACE INTO ledger_transaction(
     id, type, status, account_id, counter_account_id, amount_minor, currency,
-    category_id, occurred_on, occurred_at, payee, note, deleted
+    category_id, occurred_on, occurred_at, payee, note, deleted, search_text
 )
-VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?);
+VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?);
 
 selectById:
 SELECT * FROM ledger_transaction WHERE id = ?;
@@ -52,22 +55,6 @@ WHERE deleted = 0 AND status = 'CONFIRMED' AND type IN ('INCOME', 'EXPENSE')
   AND occurred_on >= :fromDate AND occurred_on <= :toDate
 GROUP BY type, currency
 ORDER BY currency ASC, type ASC;
-
--- Tổng chi theo danh mục gốc + tiền tệ trong [fromDate, toDate] cho ngân sách (ADR-007 §1): chỉ EXPENSE
--- CONFIRMED chưa xoá; chi của danh mục con cộng vào cha (G2); ví đã archive vẫn tính. Danh mục chưa sync tới
--- (LEFT JOIN rỗng) thì coi chính nó là gốc. Dùng index occurred_on, chỉ quét khoảng ngày được hỏi.
--- Cộng tách thương/dư cho 10⁹ giống selectCashFlowBetween để không ném "integer overflow".
-selectExpenseByRootCategory:
-SELECT COALESCE(c.parent_id, t.category_id) AS root_category_id, t.currency,
-    CAST(
-        COALESCE(SUM(t.amount_minor / 1000000000), 0) * 1000000000 + COALESCE(SUM(t.amount_minor % 1000000000), 0)
-    AS INTEGER) AS total_minor
-FROM ledger_transaction t
-LEFT JOIN category c ON c.id = t.category_id
-WHERE t.deleted = 0 AND t.status = 'CONFIRMED' AND t.type = 'EXPENSE' AND t.category_id IS NOT NULL
-  AND t.occurred_on >= :fromDate AND t.occurred_on <= :toDate
-GROUP BY root_category_id, t.currency
-ORDER BY root_category_id ASC, t.currency ASC;
 
 markDeleted:
 UPDATE ledger_transaction SET deleted = 1 WHERE id = ?;

@@ -2,8 +2,10 @@ package com.uit.finance.feature.transactions.di
 
 import com.uit.finance.feature.transactions.domain.usecase.DeleteTransactionUseCase
 import com.uit.finance.feature.transactions.domain.usecase.ObserveCategoriesUseCase
+import com.uit.finance.feature.transactions.domain.usecase.ObserveTodayUseCase
 import com.uit.finance.feature.transactions.domain.usecase.ObserveTransactionFormDataUseCase
 import com.uit.finance.feature.transactions.domain.usecase.ObserveTransactionHistoryUseCase
+import com.uit.finance.feature.transactions.domain.usecase.ObserveTransactionTotalsUseCase
 import com.uit.finance.feature.transactions.domain.usecase.ObserveTransactionUseCase
 import com.uit.finance.feature.transactions.domain.usecase.SaveCategoryUseCase
 import com.uit.finance.feature.transactions.domain.usecase.SaveTransactionUseCase
@@ -15,16 +17,17 @@ import com.uit.finance.feature.transactions.presentation.history.HistoryViewMode
 import org.koin.core.module.Module
 import org.koin.core.module.dsl.factoryOf
 import org.koin.core.module.dsl.viewModel
-import org.koin.core.module.dsl.viewModelOf
 import org.koin.dsl.module
 
 /**
  * Cần trong graph: repository của `coreLedgerModule`, use case sync của `coreSyncModule`, `Clock` (core/common),
- * `TransactionItemFormatter` (core/ui).
+ * `TransactionItemFormatter` (core/ui), `MoneyFormatter` (core/presentation).
  */
 val transactionsFeatureModule: Module = module {
     // domain
     factoryOf(::ObserveTransactionHistoryUseCase)
+    factoryOf(::ObserveTransactionTotalsUseCase)
+    factory { ObserveTodayUseCase(clock = get()) }
     factoryOf(::ObserveTransactionFormDataUseCase)
     factoryOf(::ObserveTransactionUseCase)
     factoryOf(::SaveTransactionUseCase)
@@ -34,7 +37,21 @@ val transactionsFeatureModule: Module = module {
     factoryOf(::SetCategoryArchivedUseCase)
 
     // presentation
-    viewModelOf(::HistoryViewModel)
+    viewModel { params ->
+        HistoryViewModel(
+            args = params.get(),
+            observeHistory = get(),
+            observeTotals = get(),
+            observeFormData = get(),
+            observeToday = get(),
+            observeSync = get(),
+            deleteTransaction = get(),
+            syncNow = get(),
+            acknowledgeSyncIssues = get(),
+            formatter = get(),
+            money = get(),
+        )
+    }
     viewModel { params ->
         TransactionEditorViewModel(
             args = params.get(),

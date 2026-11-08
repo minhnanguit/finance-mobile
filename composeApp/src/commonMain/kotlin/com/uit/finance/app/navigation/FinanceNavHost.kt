@@ -22,7 +22,6 @@ import androidx.navigation.compose.rememberNavController
 import com.uit.finance.app.devtools.DevMenu
 import com.uit.finance.app.di.isDebugBuild
 import com.uit.finance.app.navigation.placeholder.BillsDestination
-import com.uit.finance.app.navigation.placeholder.ReportsDestination
 import com.uit.finance.app.navigation.placeholder.placeholderNavGraph
 import com.uit.finance.core.designsystem.component.LoadingIndicator
 import com.uit.finance.core.designsystem.theme.FinanceTheme
@@ -41,10 +40,15 @@ import com.uit.finance.feature.auth.presentation.navigation.authNavGraph
 import com.uit.finance.feature.home.presentation.navigation.HomeDestination
 import com.uit.finance.feature.home.presentation.navigation.HomeTarget
 import com.uit.finance.feature.home.presentation.navigation.homeNavGraph
+import com.uit.finance.feature.reports.presentation.navigation.ReportsDestination
+import com.uit.finance.feature.reports.presentation.navigation.reportsNavGraph
 import com.uit.finance.feature.transactions.presentation.navigation.CategoriesDestination
 import com.uit.finance.feature.transactions.presentation.navigation.CategoryEditorDestination
+import com.uit.finance.feature.transactions.presentation.navigation.FilteredTransactionsDestination
 import com.uit.finance.feature.transactions.presentation.navigation.TransactionEditorDestination
 import com.uit.finance.feature.transactions.presentation.navigation.transactionsNavGraph
+import com.uit.finance.core.ledger.domain.model.CategoryKind
+import com.uit.finance.core.ledger.domain.model.TransactionType
 import kotlinx.coroutines.flow.map
 import org.koin.compose.koinInject
 
@@ -115,6 +119,22 @@ private fun MainNavHost(isAuthenticated: Boolean) {
                 budgetsNavGraph(
                     onBack = { navController.navigateUp() },
                     onOpenEditor = { id -> navController.navigateSingleTop(BudgetEditorDestination(id)) },
+                )
+                reportsNavGraph(
+                    onBack = { navController.navigateUp() },
+                    onOpenBreakdown = navController::navigateSingleTop,
+                    onOpenTransactions = { query ->
+                        navController.navigateSingleTop(
+                            FilteredTransactionsDestination.of(
+                                from = query.from,
+                                to = query.to,
+                                categoryId = query.categoryId,
+                                accountIds = query.accountIds.orEmpty(),
+                                type = if (query.kind == CategoryKind.INCOME) TransactionType.INCOME else TransactionType.EXPENSE,
+                            ),
+                        )
+                    },
+                    onAddTransaction = { navController.navigateSingleTop(TransactionEditorDestination()) },
                 )
                 placeholderNavGraph(onBack = { navController.navigateUp() })
             }

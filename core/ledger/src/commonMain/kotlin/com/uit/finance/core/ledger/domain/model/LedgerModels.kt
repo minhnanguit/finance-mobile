@@ -6,6 +6,7 @@ import com.uit.finance.core.common.money.Money
 import kotlin.time.ExperimentalTime
 import kotlin.time.Instant
 import kotlinx.datetime.LocalDate
+import kotlinx.datetime.YearMonth
 
 enum class AccountType { CASH, BANK, EWALLET, OTHER }
 
@@ -91,6 +92,18 @@ data class CashFlow(val income: List<Money>, val expense: List<Money>) {
  * vào cha. Chỉ `EXPENSE` + `CONFIRMED` chưa xoá; ví đã archive vẫn tính.
  */
 data class CategorySpend(val categoryId: String, val spent: Money)
+
+/**
+ * Tổng thu hoặc chi của một nhóm danh mục trong một khoảng ngày, một tiền tệ (docs/REPORTS-PLAN.md R3).
+ *
+ * @param categoryId danh mục gốc (gộp con vào cha) hoặc chính danh mục, tuỳ cách hỏi. `null` = giao dịch không
+ *   có danh mục. Id có thể chưa có trong danh sách danh mục trên máy (sync về lệch thứ tự): báo cáo coi là
+ *   "Chưa phân loại".
+ */
+data class CategoryTotal(val categoryId: String?, val total: Money)
+
+/** Tổng thu hoặc chi `CONFIRMED` của một tháng, một tiền tệ (R7). Tháng không phát sinh thì không có dòng. */
+data class MonthlyTotal(val month: YearMonth, val type: TransactionType, val total: Money)
 
 // ---- Dữ liệu để tạo mới (id do client sinh khi lưu) ----
 

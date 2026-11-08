@@ -69,7 +69,7 @@ Chạy thử với backend thật:
 cd ../finance-backend && make up run
 ```
 
-Android emulator gọi host qua `http://10.0.2.2:8080` ở build debug (`defaultApiBaseUrl()`).
+Android emulator gọi host qua `http://10.0.2.2:18473` ở build debug (`defaultApiBaseUrl()`).
 
 ## 6. PR
 

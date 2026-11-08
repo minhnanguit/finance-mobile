@@ -15,7 +15,7 @@ presentation ──► domain ◄── data
 
 Một feature = **một Gradle module** chứa cả ba package `domain/`, `data/`, `presentation/` (+ `di/`). Không tách thành 3 Gradle module.
 
-## 24 luật Konsist (file `architecture-test/src/test/kotlin/…`)
+## 25 luật Konsist (file `architecture-test/src/test/kotlin/…`)
 
 ### `LayerDependencyRulesTest`
 
@@ -48,8 +48,8 @@ Một feature = **một Gradle module** chứa cả ba package `domain/`, `data/
 
 | Luật | Ý nghĩa |
 |---|---|
-| Bảng ledger bị nhốt | Chỉ `core/ledger` (và `core/database` nơi sinh code) được dùng query/row class của `account`, `category`, `ledger_transaction` — mọi chỗ khác đi qua repository của `core/ledger` |
-| Log không chứa dữ liệu tiền | Lời gọi log không được nhắc `amount`, `note`, `payee` (B8). Payload sync có `toString()` đã che |
+| Bảng ledger bị nhốt | Chỉ `core/ledger` (và `core/database` nơi sinh code + backfill trong migration) được dùng query/row class của `account`, `category`, `ledger_transaction`, `LedgerSearch.sq`, `LedgerReport.sq` — mọi chỗ khác đi qua repository của `core/ledger` |
+| Log không chứa dữ liệu tiền | Lời gọi log không được nhắc `amount`, `note`, `payee`, `query`, `keyword`, `searchText`, `filter` (B8). Payload sync và `TransactionFilter` có `toString()` đã che |
 
 ### `BudgetDataRulesTest`
 
@@ -62,6 +62,7 @@ Một feature = **một Gradle module** chứa cả ba package `domain/`, `data/
 | Luật | Ý nghĩa |
 |---|---|
 | Thư viện icon bị nhốt | Chỉ `core/designsystem` import `com.composables.icons`; nơi khác dùng `FinanceIcons` |
+| Thư viện biểu đồ bị nhốt | Chỉ `core/designsystem` import `com.patrykandpatrick.vico`; nơi khác dùng `DonutChart` / `TrendBarChart` (docs/REPORTS-PLAN.md L3) |
 | Feature không viết mã màu | File trong `feature/*` không có `Color(0x…)`; màu lấy từ `MaterialTheme` / `FinanceTheme` |
 
 ## Visibility
