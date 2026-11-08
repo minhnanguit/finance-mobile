@@ -20,18 +20,13 @@ import kotlinx.serialization.Serializable
 
 /*
  * Chỗ giữ tạm cho các feature chưa có module (ARCHITECTURE §6.1, LEDGER-PLAN Phase 5).
- * Nằm ở composeApp vì destination thật sẽ thuộc feature/budgets, bills (giao dịch, ví, báo cáo đã có feature);
+ * Nằm ở composeApp vì destination thật sẽ thuộc feature/bills (giao dịch, ví, báo cáo, ngân sách đã có feature);
  * không feature nào được giữ destination của feature khác. Khi feature thật ra đời: xoá destination
  * tương ứng ở đây và nối `<feature>NavGraph` vào FinanceNavHost.
  */
-@Serializable internal data object BudgetsDestination
 @Serializable internal data object BillsDestination
 
-/** `onBack` chỉ áp dụng cho màn con; màn là tab (Ngân sách) không có nút quay lại. */
 internal fun NavGraphBuilder.placeholderNavGraph(onBack: () -> Unit) {
-    composable<BudgetsDestination> {
-        PlaceholderScreen("Ngân sách", "Theo dõi hạn mức tháng, số đã chi và phần còn lại.")
-    }
     composable<BillsDestination> {
         PlaceholderScreen("Khoản định kỳ", "Theo dõi hóa đơn, gói đăng ký và các khoản sắp đến hạn.", onBack)
     }

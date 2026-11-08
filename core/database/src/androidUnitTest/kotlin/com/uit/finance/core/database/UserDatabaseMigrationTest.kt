@@ -29,6 +29,16 @@ class UserDatabaseMigrationTest {
     }
 
     @Test
+    fun `nâng từ schema 3 ra đúng schema của DB tạo mới`() {
+        val upgraded = schemaTwoDriver().also {
+            UserDatabaseSchema.migrate(it, oldVersion = 2, newVersion = 3)
+            UserDatabaseSchema.migrate(it, oldVersion = 3, newVersion = UserDatabaseSchema.version)
+        }
+
+        assertEquals(describe(freshDriver()), describe(upgraded))
+    }
+
+    @Test
     fun `op đang chờ gửi từ trước vẫn còn và gửi được ngay sau khi nâng cấp`() {
         val driver = schemaOneDriver()
         driver.execute(
@@ -109,6 +119,30 @@ class UserDatabaseMigrationTest {
     }
 
     private fun freshDriver(): SqlDriver = JdbcSqliteDriver(JdbcSqliteDriver.IN_MEMORY).also { UserDatabaseSchema.create(it) }
+
+    @Test
+    fun `DB ở schema 3 nâng lên có bảng budget - dữ liệu ledger và op chờ gửi giữ nguyên`() {
+        val driver = schemaTwoDriver().also { FinanceDatabase.Schema.migrate(it, oldVersion = 2, newVersion = 3) }
+        driver.execute(
+            null,
+            "INSERT INTO account(id, name, type, currency, opening_balance_minor, sort_order) VALUES ('a1', 'Ví', 'CASH', 'VND', 0, 0)",
+            0,
+        )
+        driver.execute(
+            null,
+            "INSERT INTO outbox(op_id, entity, entity_id, action, payload, created_at) VALUES ('op-1', 'account', 'a1', 'UPSERT', '{}', 0)",
+            0,
+        )
+
+        UserDatabaseSchema.migrate(driver, oldVersion = 3, newVersion = UserDatabaseSchema.version)
+
+        val database = FinanceDatabase(driver)
+        assertEquals(4L, UserDatabaseSchema.version)
+        assertEquals("a1", database.accountQueries.selectById("a1").executeAsOne().id)
+        assertEquals(listOf("op-1"), database.outboxQueries.selectEligible(now = 0, limit = 10).executeAsList().map { it.op_id })
+        database.budgetQueries.upsert("b1", "c1", "VND", 3_000_000, "2026-10-01", 0)
+        assertEquals(1L, database.budgetQueries.countActive().executeAsOne())
+    }
 
     /** Schema 1 đóng băng đúng như đã phát hành ở Phase 4 (commit 9c84e89). Không sửa. */
     private fun schemaOneDriver(): SqlDriver = JdbcSqliteDriver(JdbcSqliteDriver.IN_MEMORY).also { driver ->
