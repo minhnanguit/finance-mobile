@@ -6,6 +6,7 @@ import com.uit.finance.core.sync.scheduler.SyncScheduler
 import kotlin.experimental.ExperimentalNativeApi
 import platform.Foundation.NSLocale
 import platform.Foundation.currentLocale
+import platform.Foundation.languageCode
 
 /**
  * Được `iOSApp.swift` gọi (`KoinIosKt.startKoinIos()`) trước khi tạo view đầu tiên. Resolve
