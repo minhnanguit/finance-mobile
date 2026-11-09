@@ -30,7 +30,7 @@ actual fun defaultOidcIssuer(): String =
     if (isDebugBuild) (AppEnvironment.publicBaseUrl ?: "http://localhost:8082") + OIDC_REALM_PATH else RELEASE_OIDC_ISSUER
 
 actual fun currentLanguageCode(): String =
-    NSLocale.current.languageCode ?: "en"
+    NSLocale.currentLocale.languageCode ?: "en"
 
 @OptIn(ExperimentalNativeApi::class)
 actual val isDebugBuild: Boolean = kotlin.native.Platform.isDebugBinary
