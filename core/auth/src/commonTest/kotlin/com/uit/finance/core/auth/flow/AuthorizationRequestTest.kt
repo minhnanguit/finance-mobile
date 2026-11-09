@@ -8,8 +8,16 @@ import io.ktor.http.Url
 import kotlin.test.Test
 import kotlin.test.assertEquals
 import kotlin.test.assertNull
+import com.uit.finance.core.auth.preferredUiLocales
 
 class AuthorizationRequestTest {
+
+    @Test
+    fun ordersSupportedLocalesFromTheUsersLanguage() {
+        assertEquals(listOf("vi", "en"), preferredUiLocales("vi-VN"))
+        assertEquals(listOf("en", "vi"), preferredUiLocales("en-US"))
+        assertEquals(listOf("en", "vi"), preferredUiLocales("fr"))
+    }
 
     @Test
     fun carriesEveryRequiredParameterForCodeFlowWithPkce() {
@@ -24,6 +32,7 @@ class AuthorizationRequestTest {
             assertEquals("state-1", get("state"))
             assertEquals("challenge-1", get("code_challenge"))
             assertEquals("S256", get("code_challenge_method"))
+            assertEquals("vi en", get("ui_locales"))
             assertNull(get("prompt"))
         }
     }
