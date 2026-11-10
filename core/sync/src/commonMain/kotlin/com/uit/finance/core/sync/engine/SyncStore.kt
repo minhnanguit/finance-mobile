@@ -64,6 +64,19 @@ internal class SyncStore(
             for (result in results) {
                 val entry = byOpId[result.opId] ?: continue
                 when (result.outcome) {
+                    SyncOutcome.CONFLICT if appliers[entry.entity]?.dropPendingOnConflict(result.code) == true -> {
+                        database.outboxQueries.deleteByOpId(entry.opId)
+                        database.outboxQueries.deletePendingFor(entry.entity, entry.entityId)
+                        database.syncRejectionQueries.insert(
+                            entry.opId,
+                            entry.entity,
+                            entry.entityId,
+                            result.code,
+                            now.toEpochMilliseconds(),
+                        )
+                        result.current?.let { applyOrDefer(database, it, now) }
+                        done++
+                    }
                     SyncOutcome.APPLIED, SyncOutcome.DUPLICATE, SyncOutcome.CONFLICT -> {
                         database.outboxQueries.deleteByOpId(entry.opId)
                         result.current?.let { adoptIfIdle(database, it, now) }

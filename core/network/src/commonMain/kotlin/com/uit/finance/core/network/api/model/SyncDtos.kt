@@ -13,9 +13,11 @@ object SyncEntity {
     const val CATEGORY: String = "category"
     const val TRANSACTION: String = "transaction"
     const val BUDGET: String = "budget"
+    const val RECURRING: String = "recurring"
 }
 
-enum class SyncActionDto { UPSERT, DELETE }
+/** [CREATE] (contract 2.3.0): chỉ ghi khi id chưa có; đã có (kể cả tombstone) → `CONFLICT sync.already_exists`. */
+enum class SyncActionDto { UPSERT, DELETE, CREATE }
 
 /** ADR-002 §4. Mọi kết quả trừ [RETRY] là chốt. */
 enum class SyncOutcomeDto { APPLIED, DUPLICATE, CONFLICT, REJECTED, RETRY }
@@ -122,6 +124,47 @@ data class BudgetPayload(
 interface BudgetPayloadCodec {
     fun encode(payload: BudgetPayload): JsonObject
     fun decodeBudget(data: JsonObject): BudgetPayload
+}
+
+/** Schema `RecurrenceRevisionData` (contract 2.3.0, ADR-008 R2). */
+data class RecurrenceRevisionPayload(
+    val id: String,
+    val effectiveFrom: LocalDate,
+    val anchorDate: LocalDate,
+    val accountId: String,
+    val categoryId: String,
+    val amountMinor: Long,
+    val note: String?,
+    val frequency: String,
+    val interval: Int,
+    val weekday: Int?,
+    val month: Int?,
+    val dayOfMonth: Int?,
+    val autoConfirm: Boolean,
+) {
+    /** Không in số tiền, ghi chú (ADR-006 B8). */
+    override fun toString(): String = "RecurrenceRevisionPayload(id=$id, effectiveFrom=$effectiveFrom, frequency=$frequency)"
+}
+
+/** Schema `RecurringData` (contract 2.3.0, ADR-008). [revision] trong op = revision máy dựa vào; trong pull = hiện tại. */
+data class RecurringPayload(
+    val name: String,
+    val type: String,
+    val currency: String,
+    val generationNotBefore: LocalDate,
+    val generationEndDate: LocalDate?,
+    val remindDaysBefore: Int?,
+    val revision: Long,
+    val revisions: List<RecurrenceRevisionPayload>,
+) {
+    /** Không in tên khoản (ADR-006 B8). */
+    override fun toString(): String = "RecurringPayload(type=$type, currency=$currency, revision=$revision)"
+}
+
+/** Như [BudgetPayloadCodec] cho entity `recurring`. */
+interface RecurringPayloadCodec {
+    fun encode(payload: RecurringPayload): JsonObject
+    fun decodeRecurring(data: JsonObject): RecurringPayload
 }
 
 /**

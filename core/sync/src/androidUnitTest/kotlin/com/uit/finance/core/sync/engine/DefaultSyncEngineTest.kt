@@ -4,6 +4,7 @@ import co.touchlab.kermit.Logger
 import com.uit.finance.core.common.result.AppError
 import com.uit.finance.core.common.result.AppResult
 import com.uit.finance.core.database.FinanceDatabase
+import com.uit.finance.core.sync.outbox.OutboxAction
 import com.uit.finance.core.sync.outbox.OutboxEntry
 import com.uit.finance.core.sync.outbox.OutboxWriter
 import com.uit.finance.core.sync.support.FakeDatabases
@@ -107,6 +108,53 @@ class DefaultSyncEngineTest {
         assertEquals(2, remote.pushedBatches.size)
         assertEquals(1, applier.applied.size, "chỉ nhận bản server sau khi bản sửa mới đã được gửi")
         assertEquals(0L, unsent())
+    }
+
+    @Test
+    fun `CONFLICT của CREATE - op tiếp theo không bị gộp và đi sau - bản server chỉ áp khi hết op chờ`() = runTest {
+        writer.create(database, "account", "a1", buildJsonObject { put("name", JsonPrimitive("nháp")) })
+        queue("a1", "đã xác nhận")
+        remote.onPush = { batch ->
+            AppResult.Success(
+                batch.map {
+                    if (it.action == OutboxAction.CREATE) {
+                        PushResult(it.opId, SyncOutcome.CONFLICT, "sync.already_exists", remote(it.entityId, 3))
+                    } else {
+                        PushResult(it.opId, SyncOutcome.APPLIED, null, remote(it.entityId, 4))
+                    }
+                },
+            )
+        }
+
+        engine().sync()
+
+        assertEquals(listOf(OutboxAction.CREATE, OutboxAction.UPSERT), remote.pushedBatches.flatten().map { it.action })
+        assertEquals(listOf(4L), applier.applied.map { it.changeSeq })
+        assertEquals(0L, unsent())
+    }
+
+    @Test
+    fun `CONFLICT mà applier yêu cầu bỏ op chờ - mọi op của bản ghi bị bỏ - báo user - áp bản server`() = runTest {
+        val strict = object : SyncChangeApplier by RecordingApplier("recurring") {
+            val applied = mutableListOf<RemoteChange>()
+            override val entity = "recurring"
+            override fun apply(database: FinanceDatabase, change: RemoteChange) {
+                applied += change
+            }
+            override fun dropPendingOnConflict(code: String?) = code == "recurring.revision_conflict"
+        }
+        writer.upsert(database, "recurring", "k1", buildJsonObject { put("revision", JsonPrimitive(1)) }, mergeIntoTail = false)
+        writer.upsert(database, "recurring", "k1", buildJsonObject { put("revision", JsonPrimitive(2)) }, mergeIntoTail = false)
+        remote.onPush = { batch ->
+            AppResult.Success(batch.map { PushResult(it.opId, SyncOutcome.CONFLICT, "recurring.revision_conflict", remote(it.entityId, 9, entity = "recurring")) })
+        }
+
+        engine(appliers = listOf(applier, strict)).sync()
+
+        assertEquals(1, remote.pushedBatches.flatten().size, "op thứ hai dựa trên revision đã thua, không được gửi")
+        assertEquals(0L, unsent())
+        assertEquals(listOf(9L), strict.applied.map { it.changeSeq })
+        assertEquals("recurring.revision_conflict", database.syncRejectionQueries.selectUnacknowledged().executeAsOne().code)
     }
 
     @Test

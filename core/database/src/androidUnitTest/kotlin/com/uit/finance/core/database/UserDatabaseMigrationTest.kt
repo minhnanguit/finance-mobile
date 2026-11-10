@@ -137,11 +137,41 @@ class UserDatabaseMigrationTest {
         UserDatabaseSchema.migrate(driver, oldVersion = 3, newVersion = UserDatabaseSchema.version)
 
         val database = FinanceDatabase(driver)
-        assertEquals(4L, UserDatabaseSchema.version)
         assertEquals("a1", database.accountQueries.selectById("a1").executeAsOne().id)
         assertEquals(listOf("op-1"), database.outboxQueries.selectEligible(now = 0, limit = 10).executeAsList().map { it.op_id })
         database.budgetQueries.upsert("b1", "c1", "VND", 3_000_000, "2026-10-01", 0)
         assertEquals(1L, database.budgetQueries.countActive().executeAsOne())
+    }
+
+    @Test
+    fun `nâng từ schema 4 ra đúng schema của DB tạo mới`() {
+        val upgraded = schemaTwoDriver().also {
+            UserDatabaseSchema.migrate(it, oldVersion = 2, newVersion = 4)
+            UserDatabaseSchema.migrate(it, oldVersion = 4, newVersion = UserDatabaseSchema.version)
+        }
+
+        assertEquals(describe(freshDriver()), describe(upgraded))
+    }
+
+    @Test
+    fun `DB ở schema 4 nâng lên có bảng recurring - ngân sách và op chờ gửi giữ nguyên`() {
+        val driver = schemaTwoDriver().also { UserDatabaseSchema.migrate(it, oldVersion = 2, newVersion = 4) }
+        val before = FinanceDatabase(driver)
+        before.budgetQueries.upsert("b1", "c1", "VND", 3_000_000, "2026-10-01", 0)
+        driver.execute(
+            null,
+            "INSERT INTO outbox(op_id, entity, entity_id, action, payload, created_at) VALUES ('op-1', 'budget', 'b1', 'UPSERT', '{}', 0)",
+            0,
+        )
+
+        UserDatabaseSchema.migrate(driver, oldVersion = 4, newVersion = UserDatabaseSchema.version)
+
+        val database = FinanceDatabase(driver)
+        assertEquals(5L, UserDatabaseSchema.version)
+        assertEquals(1L, database.budgetQueries.countActive().executeAsOne())
+        assertEquals(listOf("op-1"), database.outboxQueries.selectEligible(now = 0, limit = 10).executeAsList().map { it.op_id })
+        database.recurringQueries.upsert("r1", "Tiền nhà", "EXPENSE", "VND", "2026-11-01", null, 2, 1, null, 0)
+        assertEquals(1L, database.recurringQueries.countActive("2026-11-10").executeAsOne())
     }
 
     /** Schema 1 đóng băng đúng như đã phát hành ở Phase 4 (commit 9c84e89). Không sửa. */

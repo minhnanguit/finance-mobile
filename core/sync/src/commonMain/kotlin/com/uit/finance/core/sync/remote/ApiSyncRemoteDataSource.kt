@@ -41,6 +41,7 @@ internal class ApiSyncRemoteDataSource(
         action = when (action) {
             OutboxAction.UPSERT -> SyncActionDto.UPSERT
             OutboxAction.DELETE -> SyncActionDto.DELETE
+            OutboxAction.CREATE -> SyncActionDto.CREATE
         },
         data = payload?.let { json.parseToJsonElement(it).jsonObject },
     )

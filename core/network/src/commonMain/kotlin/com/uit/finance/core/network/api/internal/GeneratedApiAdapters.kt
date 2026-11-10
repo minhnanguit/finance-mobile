@@ -5,6 +5,9 @@ import com.uit.finance.core.network.api.UserApi
 import com.uit.finance.core.network.api.model.AccountPayload
 import com.uit.finance.core.network.api.model.BudgetPayload
 import com.uit.finance.core.network.api.model.BudgetPayloadCodec
+import com.uit.finance.core.network.api.model.RecurrenceRevisionPayload
+import com.uit.finance.core.network.api.model.RecurringPayload
+import com.uit.finance.core.network.api.model.RecurringPayloadCodec
 import com.uit.finance.core.network.api.model.CategoryPayload
 import com.uit.finance.core.network.api.model.SyncActionDto
 import com.uit.finance.core.network.api.model.SyncChangeDto
@@ -19,6 +22,8 @@ import com.uit.finance.core.network.generated.api.MeApi as GeneratedMeApi
 import com.uit.finance.core.network.generated.api.SyncApi as GeneratedSyncApi
 import com.uit.finance.core.network.generated.model.AccountData
 import com.uit.finance.core.network.generated.model.BudgetData
+import com.uit.finance.core.network.generated.model.RecurrenceRevisionData
+import com.uit.finance.core.network.generated.model.RecurringData
 import com.uit.finance.core.network.generated.model.CategoryData
 import com.uit.finance.core.network.generated.model.SyncChange
 import com.uit.finance.core.network.generated.model.SyncOpResult
@@ -93,6 +98,7 @@ private fun SyncOperationDto.toWire() = SyncOperation(
     action = when (action) {
         SyncActionDto.UPSERT -> SyncOperation.Action.UPSERT
         SyncActionDto.DELETE -> SyncOperation.Action.DELETE
+        SyncActionDto.CREATE -> SyncOperation.Action.CREATE
     },
     `data` = data,
 )
@@ -228,3 +234,69 @@ internal class GeneratedBudgetPayloadCodec(private val json: Json) : BudgetPaylo
         }
 }
 
+/** Payload khoản định kỳ đi qua model generated `RecurringData` + `RecurrenceRevisionData` (contract 2.3.0). */
+internal class GeneratedRecurringPayloadCodec(private val json: Json) : RecurringPayloadCodec {
+
+    override fun encode(payload: RecurringPayload): JsonObject = json.encodeToJsonElement(
+        RecurringData.serializer(),
+        RecurringData(
+            name = payload.name,
+            type = enumOf(RecurringData.Type.entries, payload.type) { it.value },
+            currency = payload.currency,
+            generationNotBefore = payload.generationNotBefore,
+            revision = payload.revision,
+            revisions = payload.revisions.map { r ->
+                RecurrenceRevisionData(
+                    id = r.id,
+                    effectiveFrom = r.effectiveFrom,
+                    anchorDate = r.anchorDate,
+                    accountId = r.accountId,
+                    categoryId = r.categoryId,
+                    amountMinor = r.amountMinor,
+                    frequency = enumOf(RecurrenceRevisionData.Frequency.entries, r.frequency) { it.value },
+                    interval = r.interval,
+                    autoConfirm = r.autoConfirm,
+                    note = r.note,
+                    weekday = r.weekday,
+                    month = r.month,
+                    dayOfMonth = r.dayOfMonth,
+                )
+            },
+            generationEndDate = payload.generationEndDate,
+            remindDaysBefore = payload.remindDaysBefore,
+        ),
+    ).jsonObject
+
+    override fun decodeRecurring(data: JsonObject): RecurringPayload =
+        json.decodeFromJsonElement(RecurringData.serializer(), data).let {
+            RecurringPayload(
+                name = it.name,
+                type = it.type.value,
+                currency = it.currency,
+                generationNotBefore = it.generationNotBefore,
+                generationEndDate = it.generationEndDate,
+                remindDaysBefore = it.remindDaysBefore,
+                revision = it.revision,
+                revisions = it.revisions.map { r ->
+                    RecurrenceRevisionPayload(
+                        id = r.id,
+                        effectiveFrom = r.effectiveFrom,
+                        anchorDate = r.anchorDate,
+                        accountId = r.accountId,
+                        categoryId = r.categoryId,
+                        amountMinor = r.amountMinor,
+                        note = r.note,
+                        frequency = r.frequency.value,
+                        interval = r.interval,
+                        weekday = r.weekday,
+                        month = r.month,
+                        dayOfMonth = r.dayOfMonth,
+                        autoConfirm = r.autoConfirm,
+                    )
+                },
+            )
+        }
+
+    private inline fun <E> enumOf(entries: List<E>, raw: String, value: (E) -> String): E =
+        entries.firstOrNull { value(it) == raw } ?: throw IllegalArgumentException("Unknown enum value for sync payload")
+}

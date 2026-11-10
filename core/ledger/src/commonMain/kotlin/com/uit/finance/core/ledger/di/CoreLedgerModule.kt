@@ -1,6 +1,8 @@
 package com.uit.finance.core.ledger.di
 
 import com.uit.finance.core.ledger.data.local.LedgerStore
+import com.uit.finance.core.ledger.data.occurrence.DefaultLedgerOccurrenceWriter
+import com.uit.finance.core.ledger.data.occurrence.LedgerOccurrenceWriter
 import com.uit.finance.core.ledger.data.repository.AccountRepositoryImpl
 import com.uit.finance.core.ledger.data.repository.BalanceRepositoryImpl
 import com.uit.finance.core.ledger.data.repository.CategoryRepositoryImpl
@@ -43,6 +45,7 @@ val coreLedgerModule = module {
     }
     single<BalanceRepository> { BalanceRepositoryImpl(store = get(), dispatchers = get()) }
     single<SpendingRepository> { SpendingRepositoryImpl(store = get(), dispatchers = get()) }
+    single<LedgerOccurrenceWriter> { DefaultLedgerOccurrenceWriter(outbox = get(), codec = get()) }
 
     // SyncEngine nhận mọi applier qua getAll<SyncChangeApplier>().
     single { AccountSyncApplier(codec = get()) } bind SyncChangeApplier::class

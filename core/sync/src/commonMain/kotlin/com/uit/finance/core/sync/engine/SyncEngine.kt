@@ -79,6 +79,12 @@ interface SyncChangeApplier {
 
     /** Bản ghi chưa từng có trên server và vừa bị từ chối: bỏ khỏi máy. */
     fun discard(database: FinanceDatabase, entityId: String)
+
+    /**
+     * `true`: một `CONFLICT` với [code] làm mọi op còn chờ của bản ghi đó vô nghĩa (chúng dựa trên phiên bản đã bị
+     * máy khác thay, ADR-008 RS10). Engine bỏ các op đó, ghi một dòng `sync_rejection` để báo user, rồi áp bản server.
+     */
+    fun dropPendingOnConflict(code: String?): Boolean = false
 }
 
 /** `installationId` của máy, gửi kèm mỗi lần push để server ghi nhật ký (ADR-006 B9). */
