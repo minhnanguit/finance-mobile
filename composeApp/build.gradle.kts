@@ -57,12 +57,14 @@ kotlin {
             implementation(projects.core.sync)
             implementation(projects.core.ledger)
             implementation(projects.core.budget)
+            implementation(projects.core.recurring)
             implementation(projects.core.session)
             implementation(projects.feature.auth)
             implementation(projects.feature.home)
             implementation(projects.feature.accounts)
             implementation(projects.feature.transactions)
             implementation(projects.feature.budgets)
+            implementation(projects.feature.recurring)
             implementation(projects.feature.reports)
         }
         commonTest.dependencies {

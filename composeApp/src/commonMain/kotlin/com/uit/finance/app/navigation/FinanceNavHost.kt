@@ -21,8 +21,6 @@ import androidx.navigation.compose.currentBackStackEntryAsState
 import androidx.navigation.compose.rememberNavController
 import com.uit.finance.app.devtools.DevMenu
 import com.uit.finance.app.di.isDebugBuild
-import com.uit.finance.app.navigation.placeholder.BillsDestination
-import com.uit.finance.app.navigation.placeholder.placeholderNavGraph
 import com.uit.finance.core.designsystem.component.LoadingIndicator
 import com.uit.finance.core.designsystem.theme.FinanceTheme
 import com.uit.finance.feature.accounts.presentation.navigation.AccountEditorDestination
@@ -41,6 +39,9 @@ import com.uit.finance.feature.home.presentation.navigation.HomeDestination
 import com.uit.finance.feature.home.presentation.navigation.HomeTarget
 import com.uit.finance.feature.home.presentation.navigation.homeNavGraph
 import com.uit.finance.feature.reports.presentation.navigation.ReportsDestination
+import com.uit.finance.feature.recurring.presentation.navigation.RecurringDestination
+import com.uit.finance.feature.recurring.presentation.navigation.RecurringEditorDestination
+import com.uit.finance.feature.recurring.presentation.navigation.recurringNavGraph
 import com.uit.finance.feature.reports.presentation.navigation.reportsNavGraph
 import com.uit.finance.feature.transactions.presentation.navigation.CategoriesDestination
 import com.uit.finance.feature.transactions.presentation.navigation.CategoryEditorDestination
@@ -136,7 +137,11 @@ private fun MainNavHost(isAuthenticated: Boolean) {
                     },
                     onAddTransaction = { navController.navigateSingleTop(TransactionEditorDestination()) },
                 )
-                placeholderNavGraph(onBack = { navController.navigateUp() })
+                recurringNavGraph(
+                    onBack = { navController.navigateUp() },
+                    onOpenEditor = { id -> navController.navigateSingleTop(RecurringEditorDestination(id)) },
+                    onOpenTransaction = { id -> navController.navigateSingleTop(TransactionEditorDestination(id)) },
+                )
             }
             // Menu DEV (dữ liệu mẫu…) chỉ có ở build debug và khi đã có sổ của user để ghi vào.
             if (isDebugBuild && isAuthenticated) {
@@ -173,7 +178,7 @@ private fun NavHostController.open(target: HomeTarget) = when (target) {
     HomeTarget.Accounts -> navigateSingleTop(AccountsDestination)
     HomeTarget.CreateAccount -> navigateSingleTop(AccountEditorDestination())
     HomeTarget.Reports -> navigateSingleTop(ReportsDestination)
-    HomeTarget.Bills -> navigateSingleTop(BillsDestination)
+    HomeTarget.Bills -> navigateSingleTop(RecurringDestination)
     HomeTarget.AddTransaction -> navigateSingleTop(TransactionEditorDestination())
     is HomeTarget.EditTransaction -> navigateSingleTop(TransactionEditorDestination(target.transactionId))
 }

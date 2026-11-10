@@ -2,6 +2,7 @@ package com.uit.finance.app.di
 
 import com.uit.finance.core.auth.di.coreAuthModule
 import com.uit.finance.core.budget.di.coreBudgetModule
+import com.uit.finance.core.recurring.di.coreRecurringModule
 import com.uit.finance.core.common.di.coreCommonModule
 import com.uit.finance.core.database.di.coreDatabaseModule
 import com.uit.finance.core.datastore.di.coreDatastoreModule
@@ -14,6 +15,7 @@ import com.uit.finance.core.ui.di.coreUiModule
 import com.uit.finance.feature.accounts.di.accountsFeatureModule
 import com.uit.finance.feature.auth.di.authFeatureModule
 import com.uit.finance.feature.budgets.di.budgetsFeatureModule
+import com.uit.finance.feature.recurring.di.recurringFeatureModule
 import com.uit.finance.feature.home.di.homeFeatureModule
 import com.uit.finance.feature.reports.di.reportsFeatureModule
 import com.uit.finance.feature.transactions.di.transactionsFeatureModule
@@ -39,12 +41,14 @@ fun initKoin(platformDeclaration: KoinAppDeclaration = {}): KoinApplication = st
         coreSyncModule,
         coreLedgerModule,
         coreBudgetModule,
+        coreRecurringModule,
         coreSessionModule,
         authFeatureModule,
         homeFeatureModule,
         accountsFeatureModule,
         transactionsFeatureModule,
         budgetsFeatureModule,
+        recurringFeatureModule,
         reportsFeatureModule,
     )
 }
