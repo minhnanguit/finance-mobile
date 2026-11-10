@@ -6,6 +6,10 @@ import com.uit.finance.core.recurring.data.sync.RecurringSyncApplier
 import com.uit.finance.core.recurring.domain.repository.RecurringRepository
 import com.uit.finance.core.recurring.domain.usecase.GenerateDueOccurrencesUseCase
 import com.uit.finance.core.sync.engine.SyncChangeApplier
+import co.touchlab.kermit.Logger
+import com.uit.finance.core.recurring.runtime.RecurringCoordinator
+import org.koin.core.Koin
+import org.koin.core.module.Module
 import org.koin.dsl.bind
 import org.koin.dsl.module
 
@@ -15,6 +19,8 @@ import org.koin.dsl.module
  * `DispatcherProvider` (core/common).
  */
 val coreRecurringModule = module {
+    includes(platformRecurringModule())
+
     single { RecurringStore(databases = get(), scheduler = get(), dispatchers = get()) }
 
     single<RecurringRepository> {
@@ -31,6 +37,29 @@ val coreRecurringModule = module {
 
     factory { GenerateDueOccurrencesUseCase(repository = get(), clock = get()) }
 
+    // Chạy suốt đời process: sinh kỳ khi mở sổ, qua ngày mới, sau mỗi vòng sync; hẹn lại thông báo khi khoản đổi.
+    single(createdAtStart = true) {
+        RecurringCoordinator(
+            databases = get(),
+            syncEngine = get(),
+            repository = get(),
+            generate = get(),
+            reminders = get(),
+            clock = get(),
+            dispatchers = get(),
+            logger = Logger.withTag("recurring"),
+        ).also {
+            it.start()
+            scheduleDailyGeneration(getKoin())
+        }
+    }
+
     // SyncEngine nhận mọi applier qua getAll<SyncChangeApplier>().
     single { RecurringSyncApplier(codec = get()) } bind SyncChangeApplier::class
 }
+
+/** Thông báo + worker theo nền tảng (Android WorkManager, iOS UNUserNotificationCenter). */
+internal expect fun platformRecurringModule(): Module
+
+/** Android: worker sinh kỳ hằng ngày. iOS: dựa vào BGAppRefreshTask của sync. */
+internal expect fun scheduleDailyGeneration(koin: Koin)
