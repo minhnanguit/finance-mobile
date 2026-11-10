@@ -7,7 +7,7 @@ Client Kotlin Multiplatform (Android + iOS) dùng **Compose Multiplatform UI chu
 
 - Package gốc: `com.uit.finance` · compileSdk 36 · minSdk 26 · targetSdk 36
 - Kiến trúc đã **chốt** ở `../ARCHITECTURE.md` (repo-level, tiếng Việt). Không tự đổi.
-- Hợp đồng API: `api/openapi.yaml` là bản **copy nguyên văn** từ `finance-backend`, pin theo `api/VERSION` (hiện `2.2.0`). **Không sửa tay file này.**
+- Hợp đồng API: `api/openapi.yaml` là bản **copy nguyên văn** từ `finance-backend`, pin theo `api/VERSION` (hiện `2.3.0`). **Không sửa tay file này.**
 - Feature hiện có: `feature/auth` (reference feature: SignedOut / Profile; login/register diễn ra trên **Keycloak** qua system browser, ADR-004) · `feature/home` (Trang chủ: thẻ ví, thu/chi tháng này, giao dịch gần đây, badge đồng bộ) · `feature/accounts` (danh sách ví, tạo/sửa ví) · `feature/transactions` (lịch sử + tìm kiếm/lọc/dòng tổng, thêm/sửa giao dịch + phí chuyển, danh mục) · `feature/reports` (báo cáo thu/chi theo tháng/năm, donut theo danh mục, cột xu hướng, `../docs/REPORTS-PLAN.md`) · `feature/budgets` (tab Ngân sách: tiến độ theo tháng, tạo/sửa/xoá).
 - UI theo bản thiết kế tham chiếu Purrweb "Finance Mobile iOS App" (dribbble.com/shots/21793126): Montserrat, sage `#94C1B2` / cam đào `#FFC789` / nền `#121212`. Token và component ở `core/designsystem`; icon là Lucide nhưng **chỉ** import trong `FinanceIcons.kt`.
 - Dữ liệu ledger (ví, danh mục, giao dịch) + sync offline-first: `core/ledger` + `core/sync`, theo `../docs/LEDGER-PLAN.md`.

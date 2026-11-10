@@ -2,7 +2,7 @@
 
 ## Nguyên tắc
 
-`api/openapi.yaml` là **bản copy nguyên văn** hợp đồng của `finance-backend`. `api/VERSION` giữ semver đang pin (hiện `2.2.0` = `info.version` của spec).
+`api/openapi.yaml` là **bản copy nguyên văn** hợp đồng của `finance-backend`. `api/VERSION` giữ semver đang pin (hiện `2.3.0` = `info.version` của spec).
 
 **Không bao giờ sửa tay `api/openapi.yaml` trong repo này.** Mọi thay đổi API bắt đầu ở repo backend, rồi mới re-pin ở đây.
 
