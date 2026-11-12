@@ -7,6 +7,8 @@ import co.touchlab.kermit.Logger
 import com.uit.finance.core.auth.AuthorizationOutcome
 import com.uit.finance.core.auth.AuthorizationPrompt
 import com.uit.finance.core.auth.OidcAuthenticator
+import com.uit.finance.core.auth.PasswordChangeOutcome
+import com.uit.finance.core.auth.ReauthenticationOutcome
 import com.uit.finance.core.common.result.AppError
 import com.uit.finance.core.common.result.AppResult
 import com.uit.finance.core.datastore.session.SessionStore
@@ -17,23 +19,25 @@ import com.uit.finance.core.network.api.model.UserProfileDto
 import com.uit.finance.core.network.auth.AuthTokens
 import com.uit.finance.core.network.auth.TokenCache
 import com.uit.finance.core.session.LocalDataState
+import com.uit.finance.core.session.SessionNotice
 import com.uit.finance.core.session.UserSession
-import com.uit.finance.core.sync.outbox.OutboxRepository
 import com.uit.finance.core.testing.TestClock
 import com.uit.finance.feature.auth.data.remote.UserRemoteDataSource
 import com.uit.finance.feature.auth.domain.model.Session
 import com.uit.finance.feature.auth.domain.model.SignInMode
 import com.uit.finance.feature.auth.domain.model.SignInResult
+import com.uit.finance.feature.auth.domain.model.SignOutNotice
 import com.uit.finance.feature.auth.domain.model.UserProfile
 import kotlin.test.Test
 import kotlin.test.assertEquals
+import kotlin.test.assertFalse
 import kotlin.test.assertIs
 import kotlin.test.assertNull
+import kotlin.test.assertTrue
 import kotlin.time.ExperimentalTime
 import kotlin.time.Instant
 import kotlinx.coroutines.flow.Flow
 import kotlinx.coroutines.flow.MutableStateFlow
-import kotlinx.coroutines.flow.flowOf
 import kotlinx.coroutines.test.runTest
 
 class AuthRepositoryImplTest {
@@ -54,6 +58,12 @@ class AuthRepositoryImplTest {
             endedSessions += refreshToken
             return endSessionResult
         }
+
+        override suspend fun reauthenticate(currentAccessToken: String): AppResult<ReauthenticationOutcome> =
+            AppResult.Success(ReauthenticationOutcome.Cancelled)
+
+        override suspend fun changePassword(currentAccessToken: String): AppResult<PasswordChangeOutcome> =
+            AppResult.Success(PasswordChangeOutcome.Cancelled)
     }
 
     private class FakeUserApi : UserApi {
@@ -63,6 +73,8 @@ class AuthRepositoryImplTest {
             failWith?.let { throw it }
             return profile
         }
+
+        override suspend fun deleteCurrentUser() = Unit
     }
 
     private class FakeSessionStore : SessionStore {
@@ -88,23 +100,20 @@ class AuthRepositoryImplTest {
         val events = mutableListOf<String>()
         val stored = mutableSetOf("user-1")
         override val state = MutableStateFlow<LocalDataState>(LocalDataState.SignedOut)
+        override val notice = MutableStateFlow<SessionNotice?>(null)
         override fun start() = Unit
         override fun refresh() = Unit
+        override fun acknowledgeNotice() { notice.value = null }
         override suspend fun wipeCurrentUser() {
             events += "wipe(sessionPresent=${sessionStore.state.value != null})"
         }
+        override suspend fun discardDeletedAccount() { events += "discard" }
         override suspend fun otherUsersOnDevice(currentUserId: String) = stored - currentUserId
+        override suspend fun usersOnDevice(): Set<String> = stored.toSet()
         override suspend fun wipe(userIds: Set<String>) {
             events += "wipe$userIds"
             stored -= userIds
         }
-    }
-
-    private class FakeOutbox(var unsent: Long = 0) : OutboxRepository {
-        override fun observeUnsentCount() = flowOf(unsent)
-        override suspend fun unsentCount() = unsent
-        override fun observeStuckCount() = flowOf(0L)
-        override suspend fun retryAllNow() = Unit
     }
 
     private val authenticator = FakeAuthenticator()
@@ -112,7 +121,6 @@ class AuthRepositoryImplTest {
     private val sessionStore = FakeSessionStore()
     private val tokenCache = RecordingTokenCache()
     private val userSession = FakeUserSession(sessionStore)
-    private val outbox = FakeOutbox()
     private val clock = TestClock(Instant.fromEpochSeconds(1_000))
 
     private fun repository() = AuthRepositoryImpl(
@@ -121,7 +129,6 @@ class AuthRepositoryImplTest {
         sessionStore = sessionStore,
         tokenCache = tokenCache,
         userSession = userSession,
-        outbox = outbox,
         clock = clock,
         logger = Logger.withTag("test"),
     )
@@ -171,42 +178,16 @@ class AuthRepositoryImplTest {
     }
 
     @Test
-    fun logoutClearsLocallyEvenWhenKeycloakFails() = runTest {
-        sessionStore.save(StoredSession("a", "refresh-old", 5_000L, userId = "u"))
-        authenticator.endSessionResult = AppResult.Failure(AppError.Network("offline"))
+    fun relaysTheSignOutNoticeOfTheSession() = runTest {
         val repo = repository()
 
-        repo.observeSession().test {
-            assertEquals("u", awaitItem()?.userId)
-            assertEquals(AppResult.Success(Unit), repo.logout())
+        repo.observeSignOutNotice().test {
+            assertNull(awaitItem())
+            userSession.notice.value = SessionNotice.AccountDeleted
+            assertEquals(SignOutNotice.AccountDeleted, awaitItem())
+            repo.acknowledgeSignOutNotice()
             assertNull(awaitItem())
         }
-        assertEquals(listOf("refresh-old"), authenticator.endedSessions)
-        assertEquals(1, tokenCache.invalidations)
-    }
-
-    @Test
-    fun logoutWithoutASessionDoesNotCallKeycloak() = runTest {
-        assertEquals(AppResult.Success(Unit), repository().logout())
-
-        assertEquals(emptyList(), authenticator.endedSessions)
-    }
-
-    @Test
-    fun logoutWipesTheLocalLedgerBeforeClearingTheSession() = runTest {
-        sessionStore.save(StoredSession("a", "r", 5_000L, userId = "user-1"))
-
-        repository().logout()
-
-        assertEquals(listOf("wipe(sessionPresent=true)"), userSession.events)
-        assertNull(sessionStore.state.value)
-    }
-
-    @Test
-    fun countsUnsentChangesFromTheOutbox() = runTest {
-        outbox.unsent = 4
-
-        assertEquals(4L, repository().unsentChangeCount())
     }
 
     @Test
@@ -220,5 +201,22 @@ class AuthRepositoryImplTest {
 
         assertEquals(AppResult.Success(1), found)
         assertEquals(setOf("user-1"), userSession.stored)
+    }
+
+    @Test
+    fun leftoverLedgersWithoutASessionCanBeWipedButNotWhileSignedIn() = runTest {
+        userSession.stored += "user-old"
+        val repo = repository()
+
+        assertTrue(repo.hasLocalDataWithoutSession(), "chưa đăng nhập mà máy còn sổ")
+        assertEquals(AppResult.Success(Unit), repo.wipeLocalData())
+        assertTrue(userSession.stored.isEmpty())
+        assertFalse(repo.hasLocalDataWithoutSession())
+
+        userSession.stored += "user-1"
+        sessionStore.save(StoredSession("a", "r", 5_000L, userId = "user-1"))
+        assertFalse(repo.hasLocalDataWithoutSession(), "đang có phiên thì không hiện lựa chọn này")
+        repo.wipeLocalData()
+        assertEquals(setOf("user-1"), userSession.stored, "đang đăng nhập thì nút này không xoá gì")
     }
 }

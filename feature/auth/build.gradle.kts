@@ -9,8 +9,7 @@ kotlin {
             implementation(projects.core.auth)
             implementation(projects.core.network)
             implementation(projects.core.datastore)
-            implementation(projects.core.session) // xoá sổ cục bộ khi đăng xuất (ADR-006 B5)
-            implementation(projects.core.sync) // đếm thay đổi chưa gửi
+            implementation(projects.core.session) // sổ trên máy của phiên (S6), sổ của tài khoản khác (B5)
         }
     }
 }

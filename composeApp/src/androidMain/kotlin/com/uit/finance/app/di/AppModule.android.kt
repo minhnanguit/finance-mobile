@@ -13,3 +13,5 @@ actual fun defaultOidcIssuer(): String =
     if (BuildConfig.DEBUG) (AppEnvironment.publicBaseUrl ?: "http://10.0.2.2:8082") + OIDC_REALM_PATH else RELEASE_OIDC_ISSUER
 
 actual val isDebugBuild: Boolean = BuildConfig.DEBUG
+
+actual val appVersionName: String = BuildConfig.VERSION_NAME

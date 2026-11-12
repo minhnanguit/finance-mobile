@@ -6,8 +6,8 @@ import androidx.navigation.NavDestination.Companion.hasRoute
 import androidx.navigation.NavDestination.Companion.hierarchy
 import com.uit.finance.app.navigation.placeholder.BudgetsDestination
 import com.uit.finance.core.designsystem.icon.FinanceIcons
-import com.uit.finance.feature.auth.presentation.navigation.ProfileDestination
 import com.uit.finance.feature.home.presentation.navigation.HomeDestination
+import com.uit.finance.feature.settings.presentation.navigation.SettingsDestination
 import com.uit.finance.feature.transactions.presentation.navigation.TransactionsDestination
 
 /**
@@ -18,7 +18,7 @@ internal enum class TopLevelDestination(val route: Any, val label: String, val i
     Home(HomeDestination, "Trang chủ", FinanceIcons.Home),
     Transactions(TransactionsDestination, "Giao dịch", FinanceIcons.Transactions),
     Budgets(BudgetsDestination, "Ngân sách", FinanceIcons.Budget),
-    Profile(ProfileDestination, "Cá nhân", FinanceIcons.Profile),
+    Profile(SettingsDestination, "Cá nhân", FinanceIcons.Profile),
 }
 
 /** Tab đang hiển thị, hoặc `null` nếu đang ở màn con / màn chưa đăng nhập (khi đó ẩn bottom bar). */

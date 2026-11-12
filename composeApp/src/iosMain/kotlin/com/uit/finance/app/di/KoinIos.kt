@@ -4,6 +4,7 @@ import com.uit.finance.app.config.AppEnvironment
 import com.uit.finance.core.session.UserSession
 import com.uit.finance.core.sync.scheduler.SyncScheduler
 import kotlin.experimental.ExperimentalNativeApi
+import platform.Foundation.NSBundle
 
 /**
  * Được `iOSApp.swift` gọi (`KoinIosKt.startKoinIos()`) trước khi tạo view đầu tiên. Resolve
@@ -29,3 +30,6 @@ actual fun defaultOidcIssuer(): String =
 
 @OptIn(ExperimentalNativeApi::class)
 actual val isDebugBuild: Boolean = kotlin.native.Platform.isDebugBinary
+
+actual val appVersionName: String =
+    NSBundle.mainBundle.objectForInfoDictionaryKey("CFBundleShortVersionString") as? String ?: "—"

@@ -28,6 +28,6 @@ internal class LocalDataGateViewModel(
             setState { copy(isRetrying = true) }
             retry()
         }
-        LocalDataGateIntent.LogoutClicked -> sendEffect(LocalDataGateEffect.OpenProfile)
+        LocalDataGateIntent.LogoutClicked -> sendEffect(LocalDataGateEffect.OpenSettings)
     }
 }
