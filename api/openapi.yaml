@@ -1,7 +1,7 @@
 openapi: 3.0.3
 info:
   title: Finance API
-  version: 2.1.0
+  version: 2.3.0
   description: |
     API contract của finance-backend, là single source of truth: backend generate server interface,
     app mobile generate client từ file này.
@@ -23,6 +23,12 @@ info:
       quản lý (`userId`, `changeSeq`, `version`, `createdAt`...), làm op đó bị `REJECTED`.
     - Giới hạn: push 60 lần/phút, pull 120 lần/phút mỗi user (vượt → 429 + `Retry-After`); push tối đa
       100 op và 256 KB.
+
+    Cài đặt & bảo mật (2.3.0, chỉ thêm, không breaking, ADR-008)
+    - `DELETE /api/v1/me`: xoá vĩnh viễn tài khoản. Bắt buộc vừa đăng nhập lại (claim `auth_time` trong 5 phút).
+    - Tài khoản đã xoá: mọi endpoint trả `403 identity.user_deleted`.
+    - `GET /api/v1/sync/pull` có thể trả `410 sync.cursor_expired` khi máy giữ cursor cũ hơn mốc server đã dọn
+      bản ghi đã xoá (90 ngày): app xoá dữ liệu đã đồng bộ trên máy rồi pull lại từ đầu.
 
     Breaking changes so với 1.0.0
     - Xoá `/api/v1/auth/register`, `/login`, `/refresh`, `/logout` cùng các schema đi kèm.
@@ -54,6 +60,32 @@ paths:
               schema:
                 $ref: '#/components/schemas/UserProfile'
         '401': { $ref: '#/components/responses/Unauthorized' }
+        '403': { $ref: '#/components/responses/Forbidden' }
+    delete:
+      tags: [me]
+      operationId: deleteCurrentUser
+      summary: Xoá vĩnh viễn tài khoản đang đăng nhập
+      description: |
+        Phải đăng nhập lại ngay trước khi gọi (Authorization Code với `prompt=login`): claim `auth_time` của access
+        token phải nằm trong 5 phút gần nhất, nếu không trả `403 identity.reauth_required`.
+
+        Trả `202` ngay khi đã ghi nhận, kèm trạng thái của yêu cầu. Từ lúc đó:
+        - Mọi request bằng token của tài khoản này trả `403 identity.user_deleted`. App xoá dữ liệu trên máy.
+        - Tài khoản Keycloak bị xoá trong vòng ~15 giây (Keycloak lỗi thì thử lại tới khi xong), refresh token trên mọi
+          máy hết hiệu lực.
+        - Ví, danh mục, giao dịch, nhật ký đồng bộ bị xoá thật trong vòng 15 phút.
+
+        Không cần `Idempotency-Key`: gọi lại sau khi đã thành công thì nhận `403 identity.user_deleted`, app coi như xong.
+      responses:
+        '202':
+          description: Đã ghi nhận yêu cầu xoá; phần còn lại chạy ở nền
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/AccountDeletionStatus'
+        '401': { $ref: '#/components/responses/Unauthorized' }
+        '403': { $ref: '#/components/responses/Forbidden' }
+        '429': { $ref: '#/components/responses/TooManyRequests' }
   /api/v1/sync/push:
     post:
       tags: [sync]
@@ -80,6 +112,7 @@ paths:
                 $ref: '#/components/schemas/SyncPushResponse'
         '400': { $ref: '#/components/responses/BadRequest' }
         '401': { $ref: '#/components/responses/Unauthorized' }
+        '403': { $ref: '#/components/responses/Forbidden' }
         '409': { $ref: '#/components/responses/Conflict' }
         '413': { $ref: '#/components/responses/PayloadTooLarge' }
         '422': { $ref: '#/components/responses/UnprocessableEntity' }
@@ -118,8 +151,18 @@ paths:
                 $ref: '#/components/schemas/SyncPullResponse'
         '400': { $ref: '#/components/responses/BadRequest' }
         '401': { $ref: '#/components/responses/Unauthorized' }
+        '403': { $ref: '#/components/responses/Forbidden' }
         '409':
           description: '`sync.cursor_ahead`: cursor lớn hơn dữ liệu trên server (server được khôi phục). Xoá cursor rồi pull lại từ đầu.'
+          content:
+            application/problem+json:
+              schema:
+                $ref: '#/components/schemas/Problem'
+        '410':
+          description: |
+            `sync.cursor_expired`: server đã dọn bản ghi đã xoá cũ hơn cursor này (máy offline quá lâu), nên không còn
+            báo được hết những gì đã bị xoá. Gửi hết thay đổi đang chờ, xoá dữ liệu đã đồng bộ trên máy (giữ bản ghi còn
+            op chờ gửi), xoá cursor rồi pull lại từ đầu.
           content:
             application/problem+json:
               schema:
@@ -162,6 +205,22 @@ components:
           type: string
           format: date-time
           description: Thời điểm local account được tạo (lần đầu gọi API), không phải lúc register trên Keycloak.
+    AccountDeletionStatus:
+      type: object
+      description: |
+        Trạng thái yêu cầu xoá tài khoản (RFC 9110 §15.3.3: response `202` mô tả việc đang chờ xử lý).
+        Endpoint không có body thì generator chỉ khai `produces = application/problem+json` và client gửi
+        `Accept: application/json` bị `406` — body này giữ `application/json` trong hợp đồng.
+      required: [status, requestedAt]
+      properties:
+        status:
+          type: string
+          enum: [DELETING]
+          description: Tài khoản đã bị khoá, dữ liệu đang chờ xoá hẳn.
+        requestedAt:
+          type: string
+          format: date-time
+          description: Thời điểm server ghi nhận yêu cầu xoá.
     SyncPushRequest:
       type: object
       required: [deviceId, ops]
@@ -424,6 +483,14 @@ components:
             $ref: '#/components/schemas/Problem'
     Unauthorized:
       description: Thiếu token, token expired, hoặc sai signature / issuer / audience
+      content:
+        application/problem+json:
+          schema:
+            $ref: '#/components/schemas/Problem'
+    Forbidden:
+      description: |
+        `identity.user_deleted`: tài khoản của token đã bị xoá, app xoá dữ liệu trên máy và về màn đăng nhập.
+        `identity.reauth_required` (chỉ ở `DELETE /api/v1/me`): đăng nhập lại rồi gọi lại.
       content:
         application/problem+json:
           schema:
