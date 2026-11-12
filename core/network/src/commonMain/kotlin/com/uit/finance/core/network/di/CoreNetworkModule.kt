@@ -6,6 +6,7 @@ import com.uit.finance.core.network.api.internal.GeneratedSyncApiAdapter
 import com.uit.finance.core.network.api.internal.GeneratedSyncPayloadCodec
 import com.uit.finance.core.network.api.internal.GeneratedUserApiAdapter
 import com.uit.finance.core.network.api.model.SyncPayloadCodec
+import com.uit.finance.core.network.auth.DeletedAccountSignal
 import com.uit.finance.core.network.auth.TokenCache
 import com.uit.finance.core.network.client.KtorTokenCache
 import com.uit.finance.core.network.client.NetworkConfig
@@ -24,6 +25,7 @@ import org.koin.dsl.module
  */
 val coreNetworkModule: Module = module {
     single<Json> { defaultJson() }
+    single { DeletedAccountSignal() }
     single<HttpClientEngine> { platformHttpEngine() }
     single<HttpClient> {
         createHttpClient(
@@ -34,6 +36,7 @@ val coreNetworkModule: Module = module {
             tokenRefresher = get(),
             uuidGenerator = get(),
             logger = get(),
+            deletedAccountSignal = get(),
         )
     }
     single<TokenCache> { KtorTokenCache(get()) }
