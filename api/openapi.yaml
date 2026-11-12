@@ -24,6 +24,12 @@ info:
     - Giới hạn: push 60 lần/phút, pull 120 lần/phút mỗi user (vượt → 429 + `Retry-After`); push tối đa
       100 op và 256 KB.
 
+    Ngân sách (2.2.0, chỉ thêm, không breaking, ADR-007)
+    - Entity sync mới `budget`, dữ liệu `BudgetData`. Ghi qua `/sync/push` như ledger, không có REST riêng.
+    - `categoryId`, `currency`, `startMonth` không đổi được sau khi tạo (`REJECTED budget.immutable_field`).
+    - Mỗi cặp (danh mục, tiền tệ) tối đa 1 ngân sách; bản tới sau nhận `REJECTED budget.duplicate`.
+    - "Đã chi" không có trong contract: app tự tính từ giao dịch local.
+
     Cài đặt & bảo mật (2.3.0, chỉ thêm, không breaking, ADR-008)
     - `DELETE /api/v1/me`: xoá vĩnh viễn tài khoản. Bắt buộc vừa đăng nhập lại (claim `auth_time` trong 5 phút).
     - Tài khoản đã xoá: mọi endpoint trả `403 identity.user_deleted`.
@@ -249,7 +255,7 @@ components:
           type: string
           minLength: 1
           maxLength: 30
-          description: '`account` | `category` | `transaction`. Giá trị khác → op bị `REJECTED sync.unknown_entity`.'
+          description: '`account` | `category` | `transaction` | `budget`. Giá trị khác → op bị `REJECTED sync.unknown_entity`.'
           example: transaction
         id:
           type: string
@@ -264,7 +270,7 @@ components:
           additionalProperties: true
           description: |
             Bắt buộc khi `UPSERT`, bỏ qua khi `DELETE`. Hình dạng theo `entity`: `AccountData`,
-            `CategoryData` hoặc `TransactionData`. Không được có field nào khác.
+            `CategoryData`, `TransactionData` hoặc `BudgetData`. Không được có field nào khác.
     SyncPushResponse:
       type: object
       required: [results]
@@ -327,7 +333,7 @@ components:
           type: object
           nullable: true
           additionalProperties: true
-          description: '`AccountData` / `CategoryData` / `TransactionData`; null khi `deleted = true`.'
+          description: '`AccountData` / `CategoryData` / `TransactionData` / `BudgetData`; null khi `deleted = true`.'
     AccountData:
       type: object
       additionalProperties: false
@@ -437,6 +443,33 @@ components:
           type: string
           nullable: true
           maxLength: 500
+    BudgetData:
+      type: object
+      additionalProperties: false
+      required: [categoryId, currency, amountMinor, startMonth]
+      properties:
+        categoryId:
+          type: string
+          format: uuid
+          description: |
+            Danh mục chi cấp 1 (`kind = EXPENSE`, `parentId = null`) của chính user. Không đổi được sau khi tạo.
+            Danh mục chưa tới → `RETRY budget.reference_pending`.
+        currency:
+          type: string
+          pattern: '^[A-Z]{3}$'
+          description: ISO-4217. Không đổi được sau khi tạo.
+        amountMinor:
+          type: integer
+          format: int64
+          minimum: 1
+          maximum: 1000000000000000
+          description: Mức chi tối đa mỗi tháng, áp cho mọi tháng từ `startMonth`
+        startMonth:
+          type: string
+          format: date
+          description: |
+            Ngày 1 của tháng bắt đầu áp dụng, từ 2000-01-01 tới tháng UTC hiện tại + 1. Không đổi được
+            sau khi tạo.
     FieldError:
       type: object
       required: [field, message]

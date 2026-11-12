@@ -2,6 +2,7 @@ package com.uit.finance.app.di
 
 import com.uit.finance.app.devtools.DemoDataSeeder
 import com.uit.finance.core.auth.OidcConfig
+import com.uit.finance.core.auth.preferredUiLocales
 import com.uit.finance.core.network.client.NetworkConfig
 import com.uit.finance.feature.settings.domain.model.SettingsAppInfo
 import org.koin.core.module.Module
@@ -13,6 +14,9 @@ expect fun defaultApiBaseUrl(): String
 
 /** Issuer của Keycloak, phải trùng TUYỆT ĐỐI claim `iss` trong token (xem `KC_HOSTNAME`). */
 expect fun defaultOidcIssuer(): String
+
+/** ISO language code selected by the operating system for the app. */
+expect fun currentLanguageCode(): String
 
 expect val isDebugBuild: Boolean
 
@@ -35,7 +39,14 @@ internal const val PRIVACY_POLICY_URL = "https://finance.example.com/privacy"
 
 internal val appModule: Module = module {
     single { NetworkConfig(baseUrl = defaultApiBaseUrl(), logHttp = isDebugBuild) }
-    single { OidcConfig(issuer = defaultOidcIssuer(), clientId = OIDC_CLIENT_ID, redirectUri = OIDC_REDIRECT_URI) }
+    single {
+        OidcConfig(
+            issuer = defaultOidcIssuer(),
+            clientId = OIDC_CLIENT_ID,
+            redirectUri = OIDC_REDIRECT_URI,
+            uiLocales = preferredUiLocales(currentLanguageCode()),
+        )
+    }
     single { SettingsAppInfo(versionName = appVersionName, privacyPolicyUrl = PRIVACY_POLICY_URL) }
 
     // Công cụ dev (menu DEV, dữ liệu mẫu): bản release không đăng ký nên không resolve được.

@@ -41,6 +41,10 @@ private object Palette {
     val GreenBright = Color(0xFF6FD39F)
     val Red = Color(0xFFD64545)
     val RedBright = Color(0xFFFF8A80)
+
+    // Cảnh báo "sắp vượt" (ngân sách ≥ 80%). Hổ phách, khác hẳn cam đào thương hiệu.
+    val Amber = Color(0xFF9A5B00) // chữ/thanh trên nền sáng: 5.4:1 trên trắng
+    val AmberBright = Color(0xFFFFB74D)
 }
 
 internal val LightColors = lightColorScheme(
@@ -120,7 +124,7 @@ data class AccountCardColors(
     val chip: Color,
 )
 
-/** Màu ngữ nghĩa mà Material3 không có: chiều tiền và nền mờ cho ô icon theo chiều tiền. */
+/** Màu ngữ nghĩa mà Material3 không có: chiều tiền, nền mờ cho ô icon theo chiều tiền, cảnh báo. */
 @Immutable
 data class FinanceColors(
     val income: Color,
@@ -129,8 +133,24 @@ data class FinanceColors(
     val incomeContainer: Color,
     val expenseContainer: Color,
     val transferContainer: Color,
+    /** Sắp chạm giới hạn (ngân sách ≥ 80%). Đã vượt thì dùng `colorScheme.error`. */
+    val warning: Color,
     /** Thẻ ví thứ i dùng `accountCards[i % size]`. */
     val accountCards: List<AccountCardColors>,
+    val brand: Color,
+    val brandDeep: Color,
+    val onBrand: Color,
+    val welcomeBackgroundTop: Color,
+    val welcomeBackgroundMiddle: Color,
+    val welcomeBackgroundBottom: Color,
+    val welcomeActionSurface: Color,
+    val welcomeText: Color,
+    val welcomeTextSecondary: Color,
+    val welcomeOutline: Color,
+    val welcomeGradientStart: Color,
+    val welcomeGradientEnd: Color,
+    val logoAqua: Color,
+    val logoMint: Color,
 )
 
 private fun card(container: Color, content: Color, patternAlpha: Float, chipAlpha: Float) = AccountCardColors(
@@ -147,14 +167,28 @@ internal val LightFinanceColors = FinanceColors(
     incomeContainer = Palette.SageTint,
     expenseContainer = Palette.PeachTint,
     transferContainer = Palette.Mist,
+    warning = Palette.Amber,
     accountCards = listOf(
         card(Palette.Sage, Palette.SageInk, patternAlpha = 0.18f, chipAlpha = 0.14f),
         card(Palette.Peach, Palette.PeachInk, patternAlpha = 0.16f, chipAlpha = 0.12f),
         card(Palette.Ink, Palette.White, patternAlpha = 0.14f, chipAlpha = 0.14f),
         card(Palette.Rose, Palette.RoseInk, patternAlpha = 0.16f, chipAlpha = 0.12f),
     ),
+    brand = Color(0xFF1677C8),
+    brandDeep = Color(0xFF07558F),
+    onBrand = Color.White,
+    welcomeBackgroundTop = Color(0xFFF5FCFD),
+    welcomeBackgroundMiddle = Color(0xFFEAF8FC),
+    welcomeBackgroundBottom = Color(0xFFDDF3F8),
+    welcomeActionSurface = Color.White,
+    welcomeText = Color(0xFF12344D),
+    welcomeTextSecondary = Color(0xFF4D6473),
+    welcomeOutline = Color(0xFF63BFCB),
+    welcomeGradientStart = Color(0xFF1677C8),
+    welcomeGradientEnd = Color(0xFF07558F),
+    logoAqua = Color(0xFF2B9FE8),
+    logoMint = Color(0xFF79DCE8),
 )
-
 internal val DarkFinanceColors = FinanceColors(
     income = Palette.GreenBright,
     expense = Palette.RedBright,
@@ -162,10 +196,25 @@ internal val DarkFinanceColors = FinanceColors(
     incomeContainer = Palette.SageTintDark,
     expenseContainer = Palette.PeachTintDark,
     transferContainer = Palette.Ink3,
+    warning = Palette.AmberBright,
     accountCards = listOf(
         card(Palette.Sage, Palette.SageInk, patternAlpha = 0.18f, chipAlpha = 0.14f),
         card(Palette.Peach, Palette.PeachInk, patternAlpha = 0.16f, chipAlpha = 0.12f),
         card(Palette.Ink4, Palette.White, patternAlpha = 0.12f, chipAlpha = 0.12f),
         card(Palette.Rose, Palette.RoseInk, patternAlpha = 0.16f, chipAlpha = 0.12f),
     ),
+    brand = Color(0xFF1677C8),
+    brandDeep = Color(0xFF07558F),
+    onBrand = Color.White,
+    welcomeBackgroundTop = Color(0xFFF5FCFD),
+    welcomeBackgroundMiddle = Color(0xFFEAF8FC),
+    welcomeBackgroundBottom = Color(0xFFDDF3F8),
+    welcomeActionSurface = Color.White,
+    welcomeText = Color(0xFF12344D),
+    welcomeTextSecondary = Color(0xFF4D6473),
+    welcomeOutline = Color(0xFF63BFCB),
+    welcomeGradientStart = Color(0xFF1677C8),
+    welcomeGradientEnd = Color(0xFF07558F),
+    logoAqua = Color(0xFF2B9FE8),
+    logoMint = Color(0xFF79DCE8),
 )

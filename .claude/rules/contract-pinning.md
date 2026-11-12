@@ -11,7 +11,7 @@
 - `:core:network:openApiGenerate` sinh Kotlin client (openapi-generator 7.14, generator `kotlin`, library `multiplatform`, kotlinx-serialization) vào `core/network/build/generated/openapi`, package `com.uit.finance.core.network.generated.*`.
 - `nonPublicApi=true` ⇒ mọi type generated là `internal`.
 - **Chỉ** `core/network/src/commonMain/kotlin/.../api/internal/GeneratedApiAdapters.kt` được import package generated. Konsist chặn phần còn lại của repo.
-- Module khác nhìn thấy: `UserApi`, `SyncApi`, `SyncPayloadCodec` (interface viết tay trong `core/network/api/`) + DTO trong `core/network/api/model/`. Không gì khác.
+- Module khác nhìn thấy: `UserApi`, `SyncApi`, `SyncPayloadCodec`, `BudgetPayloadCodec` (interface viết tay trong `core/network/api/`) + DTO trong `core/network/api/model/`. Không gì khác.
 - Contract 2.0.0 không còn `/auth/*`: login, register, refresh token đều đi thẳng tới Keycloak qua `core/auth`, **không** qua generated client.
 
 ## Đừng đụng các cấu hình sau nếu không có lý do rõ ràng
@@ -37,6 +37,6 @@ Trong `core/network/build.gradle.kts` đã có comment giải thích; đọc tr�
 
 Không tự thêm path vào `api/openapi.yaml`. Báo user: cần backend bổ sung endpoint và release contract mới, sau đó dùng skill `update-api-contract` để re-pin.
 
-Sync (contract 2.1.0): `POST /api/v1/sync/push` (≤ 100 op) và `GET /api/v1/sync/pull` (≤ 500/trang). `core/sync` gọi qua `SyncApi`; payload ví/danh mục/giao dịch encode/decode qua `SyncPayloadCodec` (dùng model generated `AccountData`…).
+Sync (contract 2.1.0): `POST /api/v1/sync/push` (≤ 100 op) và `GET /api/v1/sync/pull` (≤ 500/trang). `core/sync` gọi qua `SyncApi`; payload ví/danh mục/giao dịch encode/decode qua `SyncPayloadCodec` (dùng model generated `AccountData`…). Contract 2.2.0 thêm entity `budget`: payload qua `BudgetPayloadCodec` (model generated `BudgetData`), tách riêng để core/ledger không phải biết ngân sách.
 
 Tài khoản (contract 2.3.0, ADR-008): `DELETE /api/v1/me` → `202` + `AccountDeletionStatus`; token phải vừa đăng nhập lại (`OidcAuthenticator.reauthenticate`), không thì `403 identity.reauth_required`. Mọi endpoint có thể trả `403 identity.user_deleted` (validator báo `DeletedAccountSignal`, `UserSession` xoá dữ liệu máy). Pull có thể trả `410 sync.cursor_expired` (`core/sync` reset bản sao rồi tải lại). Mã lỗi gom ở `ApiErrorCodes`.

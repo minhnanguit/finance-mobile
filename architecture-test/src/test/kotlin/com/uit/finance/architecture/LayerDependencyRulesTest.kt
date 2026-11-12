@@ -104,8 +104,9 @@ class LayerDependencyRulesTest {
             "androidx.core.hardware.fingerprint.",
             "platform.LocalAuthentication.",
         )
+        // File luật này (và bản IDE chép ra `bin/`) chứa đúng các chuỗi bị cấm, giống LedgerDataRulesTest.
         productionScope.files
-            .filter { !it.packageName.startsWith("$ROOT.core.applock") }
+            .filter { !it.packageName.startsWith("$ROOT.core.applock") && !it.packageName.startsWith("$ROOT.architecture") }
             .assertFalse { file ->
                 file.hasImport { import -> deviceAuthApis.any { import.name.startsWith(it) } } ||
                     deviceAuthApis.any { file.text.contains(it) } ||
