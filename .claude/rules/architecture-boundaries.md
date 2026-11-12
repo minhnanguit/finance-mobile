@@ -15,7 +15,7 @@ presentation ──► domain ◄── data
 
 Một feature = **một Gradle module** chứa cả ba package `domain/`, `data/`, `presentation/` (+ `di/`). Không tách thành 3 Gradle module.
 
-## 25 luật Konsist (file `architecture-test/src/test/kotlin/…`)
+## 26 luật Konsist (file `architecture-test/src/test/kotlin/…`)
 
 ### `LayerDependencyRulesTest`
 

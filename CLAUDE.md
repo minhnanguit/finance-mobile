@@ -30,7 +30,7 @@ Mọi lệnh thường dùng đều là target trong `Makefile`. Gõ `make` đ�
 | `make crash` | Chỉ theo dõi warning + crash |
 | `make apk` | Build APK debug, không cài |
 | `make test` | Unit test **mọi module KMP** (chạy trên host JVM) |
-| `make arch` | 25 luật Konsist |
+| `make arch` | 26 luật Konsist |
 | `make bench` | Benchmark tìm kiếm + báo cáo trên SQLCipher thật, 50k giao dịch (instrumented test, **cần máy ảo đang chạy**); in bảng số đo từ logcat |
 | `make lint` | Android Lint cho `composeApp` |
 | `make tunnel URL=https://…` | Trỏ build debug tới URL HTTPS của `make tunnel` bên backend (ghi `finance.publicBaseUrl` vào `local.properties`). Có URL thì APK **tắt** cleartext |
@@ -124,7 +124,7 @@ feature/budgets       domain (BudgetMath: màu G9, % G10, mỗi ngày còn đư�
 feature/settings      Tab "Cá nhân": domain (hồ sơ, đổi mật khẩu, đăng xuất, xoá tài khoản 2 bước) + data (AccountRepositoryImpl:
                       reauth → DELETE /me → xoá dữ liệu máy; đổi mật khẩu → gắn token mới) + presentation (settings, deleteaccount).
                       Không có cài đặt đồng bộ (trạng thái + làm mới ở Trang chủ)
-architecture-test     25 luật Konsist (JVM)
+architecture-test     26 luật Konsist (JVM)
 ```
 
 Chiều phụ thuộc: **`presentation → domain ← data`**. Feature không phụ thuộc feature. Core không phụ thuộc feature.
@@ -136,7 +136,7 @@ Mỗi Gradle module expose **đúng một** Koin module public (`coreNetworkModu
 
 | File | Nội dung |
 |---|---|
-| `architecture-boundaries.md` | presentation ↛ data, domain thuần, feature isolation, 25 luật Konsist |
+| `architecture-boundaries.md` | presentation ↛ data, domain thuần, feature isolation, 26 luật Konsist |
 | `mvi-and-state.md` | MviViewModel, State/Intent/Effect, Route vs Screen |
 | `kmp-and-platform.md` | source set, expect/actual, Dispatchers, giới hạn iOS |
 | `contract-pinning.md` | `api/openapi.yaml` pin, generated client chỉ ở `core/network` |
