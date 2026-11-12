@@ -103,12 +103,12 @@ internal fun DeleteAccountScreen(
                 SettingsItem(
                     icon = FinanceIcons.Key,
                     title = "Tài khoản đăng nhập",
-                    subtitle = "Email, mật khẩu và passkey không dùng được nữa",
+                    subtitle = "Email và mật khẩu không dùng được nữa",
                 )
                 SettingsItem(
                     icon = FinanceIcons.LocalData,
                     title = "Dữ liệu trên máy này",
-                    subtitle = "Sổ đã mã hoá và cài đặt khoá ứng dụng",
+                    subtitle = "Sổ thu chi đã mã hoá và phiên đăng nhập",
                 )
             }
 

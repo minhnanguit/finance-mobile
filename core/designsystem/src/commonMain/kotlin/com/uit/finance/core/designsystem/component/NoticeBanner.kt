@@ -19,7 +19,7 @@ import com.uit.finance.core.designsystem.icon.FinanceIcons
 import com.uit.finance.core.designsystem.theme.FinanceTheme
 
 /**
- * Thông báo trung tính (không phải lỗi): "Tài khoản đã được xoá", "Đã bật khoá ứng dụng". Lỗi dùng [ErrorBanner];
+ * Thông báo trung tính (không phải lỗi): "Tài khoản đã được xoá". Lỗi dùng [ErrorBanner];
  * cảnh báo cần chú ý đặt [warning] = true (nền màu lỗi nhạt).
  */
 @Composable
