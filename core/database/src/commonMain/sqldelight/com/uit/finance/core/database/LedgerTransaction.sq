@@ -61,3 +61,7 @@ UPDATE ledger_transaction SET deleted = 1 WHERE id = ?;
 
 remove:
 DELETE FROM ledger_transaction WHERE id = ?;
+
+-- Xem Account.sq `deleteSynced` (ADR-008 T4).
+deleteSynced:
+DELETE FROM ledger_transaction WHERE id NOT IN (SELECT entity_id FROM outbox WHERE entity = 'transaction');

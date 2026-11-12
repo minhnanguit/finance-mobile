@@ -79,6 +79,13 @@ interface SyncChangeApplier {
 
     /** Bản ghi chưa từng có trên server và vừa bị từ chối: bỏ khỏi máy. */
     fun discard(database: FinanceDatabase, entityId: String)
+
+    /**
+     * Pull lại từ đầu sau `410 sync.cursor_expired` (ADR-008 T4): xoá mọi bản ghi của entity này đã đồng bộ,
+     * **giữ** bản ghi còn op chờ gửi trong outbox (bản local chưa gửi luôn thắng). Lần pull lại đưa phần còn lại
+     * về đúng bản của server, kể cả việc bản ghi nào đã bị xoá mà máy này không còn được báo.
+     */
+    fun clearSynced(database: FinanceDatabase)
 }
 
 /** `installationId` của máy, gửi kèm mỗi lần push để server ghi nhật ký (ADR-006 B9). */

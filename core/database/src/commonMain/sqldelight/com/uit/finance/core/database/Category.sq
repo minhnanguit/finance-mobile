@@ -37,3 +37,7 @@ UPDATE category SET deleted = 1 WHERE id = ?;
 
 remove:
 DELETE FROM category WHERE id = ?;
+
+-- Xem Account.sq `deleteSynced` (ADR-008 T4).
+deleteSynced:
+DELETE FROM category WHERE id NOT IN (SELECT entity_id FROM outbox WHERE entity = 'category');

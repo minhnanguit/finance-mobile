@@ -28,3 +28,7 @@ SELECT * FROM sync_deferred ORDER BY change_seq ASC LIMIT ?;
 
 countAll:
 SELECT COUNT(*) FROM sync_deferred;
+
+-- Pull lại từ đầu (ADR-008 T4): bản hoãn sẽ được server gửi lại.
+deleteAll:
+DELETE FROM sync_deferred;
