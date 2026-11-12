@@ -92,6 +92,27 @@ class LayerDependencyRulesTest {
             }
     }
 
+    // ADR-008 K1: khoá app (BiometricPrompt / LocalAuthentication) nằm gọn trong core/applock; feature không tự gọi
+    // sinh trắc, nên mọi chỗ khoá đều đi qua cùng một máy trạng thái. Kiểm cả import lẫn tên đầy đủ trong code (gọi
+    // `androidx.biometric.BiometricPrompt(...)` không cần import), và cả API cũ của nền tảng.
+    @Test
+    fun `only core-applock touches the device authentication APIs - BiometricPrompt and LocalAuthentication`() {
+        val deviceAuthApis = listOf(
+            "androidx.biometric.",
+            "android.hardware.biometrics.",
+            "android.hardware.fingerprint.",
+            "androidx.core.hardware.fingerprint.",
+            "platform.LocalAuthentication.",
+        )
+        productionScope.files
+            .filter { !it.packageName.startsWith("$ROOT.core.applock") }
+            .assertFalse { file ->
+                file.hasImport { import -> deviceAuthApis.any { import.name.startsWith(it) } } ||
+                    deviceAuthApis.any { file.text.contains(it) } ||
+                    file.text.contains("createConfirmDeviceCredentialIntent")
+            }
+    }
+
     // RFC 8252 + ADR-004: WebView cho phép app đọc được mật khẩu user gõ vào — cấm tuyệt đối.
     @Test
     fun `WebView is banned - sign-in must go through the system browser`() {
