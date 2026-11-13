@@ -38,6 +38,9 @@ object TokenClaims {
 
     fun subject(accessToken: String): String? = payload(accessToken)?.text("sub")
 
+    /** Claim `sid`: phiên Keycloak mà token thuộc về. Hai token cùng `sid` thì huỷ một cái là mất cả hai. */
+    fun sessionId(token: String): String? = payload(token)?.text("sid")
+
     private fun payload(token: String): JsonObject? = try {
         val parts = token.split('.')
         if (parts.size != JWT_PARTS) {

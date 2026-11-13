@@ -85,7 +85,9 @@ internal class DefaultOidcAuthenticator(
         val state = pkceGenerator.state()
         val url = authorizationUrl(discovery.authorizationEndpoint, config, pkce.challenge, state, prompt)
 
-        return when (val launched = launcher.launch(url, config.redirectUri)) {
+        // Luồng chạy khi đã đăng nhập: tách khỏi phiên SSO của trình duyệt để không gì trong trình duyệt đóng được phiên app.
+        val ephemeral = prompt == AuthorizationPrompt.Reauthenticate || prompt == AuthorizationPrompt.ChangePassword
+        return when (val launched = launcher.launch(url, config.redirectUri, ephemeral)) {
             LaunchResult.Cancelled -> AuthorizationOutcome.Cancelled
             is LaunchResult.Failed -> throw OidcException.LaunchFailed(launched.reason)
             is LaunchResult.Redirected ->

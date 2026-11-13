@@ -47,6 +47,8 @@ class ReauthenticationTest {
         assertEquals("0", params["max_age"])
         // URL đi qua lịch sử trình duyệt, log intent, access log của proxy: không mang email (ASVS V8.3.1).
         assertNull(params["login_hint"])
+        // Tab riêng: "Restart login" trong đó không đăng xuất được phiên app.
+        assertEquals(listOf(true), launcher.ephemeral)
     }
 
     @Test
@@ -104,6 +106,8 @@ class ReauthenticationTest {
         assertEquals("Ann Example", profile?.displayName)
         assertNull(TokenClaims.profile("not.a-jwt"))
         assertNull(TokenClaims.profile("only-one-part"))
+        assertEquals("s-1", TokenClaims.sessionId(jwt(sub = "user-a", extra = ""","sid":"s-1"""")))
+        assertNull(TokenClaims.sessionId(jwt(sub = "user-a")))
     }
 
     private fun jwt(sub: String, extra: String = ""): String {

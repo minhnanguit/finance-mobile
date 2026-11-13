@@ -81,8 +81,10 @@ internal class AccountRepositoryImpl(
                 // Mật khẩu đã đổi trên Keycloak: dù màn bị đóng vẫn phải gắn token mới, không thì phiên cũ (có thể
                 // đã bị "Đăng xuất khỏi thiết bị khác" huỷ) làm user bị đá ra ở lần refresh kế tiếp.
                 is PasswordChangeOutcome.Changed -> withContext(NonCancellable) {
-                    if (adoptFreshTokens(session, outcome.tokens)) {
+                    val replaced = adoptFreshTokens(session, outcome.tokens)
+                    if (replaced != null) {
                         tokenCache.invalidate()
+                        endReplacedSession(replaced, outcome.tokens)
                     } else {
                         logger.i { "Phiên đổi trong lúc đổi mật khẩu; bỏ token mới" }
                         if (sessions.current()?.userId != session.userId) endSessionQuietly(outcome.tokens.refreshToken)
@@ -95,7 +97,7 @@ internal class AccountRepositoryImpl(
 
     /** Gắn token vừa xác nhận vào phiên để `DELETE /me` mang `auth_time` mới, gọi xoá, rồi dọn mọi thứ trên máy (A9). */
     private suspend fun deleteWith(confirmedFor: StoredSession, fresh: AuthTokens): AppResult<AccountDeletion> {
-        if (!adoptFreshTokens(confirmedFor, fresh)) {
+        if (adoptFreshTokens(confirmedFor, fresh) == null) {
             logger.i { "Phiên đổi trong lúc xác nhận xoá tài khoản; không xoá" }
             // Token vừa nhận thuộc phiên SSO của chính user cần xoá. Chỉ huỷ khi app không còn giữ user đó: huỷ lúc
             // vẫn là user đó sẽ đăng xuất luôn phiên đang dùng (Keycloak dùng chung phiên SSO cho lần đăng nhập lại).
@@ -127,22 +129,33 @@ internal class AccountRepositoryImpl(
     }
 
     /**
-     * Compare-and-set token mới vào phiên **của đúng user đã xác nhận**. So theo user chứ không theo refresh token: sync
-     * nền có thể vừa xoay refresh token trong lúc trình duyệt mở, đó vẫn là phiên của user này. Bị xoay tiếp giữa lúc
-     * đọc và ghi thì đọc lại rồi thử lần nữa.
+     * Compare-and-set token mới vào phiên **của đúng user đã xác nhận**; trả phiên vừa bị thay (`null` = không thay).
+     * So theo user chứ không theo refresh token: sync nền có thể vừa xoay refresh token trong lúc trình duyệt mở, đó vẫn
+     * là phiên của user này. Bị xoay tiếp giữa lúc đọc và ghi thì đọc lại rồi thử lần nữa.
      */
-    private suspend fun adoptFreshTokens(confirmedFor: StoredSession, fresh: AuthTokens): Boolean {
+    private suspend fun adoptFreshTokens(confirmedFor: StoredSession, fresh: AuthTokens): StoredSession? {
         repeat(ADOPT_ATTEMPTS) {
-            val current = sessions.current() ?: return false
+            val current = sessions.current() ?: return null
             val sameUser = if (confirmedFor.userId != null) {
                 current.userId == confirmedFor.userId
             } else {
                 current.refreshToken == confirmedFor.refreshToken
             }
-            if (!sameUser) return false
-            if (tokens.replaceIfCurrent(refreshedFrom = current.refreshToken, tokens = fresh)) return true
+            if (!sameUser) return null
+            if (tokens.replaceIfCurrent(refreshedFrom = current.refreshToken, tokens = fresh)) return current
         }
-        return false
+        return null
+    }
+
+    /**
+     * Đổi mật khẩu trong tab riêng tạo một phiên Keycloak mới; phiên app vừa bị thay không còn ai dùng, đóng nó để không
+     * nằm lại tới khi hết hạn. Hai token cùng `sid` (trình duyệt không hỗ trợ tab riêng nên vẫn dùng chung phiên SSO) thì
+     * đóng cái cũ là đóng luôn cái mới: giữ nguyên. Không đọc được `sid` thì cũng giữ nguyên, không đoán.
+     */
+    private suspend fun endReplacedSession(replaced: StoredSession, fresh: AuthTokens) {
+        val oldSession = TokenClaims.sessionId(replaced.refreshToken) ?: TokenClaims.sessionId(replaced.accessToken)
+        val newSession = TokenClaims.sessionId(fresh.refreshToken) ?: TokenClaims.sessionId(fresh.accessToken)
+        if (oldSession != null && newSession != null && oldSession != newSession) endSessionQuietly(replaced.refreshToken)
     }
 
     /** `true` = server đã xoá, `false` = chắc chắn chưa xoá, `null` = vẫn không biết. */

@@ -4,8 +4,8 @@ import android.content.Context
 
 internal class CustomTabsAuthorizationLauncher(private val context: Context) : AuthorizationLauncher {
 
-    override suspend fun launch(authorizationUrl: String, redirectUri: String): LaunchResult =
+    override suspend fun launch(authorizationUrl: String, redirectUri: String, ephemeral: Boolean): LaunchResult =
         AuthorizationFlowBridge.run {
-            context.startActivity(AuthorizationActivity.startIntent(context, authorizationUrl))
+            context.startActivity(AuthorizationActivity.startIntent(context, authorizationUrl, ephemeral))
         }
 }

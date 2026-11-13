@@ -69,7 +69,7 @@ core/network          Ktor client (ContentNegotiation, logging sanitize, timeout
 core/auth             OIDC client Keycloak: PKCE S256, discovery, token/refresh/logout, AuthorizationLauncher
                       (Android Custom Tabs · iOS ASWebAuthenticationSession), implement TokenRefresher; reauthenticate()
                       (prompt=login + max_age=0, kiểm `sub`) trước việc nhạy cảm, changePassword() (kc_action=UPDATE_PASSWORD,
-                      kiểm `sub`, trả token của phiên còn sống), TokenClaims
+                      kiểm `sub`, trả token của phiên còn sống); hai luồng này mở trình duyệt ephemeral (A11), TokenClaims (+ sid)
 core/database         SQLDelight FinanceDatabase **mỗi user một file** `finance-<userId>.db`, mã hoá SQLCipher (khoá 256-bit
                       trong SecureStorage): outbox (+ outbox_ref), sync_cursor, sync_rejection, sync_deferred, account,
                       category, ledger_transaction (+ search_text), budget. Query tìm/lọc riêng ở `LedgerSearch.sq`, số liệu báo cáo/ngân sách ở `LedgerReport.sq`. Schema version 4,

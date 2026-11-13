@@ -23,7 +23,7 @@ Dùng khi và chỉ khi hành vi khác nhau theo nền tảng. Mẫu có sẵn:
 | `PlatformInfo` | `.android.kt` | `.ios.kt` |
 | `platformEngine()` | OkHttp | Darwin |
 | `SyncScheduler` | WorkManager | BGTaskScheduler |
-| `AuthorizationLauncher` (interface + Koin platform module, `core/auth`) | Custom Tabs qua `AuthorizationActivity` + `RedirectReceiverActivity` | `ASWebAuthenticationSession` (ephemeral) |
+| `AuthorizationLauncher` (interface + Koin platform module, `core/auth`) | Custom Tabs qua `AuthorizationActivity` + `RedirectReceiverActivity`; `ephemeral = true` (xác nhận lại, đổi mật khẩu) → `setEphemeralBrowsingEnabled`, Chrome 136+ (ADR-008 A11) | `ASWebAuthenticationSession` (luôn ephemeral) |
 | `secureRandomBytes()` (`core/common/security`) | `SecureRandom` | `SecRandomCopyBytes` |
 | `sha256()` (`core/auth/pkce`) | `MessageDigest` | `CC_SHA256` |
 | `defaultApiBaseUrl()`, `isDebugBuild` (composeApp) | `10.0.2.2:18473` khi debug | loopback simulator |

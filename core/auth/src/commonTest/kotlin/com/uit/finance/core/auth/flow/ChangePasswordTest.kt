@@ -48,6 +48,7 @@ class ChangePasswordTest {
         // Keycloak tự hỏi mật khẩu hiện tại khi lần đăng nhập đã cũ; không ép thêm một lần đăng nhập.
         assertNull(params["prompt"])
         assertNull(params["login_hint"])
+        assertEquals(listOf(true), launcher.ephemeral, "tab riêng: không đụng được phiên app")
     }
 
     @Test

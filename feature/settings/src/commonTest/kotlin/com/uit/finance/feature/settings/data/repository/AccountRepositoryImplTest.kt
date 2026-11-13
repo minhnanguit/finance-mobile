@@ -161,6 +161,30 @@ class AccountRepositoryImplTest {
     }
 
     @Test
+    fun `đổi mật khẩu trong tab riêng tạo phiên mới thì đóng phiên cũ vừa bị thay`() = runTest {
+        sessions.state.value = StoredSession(jwt("kc-ann", "ann@example.com", "Ann", sid = "s-old"), "old-refresh", 0, userId = "user-1")
+        val fresh = AuthTokens(jwt("kc-ann", "ann@example.com", "Ann", sid = "s-new"), "new-refresh", 300)
+        authenticator.passwordChange = AppResult.Success(PasswordChangeOutcome.Changed(fresh))
+
+        assertEquals(AppResult.Success(PasswordChange.Changed), repository().changePassword())
+
+        assertEquals("new-refresh", sessions.state.value?.refreshToken)
+        assertEquals(listOf("old-refresh"), authenticator.endedSessions, "phiên cũ không còn ai dùng")
+    }
+
+    @Test
+    fun `phiên mới trùng phiên cũ thì không đóng - trình duyệt không hỗ trợ tab riêng`() = runTest {
+        sessions.state.value = StoredSession(jwt("kc-ann", "ann@example.com", "Ann", sid = "s-1"), "old-refresh", 0, userId = "user-1")
+        val fresh = AuthTokens(jwt("kc-ann", "ann@example.com", "Ann", sid = "s-1"), "new-refresh", 300)
+        authenticator.passwordChange = AppResult.Success(PasswordChangeOutcome.Changed(fresh))
+
+        repository().changePassword()
+
+        assertEquals("new-refresh", sessions.state.value?.refreshToken)
+        assertEquals(emptyList(), authenticator.endedSessions, "đóng phiên cũ là đóng luôn phiên mới")
+    }
+
+    @Test
     fun `huỷ đổi mật khẩu hoặc đổi nhầm tài khoản khác thì giữ nguyên phiên`() = runTest {
         signedIn()
 
@@ -350,9 +374,10 @@ class AccountRepositoryImplTest {
         assertEquals(Instant.fromEpochSeconds(1_700_000_000), emitted.last().memberSince)
     }
 
-    private fun jwt(sub: String, email: String, name: String): String {
+    private fun jwt(sub: String, email: String, name: String, sid: String? = null): String {
         val base64 = Base64.UrlSafe.withPadding(Base64.PaddingOption.ABSENT)
-        val payload = """{"sub":"$sub","email":"$email","name":"$name"}"""
+        val session = sid?.let { ""","sid":"$it"""" }.orEmpty()
+        val payload = """{"sub":"$sub","email":"$email","name":"$name"$session}"""
         return "${base64.encode("{}".encodeToByteArray())}.${base64.encode(payload.encodeToByteArray())}.sig"
     }
 }
