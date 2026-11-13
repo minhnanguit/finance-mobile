@@ -7,8 +7,8 @@ Client Kotlin Multiplatform (Android + iOS) dùng **Compose Multiplatform UI chu
 
 - Package gốc: `com.uit.finance` · compileSdk 36 · minSdk 26 · targetSdk 36
 - Kiến trúc đã **chốt** ở `../ARCHITECTURE.md` (repo-level, tiếng Việt). Không tự đổi.
-- Hợp đồng API: `api/openapi.yaml` là bản **copy nguyên văn** từ `finance-backend`, pin theo `api/VERSION` (hiện `2.2.0`). **Không sửa tay file này.**
-- Feature hiện có: `feature/auth` (reference feature: SignedOut / Profile; login/register diễn ra trên **Keycloak** qua system browser, ADR-004) · `feature/home` (Trang chủ: thẻ ví, thu/chi tháng này, giao dịch gần đây, badge đồng bộ) · `feature/accounts` (danh sách ví, tạo/sửa ví) · `feature/transactions` (lịch sử + tìm kiếm/lọc/dòng tổng, thêm/sửa giao dịch + phí chuyển, danh mục) · `feature/reports` (báo cáo thu/chi theo tháng/năm, donut theo danh mục, cột xu hướng, `../docs/REPORTS-PLAN.md`) · `feature/budgets` (tab Ngân sách: tiến độ theo tháng, tạo/sửa/xoá).
+- Hợp đồng API: `api/openapi.yaml` là bản **copy nguyên văn** từ `finance-backend`, pin theo `api/VERSION` (hiện `2.3.0`). **Không sửa tay file này.**
+- Feature hiện có: `feature/auth` (reference feature: SignedOut + S6 + thông báo tài khoản đã xoá; login/register diễn ra trên **Keycloak** qua system browser, ADR-004) · `feature/settings` (tab Cá nhân: hồ sơ, đổi mật khẩu, chính sách quyền riêng tư, đăng xuất, xoá tài khoản — `../docs/SETTINGS-SECURITY-PLAN.md`, ADR-008) · `feature/home` (Trang chủ: thẻ ví, thu/chi tháng này, giao dịch gần đây, badge đồng bộ) · `feature/accounts` (danh sách ví, tạo/sửa ví) · `feature/transactions` (lịch sử + tìm kiếm/lọc/dòng tổng, thêm/sửa giao dịch + phí chuyển, danh mục) · `feature/reports` (báo cáo thu/chi theo tháng/năm, donut theo danh mục, cột xu hướng, `../docs/REPORTS-PLAN.md`) · `feature/budgets` (tab Ngân sách: tiến độ theo tháng, tạo/sửa/xoá).
 - UI theo bản thiết kế tham chiếu Purrweb "Finance Mobile iOS App" (dribbble.com/shots/21793126): Montserrat, sage `#94C1B2` / cam đào `#FFC789` / nền `#121212`. Token và component ở `core/designsystem`; icon là Lucide nhưng **chỉ** import trong `FinanceIcons.kt`.
 - Dữ liệu ledger (ví, danh mục, giao dịch) + sync offline-first: `core/ledger` + `core/sync`, theo `../docs/LEDGER-PLAN.md`.
 - Ngân sách theo danh mục (ADR-007 backend, `../docs/BUDGET-PLAN.md`): dữ liệu + sync ở `core/budget`; "đã chi" tính từ giao dịch qua `SpendingRepository` (core/ledger), không lưu; màn hình ở `feature/budgets`.
@@ -30,7 +30,7 @@ Mọi lệnh thường dùng đều là target trong `Makefile`. Gõ `make` đ�
 | `make crash` | Chỉ theo dõi warning + crash |
 | `make apk` | Build APK debug, không cài |
 | `make test` | Unit test **mọi module KMP** (chạy trên host JVM) |
-| `make arch` | 25 luật Konsist |
+| `make arch` | 26 luật Konsist |
 | `make bench` | Benchmark tìm kiếm + báo cáo trên SQLCipher thật, 50k giao dịch (instrumented test, **cần máy ảo đang chạy**); in bảng số đo từ logcat |
 | `make lint` | Android Lint cho `composeApp` |
 | `make tunnel URL=https://…` | Trỏ build debug tới URL HTTPS của `make tunnel` bên backend (ghi `finance.publicBaseUrl` vào `local.properties`). Có URL thì APK **tắt** cleartext |
@@ -64,9 +64,12 @@ core/common           AppResult / AppError / FieldError, Money (Long minor units
 core/presentation     MviViewModel<State, Intent, Effect>, UiText + AppError.toUiText(), MoneyFormatter (corePresentationModule),
                       DateLabels (toRelativeLabel / toLongLabel)
 core/network          Ktor client (ContentNegotiation, logging sanitize, timeout, bearer + refresh rotation,
-                      IdempotencyKeyPlugin, RFC 7807 → ApiException), UserApi, port TokenProvider + TokenRefresher
+                      IdempotencyKeyPlugin, RFC 7807 → ApiException), UserApi (+ deleteCurrentUser), port TokenProvider +
+                      TokenRefresher, DeletedAccountSignal (403 identity.user_deleted kèm token bị từ chối), ApiErrorCodes
 core/auth             OIDC client Keycloak: PKCE S256, discovery, token/refresh/logout, AuthorizationLauncher
-                      (Android Custom Tabs · iOS ASWebAuthenticationSession), implement TokenRefresher
+                      (Android Custom Tabs · iOS ASWebAuthenticationSession), implement TokenRefresher; reauthenticate()
+                      (prompt=login + max_age=0, kiểm `sub`) trước việc nhạy cảm, changePassword() (kc_action=UPDATE_PASSWORD,
+                      kiểm `sub`, trả token của phiên còn sống); hai luồng này mở trình duyệt ephemeral (A11), TokenClaims (+ sid)
 core/database         SQLDelight FinanceDatabase **mỗi user một file** `finance-<userId>.db`, mã hoá SQLCipher (khoá 256-bit
                       trong SecureStorage): outbox (+ outbox_ref), sync_cursor, sync_rejection, sync_deferred, account,
                       category, ledger_transaction (+ search_text), budget. Query tìm/lọc riêng ở `LedgerSearch.sq`, số liệu báo cáo/ngân sách ở `LedgerReport.sq`. Schema version 4,
@@ -87,11 +90,13 @@ core/ledger           Model + validate ví/danh mục/giao dịch, repository (g
 core/budget           Model + validate ngân sách (khớp ADR-007), BudgetRepository (bản ghi + outbox + outbox_ref tới danh
                       mục trong 1 transaction), BudgetSyncChangeApplier (discard khi REJECTED budget.duplicate). Module duy
                       nhất đụng bảng budget. Payload qua BudgetPayloadCodec (core/network)
-core/session          UserSession: sau /me mở DB của user + chạy sync; đăng xuất xoá DB + khoá; DB của user khác trên máy
+core/session          UserSession: sau /me mở DB của user + chạy sync; đăng xuất xoá DB + khoá; DB của user khác trên máy;
+                      UserDataCleaner (dữ liệu theo user ngoài DB); discardDeletedAccount + SessionNotice
 core/designsystem     FinanceTheme (Color/Typography Montserrat/Shape/Spacing 4dp/Motion), FinanceIcons (facade Lucide) +
                       categoryIcon(key), component: AccountCard (+contourPattern), QuickActionButton, FinanceListItem,
                       IconTile, AmountText, StatTile, SectionHeader, PagerIndicator, Avatar, CircleIconButton, LabelChip,
-                      EmptyState, pressScale, PrimaryButton, FinanceTextField, LoadingIndicator, ErrorBanner, ConfirmDialog,
+                      EmptyState, pressScale, PrimaryButton, SecondaryButton, DangerButton, FinanceTextField, LoadingIndicator,
+                      ErrorBanner, NoticeBanner, ConfirmDialog, SettingsGroup + SettingsItem,
                       SearchField, FilterChipRow + RemovableChip, SelectableChip, CircleIconButton(badgeCount),
                       form: AmountField, SegmentedControl, ChoiceTile, SelectionField, OptionSheet, DatePickerSheet,
                       ColorSwatchPicker · màn: FinanceTopBar, FinanceFab, OverflowMenu, SwipeToDeleteBox, RefreshContainer,
@@ -104,7 +109,7 @@ core/ui               UI biết model ledger, dùng chung giữa feature: nhãn/
 core/testing          TestDispatcherProvider, TestClock, FakeUuidGenerator, MainDispatcherRule
 core/ledger-testing   Fake repository của core/ledger + core/sync (FakeSyncKit) cho commonTest của các feature
 core/budget-testing   FakeBudgetRepository cho commonTest của các feature
-feature/auth          domain / data / presentation trong CÙNG một Gradle module
+feature/auth          domain / data / presentation trong CÙNG một Gradle module: SignedOut, LocalDataGate (S6)
 feature/home          Trang chủ: domain (ObserveHomeDashboardUseCase gom ví + số dư + thu/chi tháng + giao dịch gần đây từ
                       repository của core/ledger) + presentation (HomeUiMapper format, HomeScreen theo bản thiết kế)
 feature/accounts      domain (use case ví: tổng quan, lưu, lưu trữ, xoá, đổi thứ tự) + presentation (list, editor)
@@ -116,7 +121,10 @@ feature/reports       domain (ObserveReportOverviewUseCase: thu/chi kỳ, so cù
 feature/budgets       domain (BudgetMath: màu G9, % G10, mỗi ngày còn được chi G11; ObserveBudgetProgressUseCase gom ngân sách +
                       đã chi + danh mục; form data, lưu, xoá, ObserveTodayUseCase) + presentation (list: ‹ tháng ›, tự sang
                       tháng mới lúc nửa đêm, đọc lại "hôm nay" khi resume; editor: tạo/sửa số tiền/xoá qua menu ⋮)
-architecture-test     25 luật Konsist (JVM)
+feature/settings      Tab "Cá nhân": domain (hồ sơ, đổi mật khẩu, đăng xuất, xoá tài khoản 2 bước) + data (AccountRepositoryImpl:
+                      reauth → DELETE /me → xoá dữ liệu máy; đổi mật khẩu → gắn token mới) + presentation (settings, deleteaccount).
+                      Không có cài đặt đồng bộ (trạng thái + làm mới ở Trang chủ)
+architecture-test     26 luật Konsist (JVM)
 ```
 
 Chiều phụ thuộc: **`presentation → domain ← data`**. Feature không phụ thuộc feature. Core không phụ thuộc feature.
@@ -128,7 +136,7 @@ Mỗi Gradle module expose **đúng một** Koin module public (`coreNetworkModu
 
 | File | Nội dung |
 |---|---|
-| `architecture-boundaries.md` | presentation ↛ data, domain thuần, feature isolation, 25 luật Konsist |
+| `architecture-boundaries.md` | presentation ↛ data, domain thuần, feature isolation, 26 luật Konsist |
 | `mvi-and-state.md` | MviViewModel, State/Intent/Effect, Route vs Screen |
 | `kmp-and-platform.md` | source set, expect/actual, Dispatchers, giới hạn iOS |
 | `contract-pinning.md` | `api/openapi.yaml` pin, generated client chỉ ở `core/network` |

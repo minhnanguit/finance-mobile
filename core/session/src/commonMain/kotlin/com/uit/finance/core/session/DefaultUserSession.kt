@@ -8,6 +8,8 @@ import com.uit.finance.core.datastore.session.SessionStore
 import com.uit.finance.core.datastore.session.StoredSession
 import com.uit.finance.core.network.api.UserApi
 import com.uit.finance.core.network.api.apiCall
+import com.uit.finance.core.network.auth.DeletedAccountSignal
+import com.uit.finance.core.network.auth.TokenCache
 import com.uit.finance.core.sync.engine.SyncEngine
 import com.uit.finance.core.sync.scheduler.SyncScheduler
 import kotlinx.coroutines.CancellationException
@@ -19,6 +21,8 @@ import kotlinx.coroutines.flow.collectLatest
 import kotlinx.coroutines.flow.distinctUntilChanged
 import kotlinx.coroutines.flow.map
 import kotlinx.coroutines.launch
+import kotlinx.coroutines.sync.Mutex
+import kotlinx.coroutines.sync.withLock
 
 internal class DefaultUserSession(
     private val sessions: SessionStore,
@@ -28,6 +32,9 @@ internal class DefaultUserSession(
     private val syncEngine: SyncEngine,
     private val scope: CoroutineScope,
     private val logger: Logger,
+    private val tokenCache: TokenCache = TokenCache {},
+    private val deletedAccountSignal: DeletedAccountSignal = DeletedAccountSignal(),
+    private val cleaners: List<UserDataCleaner> = emptyList(),
 ) : UserSession {
 
     /**
@@ -39,6 +46,12 @@ internal class DefaultUserSession(
 
     private val mutableState = MutableStateFlow<LocalDataState>(LocalDataState.SignedOut)
     override val state: StateFlow<LocalDataState> = mutableState.asStateFlow()
+
+    private val mutableNotice = MutableStateFlow<SessionNotice?>(null)
+    override val notice: StateFlow<SessionNotice?> = mutableNotice.asStateFlow()
+
+    /** Máy này xoá tài khoản và server báo `user_deleted` có thể tới cùng lúc: chỉ một lần dọn chạy. */
+    private val discardMutex = Mutex()
 
     private var started = false
 
@@ -52,6 +65,20 @@ internal class DefaultUserSession(
                 // Phiên đổi giữa chừng (đăng xuất lúc đang gọi /me) thì huỷ việc cũ.
                 .collectLatest { onIdentity(it) }
         }
+        scope.launch {
+            deletedAccountSignal.rejectedAccessTokens.collect { token ->
+                // Chỉ khi request bị từ chối là của phiên hiện tại: request của người cũ về muộn không được xoá sổ
+                // của người vừa đăng nhập (B5). Token vừa rotate thì lần gọi kế tiếp sẽ báo lại bằng token mới.
+                if (sessions.current()?.accessToken == token) {
+                    logger.i { "Server báo tài khoản đã bị xoá; xoá dữ liệu trên máy" }
+                    discardDeletedAccount()
+                }
+            }
+        }
+    }
+
+    override fun acknowledgeNotice() {
+        mutableNotice.value = null
     }
 
     override fun refresh() {
@@ -67,15 +94,35 @@ internal class DefaultUserSession(
     override suspend fun wipeCurrentUser() {
         val userId = databases.activeUserId ?: sessions.current()?.userId ?: return
         stopSync()
-        databases.delete(userId)
+        erase(userId)
         mutableState.value = LocalDataState.SignedOut
+    }
+
+    override suspend fun discardDeletedAccount() = discardMutex.withLock {
+        val session = sessions.current()
+        val userId = databases.activeUserId ?: session?.userId
+        if (session == null && userId == null) return@withLock // đã dọn rồi
+        stopSync()
+        userId?.let { erase(it) }
+        sessions.clear()
+        tokenCache.invalidate()
+        mutableState.value = LocalDataState.SignedOut
+        mutableNotice.value = SessionNotice.AccountDeleted
     }
 
     override suspend fun otherUsersOnDevice(currentUserId: String): Set<String> =
         databases.storedUserIds() - currentUserId
 
+    override suspend fun usersOnDevice(): Set<String> = databases.storedUserIds()
+
     override suspend fun wipe(userIds: Set<String>) {
-        userIds.forEach { databases.delete(it) }
+        userIds.forEach { erase(it) }
+    }
+
+    /** Sổ + khoá của sổ + mọi dữ liệu theo tài khoản do module khác giữ. */
+    private suspend fun erase(userId: String) {
+        databases.delete(userId)
+        cleaners.forEach { it.clear(userId) }
     }
 
     private suspend fun onIdentity(identity: Identity) {

@@ -4,6 +4,7 @@ import com.uit.finance.app.config.AppEnvironment
 import com.uit.finance.core.session.UserSession
 import com.uit.finance.core.sync.scheduler.SyncScheduler
 import kotlin.experimental.ExperimentalNativeApi
+import platform.Foundation.NSBundle
 import platform.Foundation.NSLocale
 import platform.Foundation.currentLocale
 import platform.Foundation.languageCode
@@ -35,3 +36,6 @@ actual fun currentLanguageCode(): String =
 
 @OptIn(ExperimentalNativeApi::class)
 actual val isDebugBuild: Boolean = kotlin.native.Platform.isDebugBinary
+
+actual val appVersionName: String =
+    NSBundle.mainBundle.objectForInfoDictionaryKey("CFBundleShortVersionString") as? String ?: "—"

@@ -112,6 +112,19 @@ internal class SyncStore(
     fun clearCursor(database: FinanceDatabase) = database.syncCursorQueries.clear()
 
     /**
+     * Server đã dọn tombstone cũ hơn cursor (`410 sync.cursor_expired`, ADR-008 T4): bỏ mọi bản đã đồng bộ (giữ
+     * bản còn op chờ gửi), bỏ thay đổi đang hoãn, xoá cursor — trong một transaction. Pull từ đầu sau đó dựng lại
+     * đúng bản của server.
+     */
+    fun resetReplica(database: FinanceDatabase) {
+        database.transaction {
+            appliers.values.forEach { it.clearSynced(database) }
+            database.syncDeferredQueries.deleteAll()
+            database.syncCursorQueries.clear()
+        }
+    }
+
+    /**
      * Áp một trang pull **cùng cursor mới** trong một transaction: không bao giờ có cursor đã tiến mà
      * dữ liệu chưa ghi. Bản ghi còn op chờ gửi thì bỏ qua (bản local chưa gửi thắng; kết quả push sau
      * đó mang về bản của server). Bản ghi chưa đọc được thì cất vào `sync_deferred` chứ không mất.

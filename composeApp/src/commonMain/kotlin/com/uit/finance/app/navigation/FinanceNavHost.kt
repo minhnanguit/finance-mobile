@@ -34,13 +34,15 @@ import com.uit.finance.feature.budgets.presentation.navigation.budgetsNavGraph
 import com.uit.finance.feature.auth.domain.usecase.ObserveLocalDataStatusUseCase
 import com.uit.finance.feature.auth.domain.usecase.ObserveSessionUseCase
 import com.uit.finance.feature.auth.presentation.navigation.LocalDataRequiredDestination
-import com.uit.finance.feature.auth.presentation.navigation.ProfileDestination
 import com.uit.finance.feature.auth.presentation.navigation.SignedOutDestination
 import com.uit.finance.feature.auth.presentation.navigation.authNavGraph
 import com.uit.finance.feature.home.presentation.navigation.HomeDestination
 import com.uit.finance.feature.home.presentation.navigation.HomeTarget
 import com.uit.finance.feature.home.presentation.navigation.homeNavGraph
 import com.uit.finance.feature.reports.presentation.navigation.ReportsDestination
+import com.uit.finance.feature.settings.presentation.navigation.DeleteAccountDestination
+import com.uit.finance.feature.settings.presentation.navigation.SettingsDestination
+import com.uit.finance.feature.settings.presentation.navigation.settingsNavGraph
 import com.uit.finance.feature.reports.presentation.navigation.reportsNavGraph
 import com.uit.finance.feature.transactions.presentation.navigation.CategoriesDestination
 import com.uit.finance.feature.transactions.presentation.navigation.CategoryEditorDestination
@@ -100,9 +102,14 @@ private fun MainNavHost(isAuthenticated: Boolean) {
             ) {
                 authNavGraph(
                     onAuthenticated = { navController.navigateClearingBackStack(HomeDestination) },
-                    onLoggedOut = { navController.navigateClearingBackStack(SignedOutDestination) },
                     onLocalDataReady = { navController.navigateClearingBackStack(HomeDestination) },
-                    onOpenProfile = { navController.navigateSingleTop(ProfileDestination) },
+                    onOpenSettings = { navController.navigateSingleTop(SettingsDestination) },
+                )
+                settingsNavGraph(
+                    onBack = { navController.navigateUp() },
+                    onOpenDeleteAccount = { navController.navigateSingleTop(DeleteAccountDestination) },
+                    // Đăng xuất / xoá tài khoản: phiên kết thúc, không cho back về màn cũ.
+                    onSignedOut = { navController.navigateClearingBackStack(SignedOutDestination) },
                 )
                 homeNavGraph(onNavigate = navController::open)
                 accountsNavGraph(
@@ -146,12 +153,13 @@ private fun MainNavHost(isAuthenticated: Boolean) {
         }
     }
 
-    // Lần đầu đăng nhập mà mất mạng (S6) hoặc không mở được sổ: chặn ở màn giải thích + thử lại. Hồ sơ vẫn mở được
-    // từ màn đó để đăng xuất.
+    // Lần đầu đăng nhập mà mất mạng (S6) hoặc không mở được sổ: chặn ở màn giải thích + thử lại. Cài đặt vẫn mở
+    // được từ màn đó để đăng xuất hoặc xoá tài khoản.
     LaunchedEffect(isAuthenticated, localData, currentDestination) {
         val blocked = localData == LocalDataStatus.NeedsNetwork || localData == LocalDataStatus.Unavailable
         val onGate = currentDestination?.hasRoute<LocalDataRequiredDestination>() == true ||
-            currentDestination?.hasRoute<ProfileDestination>() == true
+            currentDestination?.hasRoute<SettingsDestination>() == true ||
+            currentDestination?.hasRoute<DeleteAccountDestination>() == true
         if (isAuthenticated && blocked && currentDestination != null && !onGate) {
             navController.navigateClearingBackStack(LocalDataRequiredDestination)
         }

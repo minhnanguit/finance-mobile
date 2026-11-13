@@ -80,8 +80,10 @@ internal class FakeAuthorizationLauncher(
     var respond: (authorizationUrl: String) -> LaunchResult = { LaunchResult.Cancelled },
 ) : AuthorizationLauncher {
     val launched = mutableListOf<String>()
-    override suspend fun launch(authorizationUrl: String, redirectUri: String): LaunchResult {
+    val ephemeral = mutableListOf<Boolean>()
+    override suspend fun launch(authorizationUrl: String, redirectUri: String, ephemeral: Boolean): LaunchResult {
         launched += authorizationUrl
+        this.ephemeral += ephemeral
         return respond(authorizationUrl)
     }
 }

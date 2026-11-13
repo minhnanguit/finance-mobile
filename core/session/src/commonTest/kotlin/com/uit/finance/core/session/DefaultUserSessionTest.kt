@@ -11,12 +11,15 @@ import com.uit.finance.core.datastore.session.SessionStore
 import com.uit.finance.core.datastore.session.StoredSession
 import com.uit.finance.core.network.api.UserApi
 import com.uit.finance.core.network.api.model.UserProfileDto
+import com.uit.finance.core.network.auth.DeletedAccountSignal
+import com.uit.finance.core.network.auth.TokenCache
 import com.uit.finance.core.sync.engine.SyncEngine
 import com.uit.finance.core.sync.engine.SyncReport
 import com.uit.finance.core.sync.engine.SyncStatus
 import com.uit.finance.core.sync.scheduler.SyncScheduler
 import kotlin.test.Test
 import kotlin.test.assertEquals
+import kotlin.test.assertNull
 import kotlin.test.assertTrue
 import kotlin.time.ExperimentalTime
 import kotlin.time.Instant
@@ -94,6 +97,8 @@ class DefaultUserSessionTest {
             if (offline) throw IOException("offline")
             return UserProfileDto(answering, "a@example.com", "A", Instant.fromEpochSeconds(0))
         }
+
+        override suspend fun deleteCurrentUser() = Unit
     }
 
     private val events = mutableListOf<String>()
@@ -102,10 +107,23 @@ class DefaultUserSessionTest {
     private val scheduler = FakeScheduler()
     private val syncEngine = FakeSyncEngine(events)
     private val userApi = FakeUserApi()
+    private val signal = DeletedAccountSignal()
+    private var tokenCacheInvalidations = 0
+    private val cleaned = mutableListOf<String>()
 
     private fun TestScope.session() =
-        DefaultUserSession(sessions, userApi, databases, scheduler, syncEngine, backgroundScope, Logger.withTag("test"))
-            .also { it.start() }
+        DefaultUserSession(
+            sessions = sessions,
+            userApi = userApi,
+            databases = databases,
+            scheduler = scheduler,
+            syncEngine = syncEngine,
+            scope = backgroundScope,
+            logger = Logger.withTag("test"),
+            tokenCache = TokenCache { tokenCacheInvalidations++ },
+            deletedAccountSignal = signal,
+            cleaners = listOf(UserDataCleaner { userId -> cleaned += userId }),
+        ).also { it.start() }
 
     private fun signedIn(userId: String? = null, refreshToken: String = "rt") =
         StoredSession(accessToken = "at", refreshToken = refreshToken, accessTokenExpiresAtEpochSeconds = 0, userId = userId)
@@ -161,6 +179,68 @@ class DefaultUserSessionTest {
 
         assertEquals(listOf("stopSync", "delete:user-a"), events)
         assertEquals("cancel", scheduler.calls.last())
+    }
+
+    @Test
+    fun `đăng xuất xoá cả dữ liệu theo tài khoản do module khác giữ - K7`() = runTest {
+        val session = session()
+        sessions.save(signedIn("user-a"))
+        runCurrent()
+
+        session.wipeCurrentUser()
+
+        assertEquals(listOf("user-a"), cleaned)
+    }
+
+    @Test
+    fun `tài khoản bị xoá thì dừng sync - xoá sổ và token rồi báo cho màn đăng nhập - A9`() = runTest {
+        val session = session()
+        sessions.save(signedIn("user-a"))
+        runCurrent()
+        events.clear()
+
+        session.discardDeletedAccount()
+
+        assertEquals(listOf("stopSync", "delete:user-a"), events)
+        assertEquals(listOf("user-a"), cleaned)
+        assertNull(sessions.current())
+        assertEquals(1, tokenCacheInvalidations)
+        assertEquals(LocalDataState.SignedOut, session.state.value)
+        assertEquals(SessionNotice.AccountDeleted, session.notice.value)
+
+        session.acknowledgeNotice()
+        session.discardDeletedAccount() // gọi lần nữa (server báo muộn): không dọn lại, không báo lại
+
+        assertNull(session.notice.value)
+        assertEquals(1, events.count { it.startsWith("delete") })
+    }
+
+    @Test
+    fun `server báo tài khoản đã xoá bằng token của phiên hiện tại thì dọn sổ - A9`() = runTest {
+        val session = session()
+        sessions.save(signedIn("user-a").copy(accessToken = "at-a"))
+        runCurrent()
+
+        signal.report("at-a")
+        runCurrent()
+
+        assertNull(sessions.current())
+        assertTrue(databases.events.contains("delete:user-a"))
+        assertEquals(SessionNotice.AccountDeleted, session.notice.value)
+    }
+
+    @Test
+    fun `token của phiên cũ bị báo xoá về muộn thì không đụng tới phiên mới - B5`() = runTest {
+        val session = session()
+        sessions.save(signedIn("user-b", refreshToken = "rt-b").copy(accessToken = "at-b"))
+        runCurrent()
+
+        signal.report("at-of-someone-who-left")
+        runCurrent()
+
+        assertEquals("user-b", sessions.current()?.userId)
+        assertTrue(databases.events.none { it.startsWith("delete") })
+        assertNull(session.notice.value)
     }
 
     @Test

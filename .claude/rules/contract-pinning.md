@@ -2,7 +2,7 @@
 
 ## Nguyên tắc
 
-`api/openapi.yaml` là **bản copy nguyên văn** hợp đồng của `finance-backend`. `api/VERSION` giữ semver đang pin (hiện `2.2.0` = `info.version` của spec).
+`api/openapi.yaml` là **bản copy nguyên văn** hợp đồng của `finance-backend`. `api/VERSION` giữ semver đang pin (hiện `2.3.0` = `info.version` của spec).
 
 **Không bao giờ sửa tay `api/openapi.yaml` trong repo này.** Mọi thay đổi API bắt đầu ở repo backend, rồi mới re-pin ở đây.
 
@@ -38,3 +38,5 @@ Trong `core/network/build.gradle.kts` đã có comment giải thích; đọc tr�
 Không tự thêm path vào `api/openapi.yaml`. Báo user: cần backend bổ sung endpoint và release contract mới, sau đó dùng skill `update-api-contract` để re-pin.
 
 Sync (contract 2.1.0): `POST /api/v1/sync/push` (≤ 100 op) và `GET /api/v1/sync/pull` (≤ 500/trang). `core/sync` gọi qua `SyncApi`; payload ví/danh mục/giao dịch encode/decode qua `SyncPayloadCodec` (dùng model generated `AccountData`…). Contract 2.2.0 thêm entity `budget`: payload qua `BudgetPayloadCodec` (model generated `BudgetData`), tách riêng để core/ledger không phải biết ngân sách.
+
+Tài khoản (contract 2.3.0, ADR-008): `DELETE /api/v1/me` → `202` + `AccountDeletionStatus`; token phải vừa đăng nhập lại (`OidcAuthenticator.reauthenticate`), không thì `403 identity.reauth_required`. Mọi endpoint có thể trả `403 identity.user_deleted` (validator báo `DeletedAccountSignal`, `UserSession` xoá dữ liệu máy). Pull có thể trả `410 sync.cursor_expired` (`core/sync` reset bản sao rồi tải lại). Mã lỗi gom ở `ApiErrorCodes`.

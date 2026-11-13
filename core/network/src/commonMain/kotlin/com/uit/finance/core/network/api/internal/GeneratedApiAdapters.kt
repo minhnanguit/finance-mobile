@@ -48,6 +48,12 @@ internal class GeneratedUserApiAdapter(
     private val delegate = GeneratedMeApi(baseUrl = baseUrl, httpClient = httpClient)
 
     override suspend fun getCurrentUser(): UserProfileDto = delegate.getCurrentUser().body().toDto()
+
+    // Non-2xx đã thành ApiException ở response validator; tới đây là 202. Body (AccountDeletionStatus) chỉ
+    // để contract khai `produces: application/json` — app không cần đọc.
+    override suspend fun deleteCurrentUser() {
+        delegate.deleteCurrentUser()
+    }
 }
 
 private fun UserProfile.toDto() = UserProfileDto(

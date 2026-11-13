@@ -16,5 +16,8 @@ internal sealed class OidcException(message: String) : Exception(message) {
 
     class InvalidResponse(reason: String) : OidcException("response không hợp lệ: $reason")
 
+    /** Keycloak báo `kc_action_status=error` (hoặc không báo gì) cho một Application Initiated Action. */
+    class ActionFailed(action: String, status: String?) : OidcException("kc_action $action kết thúc với trạng thái '$status'")
+
     class LaunchFailed(reason: String?) : OidcException("không mở được browser: ${reason.orEmpty()}")
 }

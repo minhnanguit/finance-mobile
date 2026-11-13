@@ -237,4 +237,22 @@ class BudgetRepositoryTest {
         assertNull(database.budgetQueries.selectById(mine.id).executeAsOneOrNull())
         assertEquals(listOf("b-other-device"), database.budgetQueries.selectActive().executeAsList().map { it.id })
     }
+
+    @Test
+    fun `tải lại sổ - xoá ngân sách đã đồng bộ kể cả tombstone, giữ bản còn op chờ gửi`() = runTest {
+        val payload = BudgetPayload("food", "VND", 2_000_000, LocalDate(2026, 10, 1))
+        database.transaction {
+            applier.apply(database, remote("synced", 1, payload))
+            applier.apply(database, remote("tombstone", 2, null, deleted = true))
+            applier.apply(database, remote("pending", 3, payload))
+        }
+        database.outboxQueries.insert("op-1", SyncEntity.BUDGET, "pending", "UPSERT", "{}", 0)
+        database.outboxQueries.insert("op-2", SyncEntity.TRANSACTION, "synced", "UPSERT", "{}", 0)
+
+        database.transaction { applier.clearSynced(database) }
+
+        assertNull(database.budgetQueries.selectById("synced").executeAsOneOrNull())
+        assertNull(database.budgetQueries.selectById("tombstone").executeAsOneOrNull())
+        assertEquals("pending", database.budgetQueries.selectById("pending").executeAsOne().id)
+    }
 }

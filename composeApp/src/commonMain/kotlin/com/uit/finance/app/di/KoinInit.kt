@@ -16,6 +16,7 @@ import com.uit.finance.feature.auth.di.authFeatureModule
 import com.uit.finance.feature.budgets.di.budgetsFeatureModule
 import com.uit.finance.feature.home.di.homeFeatureModule
 import com.uit.finance.feature.reports.di.reportsFeatureModule
+import com.uit.finance.feature.settings.di.settingsFeatureModule
 import com.uit.finance.feature.transactions.di.transactionsFeatureModule
 import org.koin.core.KoinApplication
 import org.koin.core.context.startKoin
@@ -46,5 +47,6 @@ fun initKoin(platformDeclaration: KoinAppDeclaration = {}): KoinApplication = st
         transactionsFeatureModule,
         budgetsFeatureModule,
         reportsFeatureModule,
+        settingsFeatureModule,
     )
 }

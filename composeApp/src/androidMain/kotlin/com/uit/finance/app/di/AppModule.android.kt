@@ -16,3 +16,5 @@ actual fun defaultOidcIssuer(): String =
 actual fun currentLanguageCode(): String = Locale.getDefault().language
 
 actual val isDebugBuild: Boolean = BuildConfig.DEBUG
+
+actual val appVersionName: String = BuildConfig.VERSION_NAME

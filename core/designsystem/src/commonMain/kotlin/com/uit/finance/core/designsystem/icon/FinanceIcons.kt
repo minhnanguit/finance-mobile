@@ -25,9 +25,11 @@ import com.composables.icons.lucide.CircleDollarSign
 import com.composables.icons.lucide.Clock
 import com.composables.icons.lucide.CloudOff
 import com.composables.icons.lucide.Coins
+import com.composables.icons.lucide.Database
 import com.composables.icons.lucide.Dumbbell
 import com.composables.icons.lucide.Ellipsis
 import com.composables.icons.lucide.EllipsisVertical
+import com.composables.icons.lucide.ExternalLink
 import com.composables.icons.lucide.Eye
 import com.composables.icons.lucide.EyeOff
 import com.composables.icons.lucide.Film
@@ -39,6 +41,8 @@ import com.composables.icons.lucide.HandCoins
 import com.composables.icons.lucide.Heart
 import com.composables.icons.lucide.House
 import com.composables.icons.lucide.Inbox
+import com.composables.icons.lucide.Info
+import com.composables.icons.lucide.KeyRound
 import com.composables.icons.lucide.Landmark
 import com.composables.icons.lucide.ListFilter
 import com.composables.icons.lucide.Lock
@@ -55,6 +59,7 @@ import com.composables.icons.lucide.RefreshCw
 import com.composables.icons.lucide.Search
 import com.composables.icons.lucide.Shapes
 import com.composables.icons.lucide.Shield
+import com.composables.icons.lucide.ShieldCheck
 import com.composables.icons.lucide.Shirt
 import com.composables.icons.lucide.ShoppingBag
 import com.composables.icons.lucide.ShoppingCart
@@ -67,7 +72,9 @@ import com.composables.icons.lucide.Tag
 import com.composables.icons.lucide.Target
 import com.composables.icons.lucide.Trash2
 import com.composables.icons.lucide.TrendingUp
+import com.composables.icons.lucide.TriangleAlert
 import com.composables.icons.lucide.UserRound
+import com.composables.icons.lucide.UserRoundX
 import com.composables.icons.lucide.Users
 import com.composables.icons.lucide.Utensils
 import com.composables.icons.lucide.Wallet
@@ -121,6 +128,15 @@ object FinanceIcons {
     val Categories: ImageVector get() = Lucide.Shapes
     val Note: ImageVector get() = Lucide.NotebookPen
     val Payee: ImageVector get() = Lucide.Store
+
+    // ---- Cài đặt & bảo mật ----
+    val ExternalLink: ImageVector get() = Lucide.ExternalLink
+    val Info: ImageVector get() = Lucide.Info
+    val ShieldCheck: ImageVector get() = Lucide.ShieldCheck
+    val Key: ImageVector get() = Lucide.KeyRound
+    val Warning: ImageVector get() = Lucide.TriangleAlert
+    val DeleteAccount: ImageVector get() = Lucide.UserRoundX
+    val LocalData: ImageVector get() = Lucide.Database
 
     // ---- Tiền & ví ----
     val Wallet: ImageVector get() = Lucide.Wallet

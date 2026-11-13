@@ -47,6 +47,9 @@ class DefaultOidcAuthenticatorTest {
             result,
         )
         val challenge = Url(launcher.launched.single()).parameters["code_challenge"]
+        // Đăng nhập thường dùng chung cookie với trình duyệt: "Remember me", và link xác minh email mở ở trình duyệt
+        // thường vẫn nối được vào phiên đăng ký.
+        assertEquals(listOf(false), launcher.ephemeral)
         val form = keycloak.tokenForms.single()
         assertEquals("authorization_code", form["grant_type"])
         assertEquals("auth-code-1", form["code"])
@@ -115,6 +118,7 @@ class DefaultOidcAuthenticatorTest {
         authenticator().authorize(AuthorizationPrompt.SignUp)
 
         assertEquals("create", Url(launcher.launched.single()).parameters["prompt"])
+        assertEquals(listOf(false), launcher.ephemeral)
     }
 
     @Test

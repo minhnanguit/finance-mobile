@@ -53,6 +53,23 @@ class LedgerSyncAppliersTest {
     }
 
     @Test
+    fun `tải lại sổ - xoá bản đã đồng bộ kể cả tombstone, giữ bản còn op chờ gửi`() {
+        val applier = AccountSyncApplier(codec)
+        applier.apply(database, RemoteChange("account", "synced", 1, deleted = false, data = codec.encode(account)))
+        applier.apply(database, RemoteChange("account", "tombstone", 2, deleted = true, data = null))
+        applier.apply(database, RemoteChange("account", "pending", 3, deleted = false, data = codec.encode(account)))
+        database.outboxQueries.insert("op-1", "account", "pending", "UPSERT", "{}", 0)
+        // Op của entity khác trùng id không giữ ví lại.
+        database.outboxQueries.insert("op-2", "transaction", "synced", "UPSERT", "{}", 0)
+
+        applier.clearSynced(database)
+
+        assertNull(database.accountQueries.selectById("synced").executeAsOneOrNull())
+        assertNull(database.accountQueries.selectById("tombstone").executeAsOneOrNull())
+        assertEquals("Ví", database.accountQueries.selectById("pending").executeAsOne().name)
+    }
+
+    @Test
     fun `thiếu data mà không phải tombstone thì ném lỗi để engine bỏ qua bản ghi đó`() {
         assertFailsWith<IllegalArgumentException> {
             AccountSyncApplier(codec).apply(database, RemoteChange("account", "a1", 1, deleted = false, data = null))

@@ -302,6 +302,39 @@ class DefaultSyncEngineTest {
     }
 
     @Test
+    fun `cursor hết hạn thì gửi op trước, xoá bản đã đồng bộ và thay đổi đang hoãn, rồi pull lại từ đầu một lần`() = runTest {
+        database.syncCursorQueries.upsert("120")
+        database.syncDeferredQueries.upsert("account", "stale", 3, 0, null, "unreadable", 0)
+        applier.unreadable += "stale" // vẫn chưa áp được: còn nằm trong sync_deferred tới lúc tải lại
+        queue("pending")
+        remote.pages += AppResult.Failure(AppError.Api(410, "sync.cursor_expired", null, null))
+        remote.pages += AppResult.Success(PullPage(listOf(remote("a1", 5)), "5.900", hasMore = false))
+        // Op chờ gửi bị server trả RETRY: nó vẫn phải còn sau khi tải lại sổ.
+        remote.onPush = ::retryAll
+
+        val result = engine().sync()
+
+        assertIs<AppResult.Success<SyncReport>>(result)
+        assertEquals(listOf<String?>("120", null), remote.pulledCursors, "pull lại từ đầu đúng một lần")
+        assertEquals(1, applier.clearedSynced)
+        assertEquals(0L, database.syncDeferredQueries.countAll().executeAsOne(), "bản hoãn sẽ được server gửi lại")
+        assertEquals(listOf("a1"), applier.applied.map { it.id })
+        assertEquals("5.900", database.syncCursorQueries.select().executeAsOneOrNull())
+        assertEquals(1L, unsent(), "op chưa gửi được không bao giờ bị bỏ")
+    }
+
+    @Test
+    fun `cursor hết hạn lần nữa ngay sau khi tải lại thì dừng vòng này, không xoá lặp`() = runTest {
+        remote.pages += AppResult.Failure(AppError.Api(410, "sync.cursor_expired", null, null))
+        remote.pages += AppResult.Failure(AppError.Api(410, "sync.cursor_expired", null, null))
+
+        val result = engine().sync()
+
+        assertIs<AppResult.Failure>(result)
+        assertEquals(1, applier.clearedSynced)
+    }
+
+    @Test
     fun `mỗi lần push dùng một Idempotency-Key mới`() = runTest {
         queue("a1")
         engine().sync()

@@ -8,8 +8,13 @@ import com.uit.finance.core.common.result.AppResult
 import com.uit.finance.feature.auth.domain.model.Session
 import com.uit.finance.feature.auth.domain.model.SignInMode
 import com.uit.finance.feature.auth.domain.model.SignInResult
+import com.uit.finance.feature.auth.domain.model.SignOutNotice
+import com.uit.finance.feature.auth.domain.usecase.AcknowledgeSignOutNoticeUseCase
+import com.uit.finance.feature.auth.domain.usecase.CheckLocalDataOnDeviceUseCase
 import com.uit.finance.feature.auth.domain.usecase.CheckOtherAccountsDataUseCase
+import com.uit.finance.feature.auth.domain.usecase.ObserveSignOutNoticeUseCase
 import com.uit.finance.feature.auth.domain.usecase.SignInUseCase
+import com.uit.finance.feature.auth.domain.usecase.WipeLocalDataUseCase
 import com.uit.finance.feature.auth.domain.usecase.WipeOtherAccountsDataUseCase
 import com.uit.finance.feature.auth.testing.FakeAuthRepository
 import kotlin.test.AfterTest
@@ -39,6 +44,10 @@ class SignedOutViewModelTest {
         SignInUseCase(repository),
         CheckOtherAccountsDataUseCase(repository),
         WipeOtherAccountsDataUseCase(repository),
+        ObserveSignOutNoticeUseCase(repository),
+        AcknowledgeSignOutNoticeUseCase(repository),
+        CheckLocalDataOnDeviceUseCase(repository),
+        WipeLocalDataUseCase(repository),
     )
 
     @BeforeTest
@@ -181,5 +190,66 @@ class SignedOutViewModelTest {
             vm.onIntent(SignedOutIntent.SignInClicked)
             assertEquals(SignedOutEffect.NavigateToHome, awaitItem())
         }
+    }
+
+    @Test
+    fun accountDeletedNoticeIsShownOnceAndCanBeDismissed() = runTest(dispatcher) {
+        repository.notice.value = SignOutNotice.AccountDeleted
+        val vm = viewModel()
+        dispatcher.scheduler.advanceUntilIdle()
+
+        assertTrue(vm.state.value.notice != null, "phải báo tài khoản đã bị xoá")
+
+        vm.onIntent(SignedOutIntent.NoticeDismissed)
+        dispatcher.scheduler.advanceUntilIdle()
+
+        assertNull(vm.state.value.notice)
+        assertEquals(1, repository.acknowledgeCalls)
+    }
+
+    @Test
+    fun leftoverDataWithoutASessionCanBeWipedAfterConfirming() = runTest(dispatcher) {
+        repository.localDataWithoutSession = true
+        val vm = viewModel()
+        dispatcher.scheduler.advanceUntilIdle()
+        assertTrue(vm.state.value.localDataOnDevice, "máy còn sổ mà không có phiên: cho xoá")
+
+        vm.onIntent(SignedOutIntent.WipeLocalDataClicked)
+        assertTrue(vm.state.value.wipeLocalDataPrompt, "phải hỏi lại trước khi xoá")
+        vm.onIntent(SignedOutIntent.WipeLocalDataDismissed)
+        dispatcher.scheduler.advanceUntilIdle()
+        assertEquals(0, repository.wipeLocalCalls, "đóng hộp thoại thì không xoá")
+
+        vm.onIntent(SignedOutIntent.WipeLocalDataClicked)
+        vm.onIntent(SignedOutIntent.WipeLocalDataConfirmed)
+        dispatcher.scheduler.advanceUntilIdle()
+
+        assertEquals(1, repository.wipeLocalCalls)
+        assertFalse(vm.state.value.localDataOnDevice)
+        assertTrue(vm.state.value.localDataWiped)
+        vm.onIntent(SignedOutIntent.LocalDataWipedDismissed)
+        assertFalse(vm.state.value.localDataWiped)
+    }
+
+    @Test
+    fun noLeftoverDataMeansNoWipeOption() = runTest(dispatcher) {
+        val vm = viewModel()
+        dispatcher.scheduler.advanceUntilIdle()
+
+        assertFalse(vm.state.value.localDataOnDevice)
+    }
+
+    @Test
+    fun signingInAgainClearsTheOldNotice() = runTest(dispatcher) {
+        repository.notice.value = SignOutNotice.AccountDeleted
+        repository.signInResult = AppResult.Success(SignInResult.Cancelled)
+        val vm = viewModel()
+        dispatcher.scheduler.advanceUntilIdle()
+
+        vm.onIntent(SignedOutIntent.SignUpClicked)
+        dispatcher.scheduler.advanceUntilIdle()
+
+        assertNull(vm.state.value.notice)
+        assertEquals(1, repository.acknowledgeCalls)
     }
 }

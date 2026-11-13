@@ -16,5 +16,5 @@ sealed interface LocalDataGateIntent {
 sealed interface LocalDataGateEffect {
     /** Sổ đã mở: vào app. */
     data object Ready : LocalDataGateEffect
-    data object OpenProfile : LocalDataGateEffect
+    data object OpenSettings : LocalDataGateEffect
 }

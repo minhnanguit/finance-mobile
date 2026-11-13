@@ -1,6 +1,8 @@
 package com.uit.finance.core.network.client
 
 import com.uit.finance.core.common.id.UuidGenerator
+import com.uit.finance.core.network.api.ApiErrorCodes
+import com.uit.finance.core.network.auth.DeletedAccountSignal
 import com.uit.finance.core.network.auth.RefreshOutcome
 import com.uit.finance.core.network.auth.TokenCache
 import com.uit.finance.core.network.auth.TokenProvider
@@ -20,6 +22,7 @@ import io.ktor.client.plugins.logging.LogLevel
 import io.ktor.client.plugins.logging.Logging
 import io.ktor.client.plugins.logging.Logger as KtorLogger
 import io.ktor.http.HttpHeaders
+import io.ktor.http.HttpStatusCode
 import io.ktor.http.Url
 import io.ktor.http.isSuccess
 import io.ktor.serialization.kotlinx.json.json
@@ -43,6 +46,7 @@ internal fun createHttpClient(
     tokenRefresher: TokenRefresher,
     uuidGenerator: UuidGenerator,
     logger: KermitLogger,
+    deletedAccountSignal: DeletedAccountSignal = DeletedAccountSignal(),
 ): HttpClient {
     // Trong các config lambda bên dưới, `logger` / `uuidGenerator` trơn sẽ resolve về CHÍNH các parameter
     // này (local thắng implicit receiver), nên property của config phải gán bằng `this.` tường minh.
@@ -86,7 +90,15 @@ internal fun createHttpClient(
         HttpResponseValidator {
             validateResponse { response ->
                 if (!response.status.isSuccess()) {
-                    throw response.toApiException(json)
+                    val error = response.toApiException(json)
+                    if (error.status == HttpStatusCode.Forbidden.value && error.code == ApiErrorCodes.USER_DELETED) {
+                        // Tài khoản đã xoá (có thể từ máy khác): báo core/session, kèm token để nó chỉ xử lý
+                        // khi đây vẫn là phiên hiện tại (ADR-008 A9).
+                        response.call.request.headers[HttpHeaders.Authorization]
+                            ?.removePrefix(BEARER_PREFIX)
+                            ?.let(deletedAccountSignal::report)
+                    }
+                    throw error
                 }
             }
         }
@@ -148,6 +160,8 @@ private suspend fun refresh(
     logger.w(e) { "Refresh lỗi bất thường; giữ session" }
     null
 }
+
+private const val BEARER_PREFIX = "Bearer "
 
 internal class KtorTokenCache(private val client: HttpClient) : TokenCache {
     override fun invalidate() {

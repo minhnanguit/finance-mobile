@@ -22,7 +22,7 @@ import org.koin.compose.viewmodel.koinViewModel
 @Composable
 internal fun LocalDataGateRoute(
     onReady: () -> Unit,
-    onOpenProfile: () -> Unit,
+    onOpenSettings: () -> Unit,
     viewModel: LocalDataGateViewModel = koinViewModel(),
 ) {
     val state by viewModel.state.collectAsStateWithLifecycle()
@@ -30,7 +30,7 @@ internal fun LocalDataGateRoute(
         viewModel.effects.collect { effect ->
             when (effect) {
                 LocalDataGateEffect.Ready -> onReady()
-                LocalDataGateEffect.OpenProfile -> onOpenProfile()
+                LocalDataGateEffect.OpenSettings -> onOpenSettings()
             }
         }
     }

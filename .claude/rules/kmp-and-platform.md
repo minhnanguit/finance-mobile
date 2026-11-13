@@ -18,15 +18,16 @@ Dùng khi và chỉ khi hành vi khác nhau theo nền tảng. Mẫu có sẵn:
 
 | expect | actual Android | actual iOS |
 |---|---|---|
-| `DatabaseDriverFactory : EncryptedDatabaseFiles` (`create` / `delete` / `isUnreadableFile`) | `AndroidSqliteDriver` + SQLCipher `SupportOpenHelperFactory`; sai khoá = `SQLiteNotADatabaseException` | `NativeSqliteDriver` + `DatabaseConfiguration.Encryption` (SQLCipher qua SPM trong `iosApp/project.yml`, **không** `-lsqlite3`); sai khoá = `SqliteErrorType.SQLITE_NOTADB` |
+| `DatabaseDriverFactory : EncryptedDatabaseFiles` (`create` / `delete` / `isUnreadableFile`) | `AndroidSqliteDriver` + SQLCipher `SupportOpenHelperFactory`; sai khoá = `SQLiteNotADatabaseException` | `NativeSqliteDriver` + `DatabaseConfiguration.Encryption` (SQLCipher qua SPM trong `iosApp/project.yml`, **không** `-lsqlite3`); sai khoá = `SqliteErrorType.SQLITE_NOTADB`; thư mục `Application Support/databases` đặt `NSURLIsExcludedFromBackupKey` (ADR-008 P3) |
 | `SecureStorage` (interface + Koin platform module) | Keystore AES-256/GCM + SharedPreferences. Chỉ xoá giá trị khi lỗi vĩnh viễn (`AEADBadTag`...); lỗi tạm → `SecureStorageUnavailableException` | Keychain. OSStatus khác `errSecItemNotFound` → `SecureStorageUnavailableException` |
 | `PlatformInfo` | `.android.kt` | `.ios.kt` |
 | `platformEngine()` | OkHttp | Darwin |
 | `SyncScheduler` | WorkManager | BGTaskScheduler |
-| `AuthorizationLauncher` (interface + Koin platform module, `core/auth`) | Custom Tabs qua `AuthorizationActivity` + `RedirectReceiverActivity` | `ASWebAuthenticationSession` (ephemeral) |
+| `AuthorizationLauncher` (interface + Koin platform module, `core/auth`) | Custom Tabs qua `AuthorizationActivity` + `RedirectReceiverActivity`; `ephemeral = true` (xác nhận lại, đổi mật khẩu) → `setEphemeralBrowsingEnabled`, Chrome 136+ (ADR-008 A11) | `ASWebAuthenticationSession` (luôn ephemeral) |
 | `secureRandomBytes()` (`core/common/security`) | `SecureRandom` | `SecRandomCopyBytes` |
 | `sha256()` (`core/auth/pkce`) | `MessageDigest` | `CC_SHA256` |
 | `defaultApiBaseUrl()`, `isDebugBuild` (composeApp) | `10.0.2.2:18473` khi debug | loopback simulator |
+| `appVersionName` (composeApp) | `BuildConfig.VERSION_NAME` | `CFBundleShortVersionString` |
 
 Đặt tên file: `X.kt` (expect) / `X.android.kt` / `X.ios.kt`.
 DI theo nền tảng: `di/PlatformXModule.android.kt` / `.ios.kt` — expect `val platformXModule: Module`.

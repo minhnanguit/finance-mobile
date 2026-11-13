@@ -57,7 +57,12 @@ class AuthorizationActivity : Activity() {
             return
         }
         try {
-            CustomTabsIntent.Builder().setShowTitle(true).build().launchUrl(this, Uri.parse(url))
+            CustomTabsIntent.Builder()
+                .setShowTitle(true)
+                // Chrome 136+: tab riêng, không dùng chung cookie SSO với trình duyệt (xem AuthorizationLauncher).
+                .setEphemeralBrowsingEnabled(intent.getBooleanExtra(EXTRA_EPHEMERAL, false))
+                .build()
+                .launchUrl(this, Uri.parse(url))
         } catch (e: ActivityNotFoundException) {
             finishWith(LaunchResult.Failed("máy không có browser nào"))
         }
@@ -70,12 +75,14 @@ class AuthorizationActivity : Activity() {
 
     internal companion object {
         private const val EXTRA_AUTHORIZATION_URL = "com.uit.finance.core.auth.AUTHORIZATION_URL"
+        private const val EXTRA_EPHEMERAL = "com.uit.finance.core.auth.EPHEMERAL"
         private const val KEY_BROWSER_OPENED = "browser_opened"
 
         /** Gọi từ application context nên cần NEW_TASK. */
-        fun startIntent(context: Context, authorizationUrl: String): Intent =
+        fun startIntent(context: Context, authorizationUrl: String, ephemeral: Boolean): Intent =
             Intent(context, AuthorizationActivity::class.java)
                 .putExtra(EXTRA_AUTHORIZATION_URL, authorizationUrl)
+                .putExtra(EXTRA_EPHEMERAL, ephemeral)
                 .addFlags(Intent.FLAG_ACTIVITY_NEW_TASK)
 
         /** CLEAR_TOP gỡ Custom Tab khỏi back stack, SINGLE_TOP giao redirect vào [onNewIntent]. */
