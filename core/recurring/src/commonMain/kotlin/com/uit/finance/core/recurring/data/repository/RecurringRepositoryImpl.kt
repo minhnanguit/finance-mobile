@@ -67,7 +67,11 @@ internal class RecurringRepositoryImpl(
             database.outboxQueries.countAll().asFlow().mapToOne(dispatchers.io),
         ) { rows, revisions, _ ->
             val byOwner = revisions.groupBy { it.recurring_id }
-            rows.map { row -> row.toDomain(byOwner[row.id].orEmpty(), database.hasPending(row.id)) }
+            // Hai query phát lại độc lập: ngay sau khi ghi, `rows` có thể đã có khoản mới trong khi `revisions` còn là bản cũ.
+            // Bỏ khoản chưa có timeline thay vì phát ra Recurring rỗng (currentRevision() sẽ crash); lần phát sau sẽ đủ.
+            rows.mapNotNull { row ->
+                byOwner[row.id]?.let { timeline -> row.toDomain(timeline, database.hasPending(row.id)) }
+            }
         }
     }
 
