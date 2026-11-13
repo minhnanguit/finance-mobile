@@ -6,6 +6,7 @@ import com.uit.finance.core.sync.scheduler.SyncScheduler
 import kotlin.experimental.ExperimentalNativeApi
 import platform.Foundation.NSLocale
 import platform.Foundation.currentLocale
+import platform.Foundation.languageCode
 
 /**
  * Được `iOSApp.swift` gọi (`KoinIosKt.startKoinIos()`) trước khi tạo view đầu tiên. Resolve
@@ -30,7 +31,7 @@ actual fun defaultOidcIssuer(): String =
     if (isDebugBuild) (AppEnvironment.publicBaseUrl ?: "http://localhost:8082") + OIDC_REALM_PATH else RELEASE_OIDC_ISSUER
 
 actual fun currentLanguageCode(): String =
-    NSLocale.current.languageCode ?: "en"
+    NSLocale.currentLocale.languageCode ?: "en"
 
 @OptIn(ExperimentalNativeApi::class)
 actual val isDebugBuild: Boolean = kotlin.native.Platform.isDebugBinary
