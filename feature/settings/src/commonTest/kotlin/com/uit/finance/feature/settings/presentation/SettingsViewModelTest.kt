@@ -242,6 +242,30 @@ class SettingsViewModelTest {
         advanceUntilIdle()
         assertEquals("19:45", vm.state.value.reminder.timeLabel)
     }
+
+    @Test
+    fun `tắt nhắc thì công tắc tắt`() = runTest(dispatcher) {
+        val vm = viewModel()
+        advanceUntilIdle()
+        vm.onIntent(SettingsIntent.ReminderToggled(true))
+        advanceUntilIdle()
+        vm.onIntent(SettingsIntent.ReminderToggled(false))
+        advanceUntilIdle()
+        assertFalse(vm.state.value.reminder.enabled)
+    }
+
+    @Test
+    fun `quay lại màn hình khi mất quyền thì báo bị chặn`() = runTest(dispatcher) {
+        val vm = viewModel()
+        advanceUntilIdle()
+        vm.onIntent(SettingsIntent.ReminderToggled(true))
+        advanceUntilIdle()
+        notificationPermission.status = NotificationPermissionStatus.Denied
+        vm.onIntent(SettingsIntent.ScreenResumed)
+        advanceUntilIdle()
+        assertTrue(vm.state.value.reminder.enabled)
+        assertTrue(vm.state.value.reminder.notificationsBlocked)
+    }
 }
 
 private class FakeReminderSettingsRepository : ReminderSettingsRepository {

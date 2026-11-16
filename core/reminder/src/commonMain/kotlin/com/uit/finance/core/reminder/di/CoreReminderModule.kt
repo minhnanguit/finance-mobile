@@ -17,7 +17,7 @@ import org.koin.dsl.module
 val coreReminderModule = module {
     single<ReminderSettingsRepository> { ReminderSettingsRepositoryImpl(get(), get()) }
     single { ReminderPlanner() }
-    single<UserDataCleaner> { ReminderUserDataCleaner(get()) }
+    single { ReminderUserDataCleaner(get()) } bind UserDataCleaner::class
     single<ReminderCoordinator> {
         DefaultReminderCoordinator(
             session = get(),

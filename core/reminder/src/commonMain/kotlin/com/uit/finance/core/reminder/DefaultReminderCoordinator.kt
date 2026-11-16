@@ -71,8 +71,8 @@ internal class DefaultReminderCoordinator(
         id = "${ReminderNotifications.GROUP}.${planned.date}",
         group = ReminderNotifications.GROUP,
         fireAt = planned.fireAt,
-        title = "Bạn đã ghi chép hôm nay chưa?",
-        body = "Dành một phút cập nhật thu chi để sổ luôn chính xác.",
+        title = "Ghi chép hôm nay",
+        body = "Hôm nay bạn đã ghi chi tiêu chưa? Chỉ mất vài giây thôi.",
         action = ReminderNotifications.ACTION_ADD_TRANSACTION,
     )
 }

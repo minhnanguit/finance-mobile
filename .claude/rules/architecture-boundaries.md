@@ -30,7 +30,7 @@ Một feature = **một Gradle module** chứa cả ba package `domain/`, `data/
 | Dispatchers bị nhốt | `kotlinx.coroutines.Dispatchers` / `IO` chỉ trong `DispatcherProvider.kt` và `core/testing` |
 | Browser API bị nhốt | Chỉ `core/auth` được import `androidx.browser.` / `platform.AuthenticationServices.` (ADR-004) |
 | Xác thực thiết bị bị nhốt | Chỉ `core/applock` được import `androidx.biometric.` / `platform.LocalAuthentication.` (ADR-008 K1). Module đã gỡ 2026-11-12, nên hiện tại không nơi nào được dùng |
-| Notification API bị nhốt | Chỉ `core/notification` được import WorkManager/NotificationManager/POST_NOTIFICATIONS và `platform.UserNotifications` |
+| Notification API bị nhốt | Chỉ `core/notification` được import `android.app.Notification`, `NotificationChannel`, `NotificationManager` và `platform.UserNotifications.` |
 | Cấm WebView | `android.webkit.` / `platform.WebKit.` bị cấm mọi nơi — login phải qua system browser (RFC 8252) |
 | Cấm `GlobalScope` | Tuyệt đối, mọi module |
 

@@ -106,10 +106,8 @@ internal fun SettingsScreen(
                         title = "Nhắc ghi chép hằng ngày",
                         subtitle = if (state.reminder.notificationsBlocked) {
                             "Thông báo đang bị tắt trong cài đặt máy"
-                        } else if (state.reminder.enabled) {
-                            "Nhắc lúc ${state.reminder.timeLabel}"
                         } else {
-                            "Nhắc bạn cập nhật thu chi mỗi ngày"
+                            "Nhắc khi hôm nay bạn chưa ghi giao dịch nào"
                         },
                         onClick = {
                             if (state.reminder.notificationsBlocked) {
