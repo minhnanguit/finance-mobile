@@ -1,5 +1,6 @@
 package com.uit.finance.app.di
 
+import com.uit.finance.app.config.AppEnvironment
 import com.uit.finance.app.devtools.DemoDataSeeder
 import com.uit.finance.core.auth.OidcConfig
 import com.uit.finance.core.auth.preferredUiLocales
@@ -28,8 +29,15 @@ expect val appVersionName: String
  * intent-filter của `RedirectReceiverActivity` trong AndroidManifest, và scheme mà iOS dùng.
  */
 internal const val OIDC_REALM_PATH = "/realms/finance"
-internal const val RELEASE_API_BASE_URL = "https://api.finance.example.com"
-internal const val RELEASE_OIDC_ISSUER = "https://login.finance.example.com$OIDC_REALM_PATH"
+
+/**
+ * Server production: một host cho cả API lẫn Keycloak (Caddy chia theo path). Gradle đã chặn build release khi thiếu
+ * `finance.releaseBaseUrl`, nên `error` ở đây chỉ xảy ra nếu ai đó gọi nhầm từ build debug.
+ */
+internal val releaseBaseUrl: String
+    get() = AppEnvironment.releaseBaseUrl ?: error("Thiếu finance.releaseBaseUrl lúc build")
+internal val releaseOidcIssuer: String
+    get() = releaseBaseUrl + OIDC_REALM_PATH
 
 internal const val OIDC_REDIRECT_URI = "com.uit.finance://oauth/callback"
 internal const val OIDC_CLIENT_ID = "finance-mobile"

@@ -37,6 +37,8 @@ Mọi lệnh thường dùng đều là target trong `Makefile`. Gõ `make` đ�
 | `make tunnel-off` | Quay về loopback `10.0.2.2` / `localhost` (http) |
 | `make api` | Sinh lại Kotlin client từ `api/openapi.yaml` |
 | `make ios` | Compile klib iOS **không cần Xcode** |
+| `make prod-url URL=https://…` | URL server production cho bản **release** (ghi `finance.releaseBaseUrl` vào `local.properties`; build release thiếu nó thì Gradle dừng) |
+| `make ios-team` / `make ios-device` | Ghi TEAM_ID Personal Team / build Release + cài + mở trên iPhone thật (Apple ID free: chạy lại trước 7 ngày) — `iosApp/README.md` |
 | `./gradlew :composeApp:linkDebugFrameworkIosSimulatorArm64` | Link framework iOS (**cần Xcode**) |
 | `cd iosApp && xcodegen generate && open iosApp.xcodeproj` | Mở project iOS (cần `brew install xcodegen`) |
 
@@ -168,6 +170,6 @@ Tóm tắt không được vi phạm:
 - MCP `code-review-graph`: repo này **chưa có** cache graph (`list_repos_tool` = 0 registered, kiểm tra 2026-09-18). Muốn dùng phải `build_or_update_graph_tool` trước; nếu không, dùng Grep/Glob/Read là hợp lệ.
 - `local.properties` (git-ignored) phải có `sdk.dir` trỏ Android SDK.
 - Gradle daemon pin **Java 21 Adoptium (Temurin)** ở `gradle/gradle-daemon-jvm.properties`. Thiếu vendor thì Gradle có thể chọn JRE không có `jlink` (vd JRE của extension Java trong VS Code) → `:composeApp` fail ở bước JdkImageTransform.
-- **Máy dev hiện tại không có Xcode** ⇒ mọi task liên quan link framework iOS / `xcodebuild` sẽ fail ở local; compile klib (`compileKotlinIosSimulatorArm64`) thì vẫn chạy được. Nói rõ với user thay vì tìm cách né.
+- Máy dev có **Xcode 27.2** (từ 2026-11-13): link framework iOS và `xcodebuild` chạy được ở local. Ký app dùng Personal Team (Apple ID free) — chỉ cài lên máy thật của chủ dự án, hạn 7 ngày.
 - `build/`, `.gradle/`, `.kotlin/`, `bin/`, `iosApp/*.xcodeproj` là output — đừng đọc/sửa.
 - Nâng version thư viện: **chỉ sửa `gradle/libs.versions.toml`**, và đọc comment cảnh báo trong đó trước (một số version mới hơn cố tình không được dùng vì xung đột AGP/Kotlin metadata).

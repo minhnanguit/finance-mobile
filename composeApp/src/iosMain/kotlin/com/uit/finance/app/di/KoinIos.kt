@@ -22,14 +22,14 @@ fun startKoinIos() {
 }
 
 actual fun defaultApiBaseUrl(): String =
-    if (isDebugBuild) AppEnvironment.publicBaseUrl ?: "http://localhost:18473" else RELEASE_API_BASE_URL
+    if (isDebugBuild) AppEnvironment.publicBaseUrl ?: "http://localhost:18473" else releaseBaseUrl
 
 /**
  * Simulator chỉ login được khi có tunnel (`make tunnel URL=...`): Keycloak local mặc định phát issuer
  * `10.0.2.2` cho Android emulator, còn simulator gọi `localhost` ⇒ issuer lệch, bị reject (đúng thiết kế).
  */
 actual fun defaultOidcIssuer(): String =
-    if (isDebugBuild) (AppEnvironment.publicBaseUrl ?: "http://localhost:8082") + OIDC_REALM_PATH else RELEASE_OIDC_ISSUER
+    if (isDebugBuild) (AppEnvironment.publicBaseUrl ?: "http://localhost:8082") + OIDC_REALM_PATH else releaseOidcIssuer
 
 actual fun currentLanguageCode(): String =
     NSLocale.currentLocale.languageCode ?: "en"
