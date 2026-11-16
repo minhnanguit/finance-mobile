@@ -25,6 +25,7 @@ import androidx.compose.ui.semantics.semantics
 import androidx.compose.ui.semantics.clearAndSetSemantics
 import androidx.compose.ui.text.style.TextOverflow
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
+import androidx.lifecycle.compose.LifecycleResumeEffect
 import com.uit.finance.core.designsystem.component.Avatar
 import com.uit.finance.core.designsystem.component.ConfirmDialog
 import com.uit.finance.core.designsystem.component.FinanceTopBar
@@ -34,6 +35,8 @@ import com.uit.finance.core.designsystem.component.SettingsChevron
 import com.uit.finance.core.designsystem.component.SettingsExternalMark
 import com.uit.finance.core.designsystem.component.SettingsGroup
 import com.uit.finance.core.designsystem.component.SettingsItem
+import com.uit.finance.core.designsystem.component.SettingsSwitch
+import com.uit.finance.core.designsystem.component.TimePickerSheet
 import com.uit.finance.core.designsystem.icon.FinanceIcons
 import com.uit.finance.core.designsystem.theme.FinanceTheme
 import org.koin.compose.viewmodel.koinViewModel
@@ -46,6 +49,10 @@ internal fun SettingsRoute(
 ) {
     val state by viewModel.state.collectAsStateWithLifecycle()
     val uriHandler = LocalUriHandler.current
+    LifecycleResumeEffect(viewModel) {
+        viewModel.onIntent(SettingsIntent.ScreenResumed)
+        onPauseOrDispose { }
+    }
     LaunchedEffect(viewModel) {
         viewModel.effects.collect { effect ->
             when (effect) {
@@ -90,6 +97,43 @@ internal fun SettingsScreen(
                             if (state.isChangingPassword) InlineProgress() else SettingsExternalMark()
                         },
                     )
+                }
+            }
+            item(key = "reminders") {
+                SettingsGroup(title = "Nhắc nhở", modifier = horizontal) {
+                    SettingsItem(
+                        icon = FinanceIcons.Bell,
+                        title = "Nhắc ghi chép hằng ngày",
+                        subtitle = if (state.reminder.notificationsBlocked) {
+                            "Thông báo đang bị tắt trong cài đặt máy"
+                        } else if (state.reminder.enabled) {
+                            "Nhắc lúc ${state.reminder.timeLabel}"
+                        } else {
+                            "Nhắc bạn cập nhật thu chi mỗi ngày"
+                        },
+                        onClick = {
+                            if (state.reminder.notificationsBlocked) {
+                                onIntent(SettingsIntent.NotificationSettingsClicked)
+                            } else {
+                                onIntent(SettingsIntent.ReminderToggled(!state.reminder.enabled))
+                            }
+                        },
+                        trailing = {
+                            SettingsSwitch(
+                                checked = state.reminder.enabled,
+                                onCheckedChange = { onIntent(SettingsIntent.ReminderToggled(it)) },
+                            )
+                        },
+                    )
+                    if (state.reminder.enabled) {
+                        SettingsItem(
+                            icon = FinanceIcons.Clock,
+                            title = "Giờ nhắc",
+                            subtitle = state.reminder.timeLabel,
+                            onClick = { onIntent(SettingsIntent.ReminderTimeClicked) },
+                            trailing = { SettingsChevron() },
+                        )
+                    }
                 }
             }
             item(key = "about") {
@@ -151,6 +195,14 @@ internal fun SettingsScreen(
             destructive = true,
             onConfirm = { onIntent(SettingsIntent.LogoutConfirmed) },
             onDismiss = { onIntent(SettingsIntent.LogoutWarningDismissed) },
+        )
+    }
+    if (state.isTimePickerOpen) {
+        TimePickerSheet(
+            hour = state.reminder.hour,
+            minute = state.reminder.minute,
+            onSelect = { hour, minute -> onIntent(SettingsIntent.ReminderTimePicked(hour, minute)) },
+            onDismiss = { onIntent(SettingsIntent.ReminderTimeDismissed) },
         )
     }
 }

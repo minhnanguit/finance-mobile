@@ -8,6 +8,11 @@ import com.uit.finance.feature.settings.domain.usecase.CountUnsentChangesUseCase
 import com.uit.finance.feature.settings.domain.usecase.DeleteAccountUseCase
 import com.uit.finance.feature.settings.domain.usecase.LogoutUseCase
 import com.uit.finance.feature.settings.domain.usecase.ObserveAccountProfileUseCase
+import com.uit.finance.feature.settings.domain.usecase.ObserveReminderSettingsUseCase
+import com.uit.finance.feature.settings.domain.usecase.SetReminderEnabledUseCase
+import com.uit.finance.feature.settings.domain.usecase.SetReminderTimeUseCase
+import com.uit.finance.feature.settings.domain.usecase.GetNotificationPermissionUseCase
+import com.uit.finance.feature.settings.domain.usecase.OpenNotificationSettingsUseCase
 import com.uit.finance.feature.settings.presentation.deleteaccount.DeleteAccountViewModel
 import com.uit.finance.feature.settings.presentation.settings.SettingsViewModel
 import org.koin.core.module.Module
@@ -33,6 +38,11 @@ val settingsFeatureModule: Module = module {
     factoryOf(::CountUnsentChangesUseCase)
     factoryOf(::LogoutUseCase)
     factoryOf(::DeleteAccountUseCase)
+    factoryOf(::ObserveReminderSettingsUseCase)
+    factoryOf(::SetReminderEnabledUseCase)
+    factoryOf(::SetReminderTimeUseCase)
+    factoryOf(::GetNotificationPermissionUseCase)
+    factoryOf(::OpenNotificationSettingsUseCase)
 
     // presentation
     viewModelOf(::SettingsViewModel)

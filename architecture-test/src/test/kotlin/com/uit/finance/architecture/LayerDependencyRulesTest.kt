@@ -92,6 +92,25 @@ class LayerDependencyRulesTest {
             }
     }
 
+    @Test
+    fun `only core-notification touches local notification APIs`() {
+        val notificationApis = listOf(
+            "android.app.Notification",
+            "android.app.NotificationChannel",
+            "android.app.NotificationManager",
+            "platform.UserNotifications.",
+        )
+        productionScope.files
+            .filter {
+                !it.packageName.startsWith("$ROOT.core.notification") &&
+                    !it.packageName.startsWith("$ROOT.architecture")
+            }
+            .assertFalse { file ->
+                file.hasImport { import -> notificationApis.any { import.name.startsWith(it) } } ||
+                    notificationApis.any { file.text.contains(it) }
+            }
+    }
+
     // ADR-008 K1: khoá app (BiometricPrompt / LocalAuthentication) nằm gọn trong core/applock; feature không tự gọi
     // sinh trắc, nên mọi chỗ khoá đều đi qua cùng một máy trạng thái. Kiểm cả import lẫn tên đầy đủ trong code (gọi
     // `androidx.biometric.BiometricPrompt(...)` không cần import), và cả API cũ của nền tảng.

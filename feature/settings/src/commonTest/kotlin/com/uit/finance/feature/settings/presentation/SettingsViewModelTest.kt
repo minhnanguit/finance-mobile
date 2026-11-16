@@ -12,6 +12,15 @@ import com.uit.finance.feature.settings.domain.usecase.ChangePasswordUseCase
 import com.uit.finance.feature.settings.domain.usecase.CountUnsentChangesUseCase
 import com.uit.finance.feature.settings.domain.usecase.LogoutUseCase
 import com.uit.finance.feature.settings.domain.usecase.ObserveAccountProfileUseCase
+import com.uit.finance.feature.settings.domain.usecase.ObserveReminderSettingsUseCase
+import com.uit.finance.feature.settings.domain.usecase.SetReminderEnabledUseCase
+import com.uit.finance.feature.settings.domain.usecase.SetReminderTimeUseCase
+import com.uit.finance.feature.settings.domain.usecase.GetNotificationPermissionUseCase
+import com.uit.finance.feature.settings.domain.usecase.OpenNotificationSettingsUseCase
+import com.uit.finance.core.notification.NotificationPermission
+import com.uit.finance.core.notification.NotificationPermissionStatus
+import com.uit.finance.core.reminder.domain.model.ReminderSettings
+import com.uit.finance.core.reminder.domain.repository.ReminderSettingsRepository
 import com.uit.finance.feature.settings.presentation.settings.SettingsEffect
 import com.uit.finance.feature.settings.presentation.settings.SettingsIntent
 import com.uit.finance.feature.settings.presentation.settings.SettingsViewModel
@@ -29,7 +38,10 @@ import kotlin.time.Instant
 import kotlinx.coroutines.CompletableDeferred
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.ExperimentalCoroutinesApi
+import kotlinx.coroutines.flow.Flow
+import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.test.StandardTestDispatcher
+import kotlinx.datetime.LocalTime
 import kotlinx.coroutines.test.advanceUntilIdle
 import kotlinx.coroutines.test.resetMain
 import kotlinx.coroutines.test.runTest
@@ -39,6 +51,8 @@ class SettingsViewModelTest {
 
     private val dispatcher = StandardTestDispatcher()
     private val accounts = FakeAccountRepository()
+    private val reminders = FakeReminderSettingsRepository()
+    private val notificationPermission = FakeNotificationPermission()
     private val appInfo = SettingsAppInfo("1.4.0", "https://finance.test/privacy")
 
     @BeforeTest
@@ -53,6 +67,11 @@ class SettingsViewModelTest {
         changePassword = ChangePasswordUseCase(accounts),
         countUnsentChanges = CountUnsentChangesUseCase(accounts),
         logout = LogoutUseCase(accounts),
+        observeReminderSettings = ObserveReminderSettingsUseCase(reminders),
+        setReminderEnabled = SetReminderEnabledUseCase(reminders, notificationPermission),
+        setReminderTime = SetReminderTimeUseCase(reminders),
+        getNotificationPermission = GetNotificationPermissionUseCase(notificationPermission),
+        openNotificationSettings = OpenNotificationSettingsUseCase(notificationPermission),
     )
 
     @Test
@@ -194,4 +213,48 @@ class SettingsViewModelTest {
         advanceUntilIdle()
         assertEquals(2, accounts.logoutCalls)
     }
+
+    @Test
+    fun `bật nhắc sau khi được cấp quyền`() = runTest(dispatcher) {
+        val vm = viewModel()
+        advanceUntilIdle()
+        vm.onIntent(SettingsIntent.ReminderToggled(true))
+        advanceUntilIdle()
+        assertTrue(vm.state.value.reminder.enabled)
+    }
+
+    @Test
+    fun `từ chối quyền thì công tắc vẫn tắt`() = runTest(dispatcher) {
+        notificationPermission.status = NotificationPermissionStatus.Denied
+        val vm = viewModel()
+        advanceUntilIdle()
+        vm.onIntent(SettingsIntent.ReminderToggled(true))
+        advanceUntilIdle()
+        assertFalse(vm.state.value.reminder.enabled)
+        assertNotNull(vm.state.value.message)
+    }
+
+    @Test
+    fun `đổi giờ nhắc cập nhật state`() = runTest(dispatcher) {
+        val vm = viewModel()
+        advanceUntilIdle()
+        vm.onIntent(SettingsIntent.ReminderTimePicked(19, 45))
+        advanceUntilIdle()
+        assertEquals("19:45", vm.state.value.reminder.timeLabel)
+    }
+}
+
+private class FakeReminderSettingsRepository : ReminderSettingsRepository {
+    private val state = MutableStateFlow(ReminderSettings.DEFAULT)
+    override fun observe(): Flow<ReminderSettings> = state
+    override suspend fun setEnabled(enabled: Boolean) { state.value = state.value.copy(enabled = enabled) }
+    override suspend fun setTime(time: LocalTime) { state.value = state.value.copy(time = time) }
+}
+
+private class FakeNotificationPermission : NotificationPermission {
+    var status = NotificationPermissionStatus.Granted
+    var openedSettings = false
+    override suspend fun status() = status
+    override suspend fun request() = status
+    override fun openSystemSettings() { openedSettings = true }
 }

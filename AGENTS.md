@@ -64,12 +64,14 @@ core/auth             OIDC client Keycloak: PKCE S256, discovery, token/refresh/
 core/database         SQLDelight FinanceDatabase (outbox, sync_cursor) + DatabaseDriverFactory expect/actual
 core/datastore        SecureStorage (Android Keystore AES/GCM · iOS Keychain), AppSettings, SessionStore
 core/sync             SyncEngine, OutboxRepository, SyncCursorStore, ConflictPolicy, SyncScheduler
+core/notification     Port thông báo/quyền/tap; Android WorkManager, iOS UserNotifications
+core/reminder         Cài đặt nhắc theo user + planner 14 ngày, bỏ ngày đã có giao dịch
 core/designsystem     FinanceTheme, Spacing (4dp grid), PrimaryButton, FinanceTextField, LoadingIndicator, ErrorBanner,
                       FinanceIcons (ImageVector, dùng qua `Icon()`)
 core/testing          TestDispatcherProvider, TestClock, FakeUuidGenerator, MainDispatcherRule
 feature/auth          domain / data / presentation trong CÙNG một Gradle module
 feature/home          Trang chủ: chỉ presentation (chưa có domain/data cho tới khi có core/ledger)
-architecture-test     19 luật Konsist (JVM)
+architecture-test     27 luật Konsist (JVM)
 ```
 
 Chiều phụ thuộc: **`presentation → domain ← data`**. Feature không phụ thuộc feature. Core không phụ thuộc feature.

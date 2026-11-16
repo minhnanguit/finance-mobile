@@ -10,8 +10,18 @@ data class SettingsState(
     val isLoggingOut: Boolean = false,
     /** Khác `null`: còn chừng này thay đổi chưa gửi, hỏi trước khi đăng xuất (ADR-006 B5). */
     val unsentChangesWarning: Long? = null,
+    val reminder: ReminderUi = ReminderUi(),
+    val isTimePickerOpen: Boolean = false,
     /** Thông báo một lần (snackbar). */
     val message: UiText? = null,
+)
+
+data class ReminderUi(
+    val enabled: Boolean = false,
+    val timeLabel: String = "21:00",
+    val hour: Int = 21,
+    val minute: Int = 0,
+    val notificationsBlocked: Boolean = false,
 )
 
 data class ProfileUi(
@@ -29,6 +39,12 @@ sealed interface SettingsIntent {
     data object LogoutConfirmed : SettingsIntent
     data object LogoutWarningDismissed : SettingsIntent
     data object MessageShown : SettingsIntent
+    data class ReminderToggled(val enabled: Boolean) : SettingsIntent
+    data object ReminderTimeClicked : SettingsIntent
+    data class ReminderTimePicked(val hour: Int, val minute: Int) : SettingsIntent
+    data object ReminderTimeDismissed : SettingsIntent
+    data object NotificationSettingsClicked : SettingsIntent
+    data object ScreenResumed : SettingsIntent
 }
 
 sealed interface SettingsEffect {
