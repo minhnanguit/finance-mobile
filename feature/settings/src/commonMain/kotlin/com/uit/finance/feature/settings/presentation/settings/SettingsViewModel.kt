@@ -14,6 +14,13 @@ import com.uit.finance.feature.settings.domain.usecase.ChangePasswordUseCase
 import com.uit.finance.feature.settings.domain.usecase.CountUnsentChangesUseCase
 import com.uit.finance.feature.settings.domain.usecase.LogoutUseCase
 import com.uit.finance.feature.settings.domain.usecase.ObserveAccountProfileUseCase
+import com.uit.finance.feature.settings.domain.usecase.ObserveReminderSettingsUseCase
+import com.uit.finance.feature.settings.domain.usecase.SetReminderEnabledUseCase
+import com.uit.finance.feature.settings.domain.usecase.SetReminderTimeUseCase
+import com.uit.finance.feature.settings.domain.usecase.GetNotificationPermissionUseCase
+import com.uit.finance.feature.settings.domain.usecase.OpenNotificationSettingsUseCase
+import com.uit.finance.feature.settings.domain.model.ReminderToggleResult
+import com.uit.finance.core.notification.NotificationPermissionStatus
 import kotlin.time.ExperimentalTime
 import kotlinx.coroutines.flow.launchIn
 import kotlinx.coroutines.flow.onEach
@@ -28,11 +35,28 @@ internal class SettingsViewModel(
     private val changePassword: ChangePasswordUseCase,
     private val countUnsentChanges: CountUnsentChangesUseCase,
     private val logout: LogoutUseCase,
+    observeReminderSettings: ObserveReminderSettingsUseCase,
+    private val setReminderEnabled: SetReminderEnabledUseCase,
+    private val setReminderTime: SetReminderTimeUseCase,
+    private val getNotificationPermission: GetNotificationPermissionUseCase,
+    private val openNotificationSettings: OpenNotificationSettingsUseCase,
 ) : MviViewModel<SettingsState, SettingsIntent, SettingsEffect>(SettingsState(versionName = appInfo.versionName)) {
 
     init {
         observeProfile()
             .onEach { profile -> setState { copy(profile = profile.toUi()) } }
+            .launchIn(viewModelScope)
+        observeReminderSettings()
+            .onEach { settings ->
+                setState {
+                    copy(reminder = reminder.copy(
+                        enabled = settings.enabled,
+                        hour = settings.time.hour,
+                        minute = settings.time.minute,
+                        timeLabel = settings.time.toString(),
+                    ))
+                }
+            }
             .launchIn(viewModelScope)
     }
 
@@ -48,6 +72,40 @@ internal class SettingsViewModel(
             }
             SettingsIntent.LogoutWarningDismissed -> setState { copy(unsentChangesWarning = null) }
             SettingsIntent.MessageShown -> setState { copy(message = null) }
+            is SettingsIntent.ReminderToggled -> toggleReminder(intent.enabled)
+            SettingsIntent.ReminderTimeClicked -> setState { copy(isTimePickerOpen = true) }
+            is SettingsIntent.ReminderTimePicked -> updateReminderTime(intent.hour, intent.minute)
+            SettingsIntent.ReminderTimeDismissed -> setState { copy(isTimePickerOpen = false) }
+            SettingsIntent.NotificationSettingsClicked -> openNotificationSettings()
+            SettingsIntent.ScreenResumed -> refreshNotificationPermission()
+        }
+    }
+
+    private fun toggleReminder(enabled: Boolean) {
+        viewModelScope.launch {
+            when (setReminderEnabled(enabled)) {
+                ReminderToggleResult.Saved -> Unit
+                ReminderToggleResult.PermissionDenied -> setState {
+                    copy(message = UiText.Key(
+                        "settings.reminder.permission_denied",
+                        "Bạn chưa cho phép thông báo. Mở cài đặt máy để bật",
+                    ))
+                }
+            }
+            refreshNotificationPermission()
+        }
+    }
+
+    private fun updateReminderTime(hour: Int, minute: Int) {
+        setState { copy(isTimePickerOpen = false) }
+        viewModelScope.launch { setReminderTime(hour, minute) }
+    }
+
+    private fun refreshNotificationPermission() {
+        viewModelScope.launch {
+            val blocked = currentState.reminder.enabled &&
+                getNotificationPermission() == NotificationPermissionStatus.Denied
+            setState { copy(reminder = reminder.copy(notificationsBlocked = blocked)) }
         }
     }
 

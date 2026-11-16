@@ -23,6 +23,7 @@ Dùng khi và chỉ khi hành vi khác nhau theo nền tảng. Mẫu có sẵn:
 | `PlatformInfo` | `.android.kt` | `.ios.kt` |
 | `platformEngine()` | OkHttp | Darwin |
 | `SyncScheduler` | WorkManager | BGTaskScheduler |
+| `LocalNotificationScheduler`, `NotificationPermission` (`core/notification`) | WorkManager `NotificationWorker` + `NotificationPermissionActivity` | `UNUserNotificationCenter` + `UNCalendarNotificationTrigger` |
 | `AuthorizationLauncher` (interface + Koin platform module, `core/auth`) | Custom Tabs qua `AuthorizationActivity` + `RedirectReceiverActivity`; `ephemeral = true` (xác nhận lại, đổi mật khẩu) → `setEphemeralBrowsingEnabled`, Chrome 136+ (ADR-008 A11) | `ASWebAuthenticationSession` (luôn ephemeral) |
 | `secureRandomBytes()` (`core/common/security`) | `SecureRandom` | `SecRandomCopyBytes` |
 | `sha256()` (`core/auth/pkce`) | `MessageDigest` | `CC_SHA256` |
@@ -52,7 +53,7 @@ Compiler flag đang bật: `-Xexpect-actual-classes` (expect/actual class vẫn 
 
 | Plugin | Dùng cho |
 |---|---|
-| `finance.kmp.library` | core module thuần (common, network, auth, database, datastore, sync, ledger, session, presentation, testing) |
+| `finance.kmp.library` | core module thuần (common, network, auth, database, datastore, sync, ledger, session, notification, reminder, presentation, testing) |
 | `finance.kmp.compose` | module có UI Compose (designsystem) |
 | `finance.kmp.feature` | feature module (Compose + Koin + lifecycle + navigation + serialization đã kèm sẵn) |
 | `finance.compose.application` | `composeApp` |

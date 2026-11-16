@@ -54,6 +54,8 @@ kotlin {
             implementation(projects.core.auth)
             implementation(projects.core.database)
             implementation(projects.core.datastore)
+            implementation(projects.core.notification)
+            implementation(projects.core.reminder)
             implementation(projects.core.sync)
             implementation(projects.core.ledger)
             implementation(projects.core.budget)

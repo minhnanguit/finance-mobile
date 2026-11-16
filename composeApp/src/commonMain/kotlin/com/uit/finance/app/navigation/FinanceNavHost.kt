@@ -51,6 +51,8 @@ import com.uit.finance.feature.transactions.presentation.navigation.TransactionE
 import com.uit.finance.feature.transactions.presentation.navigation.transactionsNavGraph
 import com.uit.finance.core.ledger.domain.model.CategoryKind
 import com.uit.finance.core.ledger.domain.model.TransactionType
+import com.uit.finance.core.notification.NotificationTaps
+import com.uit.finance.core.reminder.ReminderNotifications
 import kotlinx.coroutines.flow.map
 import org.koin.compose.koinInject
 
@@ -83,6 +85,8 @@ private fun MainNavHost(isAuthenticated: Boolean) {
     val observeLocalData = koinInject<ObserveLocalDataStatusUseCase>()
     val localData by remember(observeLocalData) { observeLocalData() }
         .collectAsStateWithLifecycle(initialValue = LocalDataStatus.Preparing)
+    val notificationTaps = koinInject<NotificationTaps>()
+    val pendingTap by notificationTaps.pending.collectAsStateWithLifecycle()
 
     Scaffold(
         // safeDrawing = system bars + tai thỏ + bàn phím, nên từng màn không phải tự xử lý inset. consumeWindowInsets bên
@@ -170,6 +174,19 @@ private fun MainNavHost(isAuthenticated: Boolean) {
         val onProtectedScreen = currentDestination != null && !currentDestination.hasRoute<SignedOutDestination>()
         if (!isAuthenticated && onProtectedScreen) {
             navController.navigateClearingBackStack(SignedOutDestination)
+        }
+    }
+
+    LaunchedEffect(pendingTap, isAuthenticated, localData) {
+        val action = pendingTap ?: return@LaunchedEffect
+        when {
+            !isAuthenticated -> notificationTaps.consume()
+            localData != LocalDataStatus.Ready -> Unit
+            action == ReminderNotifications.ACTION_ADD_TRANSACTION -> {
+                navController.navigateSingleTop(TransactionEditorDestination())
+                notificationTaps.consume()
+            }
+            else -> notificationTaps.consume()
         }
     }
 }

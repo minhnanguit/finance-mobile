@@ -2,6 +2,8 @@ package com.uit.finance.app.di
 
 import com.uit.finance.app.config.AppEnvironment
 import com.uit.finance.core.session.UserSession
+import com.uit.finance.core.reminder.ReminderCoordinator
+import com.uit.finance.core.notification.tap.installNotificationDelegate
 import com.uit.finance.core.sync.scheduler.SyncScheduler
 import kotlin.experimental.ExperimentalNativeApi
 import platform.Foundation.NSBundle
@@ -17,8 +19,10 @@ import platform.Foundation.languageCode
 @Suppress("unused")
 fun startKoinIos() {
     val koin = initKoin().koin
+    installNotificationDelegate(koin)
     koin.get<SyncScheduler>().schedulePeriodic()
     koin.get<UserSession>().start()
+    koin.get<ReminderCoordinator>().start()
 }
 
 actual fun defaultApiBaseUrl(): String =

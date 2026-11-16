@@ -31,6 +31,7 @@ import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.IntOffset
 import androidx.compose.ui.unit.dp
 import com.uit.finance.core.common.result.AppResult
+import com.uit.finance.core.common.time.Clock
 import com.uit.finance.core.common.result.fold
 import com.uit.finance.core.designsystem.component.ConfirmDialog
 import com.uit.finance.core.designsystem.component.ErrorBanner
@@ -38,6 +39,10 @@ import com.uit.finance.core.designsystem.component.PrimaryButton
 import com.uit.finance.core.designsystem.theme.FinanceTheme
 import com.uit.finance.core.presentation.text.UiText
 import com.uit.finance.core.presentation.text.toUiText
+import com.uit.finance.core.notification.LocalNotification
+import com.uit.finance.core.notification.LocalNotificationScheduler
+import com.uit.finance.core.reminder.ReminderNotifications
+import kotlin.time.Duration.Companion.seconds
 import kotlin.math.roundToInt
 import kotlinx.coroutines.launch
 import org.koin.compose.koinInject
@@ -54,6 +59,8 @@ private sealed interface DevMessage {
 @Composable
 internal fun DevMenu(modifier: Modifier = Modifier) {
     val seeder = koinInject<DemoDataSeeder>()
+    val notificationScheduler = koinInject<LocalNotificationScheduler>()
+    val clock = koinInject<Clock>()
     val scope = rememberCoroutineScope()
     var hidden by rememberSaveable { mutableStateOf(false) }
     var sheetOpen by rememberSaveable { mutableStateOf(false) }
@@ -86,6 +93,25 @@ internal fun DevMenu(modifier: Modifier = Modifier) {
             message = message,
             onSeed = { run(seeder::seed) { "Đã tạo ${it.accounts} ví và ${it.transactions} giao dịch." } },
             onClear = { confirmClear = true },
+            onTestNotification = {
+                scope.launch {
+                    val fireAt = clock.now() + 10.seconds
+                    notificationScheduler.replaceGroup(
+                        "reminder.debug",
+                        listOf(
+                            LocalNotification(
+                                id = "reminder.debug.once",
+                                group = "reminder.debug",
+                                fireAt = fireAt,
+                                title = "Thông báo thử",
+                                body = "Bấm để mở form Thêm giao dịch.",
+                                action = ReminderNotifications.ACTION_ADD_TRANSACTION,
+                            ),
+                        ),
+                    )
+                    message = DevMessage.Info("Đã hẹn thông báo thử sau 10 giây.")
+                }
+            },
             onHide = {
                 sheetOpen = false
                 hidden = true
@@ -138,6 +164,7 @@ private fun DevSheet(
     message: DevMessage?,
     onSeed: () -> Unit,
     onClear: () -> Unit,
+    onTestNotification: () -> Unit,
     onHide: () -> Unit,
     onDismissMessage: () -> Unit,
     onDismiss: () -> Unit,
@@ -160,6 +187,9 @@ private fun DevSheet(
                 null -> Unit
             }
             PrimaryButton(text = "Tạo dữ liệu mẫu", onClick = onSeed, loading = running)
+            OutlinedButton(onClick = onTestNotification, enabled = !running, modifier = Modifier.fillMaxWidth()) {
+                Text("Thông báo thử sau 10 giây")
+            }
             OutlinedButton(onClick = onClear, enabled = !running, modifier = Modifier.fillMaxWidth()) {
                 Text("Xoá toàn bộ ví và giao dịch")
             }

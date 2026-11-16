@@ -13,6 +13,8 @@ kotlin {
             implementation(projects.core.datastore) // SessionStore + TokenProvider
             implementation(projects.core.session) // xoá sổ khi đăng xuất / xoá tài khoản
             implementation(projects.core.sync) // số thay đổi chưa gửi trước khi đăng xuất / xoá tài khoản
+            implementation(projects.core.notification)
+            implementation(projects.core.reminder)
         }
         commonTest.dependencies {
             implementation(projects.core.ledgerTesting) // FakeSyncKit

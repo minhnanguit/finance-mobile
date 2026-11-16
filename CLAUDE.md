@@ -30,7 +30,7 @@ Mọi lệnh thường dùng đều là target trong `Makefile`. Gõ `make` đ�
 | `make crash` | Chỉ theo dõi warning + crash |
 | `make apk` | Build APK debug, không cài |
 | `make test` | Unit test **mọi module KMP** (chạy trên host JVM) |
-| `make arch` | 26 luật Konsist |
+| `make arch` | 27 luật Konsist |
 | `make bench` | Benchmark tìm kiếm + báo cáo trên SQLCipher thật, 50k giao dịch (instrumented test, **cần máy ảo đang chạy**); in bảng số đo từ logcat |
 | `make lint` | Android Lint cho `composeApp` |
 | `make tunnel URL=https://…` | Trỏ build debug tới URL HTTPS của `make tunnel` bên backend (ghi `finance.publicBaseUrl` vào `local.properties`). Có URL thì APK **tắt** cleartext |
@@ -92,11 +92,15 @@ core/budget           Model + validate ngân sách (khớp ADR-007), BudgetRepos
                       nhất đụng bảng budget. Payload qua BudgetPayloadCodec (core/network)
 core/session          UserSession: sau /me mở DB của user + chạy sync; đăng xuất xoá DB + khoá; DB của user khác trên máy;
                       UserDataCleaner (dữ liệu theo user ngoài DB); discardDeletedAccount + SessionNotice
+core/notification     Port thông báo cục bộ, quyền thông báo và sự kiện bấm thông báo; Android dùng WorkManager,
+                      iOS dùng UNUserNotificationCenter. Toàn bộ API thông báo nền tảng bị nhốt trong module này
+core/reminder         Cài đặt nhắc theo từng user, lập lịch tối đa 14 ngày, bỏ ngày đã có giao dịch và tự lập lại khi
+                      phiên đăng nhập/cài đặt/ngày hiện tại thay đổi
 core/designsystem     FinanceTheme (Color/Typography Montserrat/Shape/Spacing 4dp/Motion), FinanceIcons (facade Lucide) +
                       categoryIcon(key), component: AccountCard (+contourPattern), QuickActionButton, FinanceListItem,
                       IconTile, AmountText, StatTile, SectionHeader, PagerIndicator, Avatar, CircleIconButton, LabelChip,
                       EmptyState, pressScale, PrimaryButton, SecondaryButton, DangerButton, FinanceTextField, LoadingIndicator,
-                      ErrorBanner, NoticeBanner, ConfirmDialog, SettingsGroup + SettingsItem,
+                      ErrorBanner, NoticeBanner, ConfirmDialog, SettingsGroup + SettingsItem + SettingsSwitch + TimePickerSheet,
                       SearchField, FilterChipRow + RemovableChip, SelectableChip, CircleIconButton(badgeCount),
                       form: AmountField, SegmentedControl, ChoiceTile, SelectionField, OptionSheet, DatePickerSheet,
                       ColorSwatchPicker · màn: FinanceTopBar, FinanceFab, OverflowMenu, SwipeToDeleteBox, RefreshContainer,
@@ -121,10 +125,10 @@ feature/reports       domain (ObserveReportOverviewUseCase: thu/chi kỳ, so cù
 feature/budgets       domain (BudgetMath: màu G9, % G10, mỗi ngày còn được chi G11; ObserveBudgetProgressUseCase gom ngân sách +
                       đã chi + danh mục; form data, lưu, xoá, ObserveTodayUseCase) + presentation (list: ‹ tháng ›, tự sang
                       tháng mới lúc nửa đêm, đọc lại "hôm nay" khi resume; editor: tạo/sửa số tiền/xoá qua menu ⋮)
-feature/settings      Tab "Cá nhân": domain (hồ sơ, đổi mật khẩu, đăng xuất, xoá tài khoản 2 bước) + data (AccountRepositoryImpl:
+feature/settings      Tab "Cá nhân": domain (hồ sơ, đổi mật khẩu, đăng xuất, xoá tài khoản 2 bước, bật/tắt và chọn giờ nhắc) + data (AccountRepositoryImpl:
                       reauth → DELETE /me → xoá dữ liệu máy; đổi mật khẩu → gắn token mới) + presentation (settings, deleteaccount).
                       Không có cài đặt đồng bộ (trạng thái + làm mới ở Trang chủ)
-architecture-test     26 luật Konsist (JVM)
+architecture-test     27 luật Konsist (JVM)
 ```
 
 Chiều phụ thuộc: **`presentation → domain ← data`**. Feature không phụ thuộc feature. Core không phụ thuộc feature.
@@ -136,7 +140,7 @@ Mỗi Gradle module expose **đúng một** Koin module public (`coreNetworkModu
 
 | File | Nội dung |
 |---|---|
-| `architecture-boundaries.md` | presentation ↛ data, domain thuần, feature isolation, 26 luật Konsist |
+| `architecture-boundaries.md` | presentation ↛ data, domain thuần, feature isolation, 27 luật Konsist |
 | `mvi-and-state.md` | MviViewModel, State/Intent/Effect, Route vs Screen |
 | `kmp-and-platform.md` | source set, expect/actual, Dispatchers, giới hạn iOS |
 | `contract-pinning.md` | `api/openapi.yaml` pin, generated client chỉ ở `core/network` |
