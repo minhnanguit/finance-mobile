@@ -41,6 +41,6 @@ make arch
 make apk     # nếu đụng UI / DI / build config
 ```
 
-Đụng code iOS-specific mà máy không có Xcode ⇒ tối thiểu `make ios`, và nói rõ phần link framework **chưa verify được**.
+Đụng code iOS-specific ⇒ tối thiểu `make ios`, và link framework (`./gradlew :composeApp:linkDebugFrameworkIosSimulatorArm64`) khi có Xcode.
 
 Báo cáo trung thực: lệnh nào chưa chạy thì nói là chưa chạy.

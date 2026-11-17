@@ -2,3 +2,6 @@
 TEAM_ID=
 BUNDLE_ID=com.uit.finance
 APP_NAME=Finance
+
+// Giá trị riêng của máy (TEAM_ID...). `?` = không có file cũng không lỗi.
+#include? "Config.local.xcconfig"

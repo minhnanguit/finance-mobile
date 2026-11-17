@@ -17,7 +17,8 @@ PKG         := com.uit.finance
 ACTIVITY    := $(PKG)/.app.MainActivity
 
 .DEFAULT_GOAL := help
-.PHONY: help emulator wait devices install open stop uninstall log crash api ios apk test arch bench lint tunnel tunnel-off clean
+.PHONY: help emulator wait devices install open stop uninstall log crash api ios apk test arch bench lint tunnel tunnel-off clean \
+        prod-url ios-team ios-device
 
 help: ## Liệt kê mọi lệnh make của repo này
 	@echo "finance-mobile — các lệnh có sẵn:"
@@ -81,6 +82,28 @@ crash: ## Chỉ theo dõi cảnh báo và crash, bỏ qua log rác của hệ th
 
 api: ## Sinh lại Kotlin client từ api/openapi.yaml rồi biên dịch core/network
 	$(GRADLE) :core:network:openApiGenerate :core:network:assemble
+
+prod-url: ## Trỏ bản RELEASE tới server production: make prod-url URL=https://xxx.duckdns.org
+	@test -n "$(URL)" || { echo "Thiếu URL. Dùng: make prod-url URL=https://xxx.duckdns.org"; exit 1; }
+	@case "$(URL)" in https://*) ;; *) echo "URL phải là https://"; exit 1;; esac
+	@touch local.properties; grep -v '^finance.releaseBaseUrl=' local.properties > local.properties.tmp || true
+	@echo "finance.releaseBaseUrl=$(URL)" >> local.properties.tmp && mv local.properties.tmp local.properties
+	@echo "✅ Bản release sẽ gọi $(URL) (API + Keycloak)."
+
+# ---------- iPhone thật (Apple ID free) ----------
+
+ios-team: ## Ghi TEAM_ID (Personal Team trong Xcode) vào Config.local.xcconfig; tự dò nếu không truyền TEAM=
+	@team="$(TEAM)"; \
+	if [ -z "$$team" ]; then \
+	  team=$$(security find-certificate -a -c "Apple Development" -p 2>/dev/null \
+	    | openssl x509 -noout -subject 2>/dev/null | sed -n 's/.*OU *= *\([A-Z0-9]\{10\}\).*/\1/p' | head -1); \
+	fi; \
+	test -n "$$team" || { echo "Không dò được. Xcode → Settings → Accounts → thêm Apple ID, build 1 lần, hoặc: make ios-team TEAM=XXXXXXXXXX"; exit 1; }; \
+	echo "TEAM_ID=$$team" > iosApp/Configuration/Config.local.xcconfig; \
+	echo "✅ TEAM_ID=$$team"
+
+ios-device: ## Build Release + cài lên iPhone thật + mở app. Chạy lại mỗi <7 ngày để gia hạn (DEVICE=<id> để chọn máy)
+	@tools/ios-device.sh
 
 ios: ## Biên dịch klib iOS để kiểm tra code iosMain (KHÔNG cần Xcode)
 	$(GRADLE) compileKotlinIosSimulatorArm64

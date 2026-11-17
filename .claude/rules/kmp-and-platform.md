@@ -65,4 +65,4 @@ Thêm dependency chung cho mọi feature → sửa convention plugin, đừng co
 
 - Compile klib không cần Xcode: `make ios`.
 - Link framework + chạy app **cần Xcode 26+** (Kotlin 2.3 / Compose 1.11 link với iOS 26 SDK) và `xcodegen`. `iosApp/*.xcodeproj` được sinh ra, đã gitignore — đừng commit.
-- Máy dev hiện tại không có Xcode ⇒ báo rõ cho user khi task cần nó, đừng workaround.
+- Máy dev có Xcode 27.2: link framework + `xcodebuild` verify được ở local. Bản release cần `finance.releaseBaseUrl` (`make prod-url`).
