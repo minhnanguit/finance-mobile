@@ -4,7 +4,7 @@ import com.lemonappdev.konsist.api.verify.assertFalse
 import kotlin.test.Test
 
 /**
- * Luật dữ liệu khoản định kỳ (RECURRING-PLAN.md Phase 5, ADR-008 §8). Bảng `recurring*` nằm chung `FinanceDatabase`
+ * Luật dữ liệu khoản định kỳ (RECURRING-PLAN.md Phase 5, ADR-009 §8). Bảng `recurring*` nằm chung `FinanceDatabase`
  * với outbox và ledger để khoản, op và giao dịch của kỳ được ghi trong **một** transaction (RS13), nên phải chặn bằng
  * luật. Giao dịch của kỳ đi qua `LedgerOccurrenceWriter` của core/ledger, không qua query ledger.
  */

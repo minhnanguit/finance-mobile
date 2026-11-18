@@ -1,7 +1,7 @@
 openapi: 3.0.3
 info:
   title: Finance API
-  version: 2.3.0
+  version: 2.4.0
   description: |
     API contract của finance-backend, là single source of truth: backend generate server interface,
     app mobile generate client từ file này.
@@ -30,7 +30,7 @@ info:
     - Mỗi cặp (danh mục, tiền tệ) tối đa 1 ngân sách; bản tới sau nhận `REJECTED budget.duplicate`.
     - "Đã chi" không có trong contract: app tự tính từ giao dịch local.
 
-    Khoản định kỳ (2.3.0, chỉ thêm, không breaking, ADR-008)
+    Khoản định kỳ (2.4.0, chỉ thêm, không breaking, ADR-009)
     - Entity sync mới `recurring`, dữ liệu `RecurringData` gồm cả timeline phiên bản (`revisions`).
     - Ghi có điều kiện: `RecurringData.revision` trong op là revision client dựa vào (tạo mới = 0); khác server
       → `CONFLICT recurring.revision_conflict` + `current`. Phiên bản đã có hiệu lực không sửa được.
@@ -215,7 +215,7 @@ components:
           type: string
           enum: [UPSERT, DELETE, CREATE]
           description: |
-            `UPSERT`: tạo hoặc sửa. `DELETE`: tombstone. `CREATE` (2.3.0): chỉ tạo khi id chưa có với user;
+            `UPSERT`: tạo hoặc sửa. `DELETE`: tombstone. `CREATE` (2.4.0): chỉ tạo khi id chưa có với user;
             id đã có, còn sống hay đã xoá → `CONFLICT sync.already_exists` + `current`, bản của server giữ
             nguyên. Id của user khác bị từ chối như `UPSERT`.
         data:

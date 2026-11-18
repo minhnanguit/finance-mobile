@@ -7,12 +7,12 @@ Client Kotlin Multiplatform (Android + iOS) dùng **Compose Multiplatform UI chu
 
 - Package gốc: `com.uit.finance` · compileSdk 36 · minSdk 26 · targetSdk 36
 - Kiến trúc đã **chốt** ở `../ARCHITECTURE.md` (repo-level, tiếng Việt). Không tự đổi.
-- Hợp đồng API: `api/openapi.yaml` là bản **copy nguyên văn** từ `finance-backend`, pin theo `api/VERSION` (hiện `2.3.0`). **Không sửa tay file này.**
-- Feature hiện có: `feature/auth` (reference feature: SignedOut / Profile; login/register diễn ra trên **Keycloak** qua system browser, ADR-004) · `feature/home` (Trang chủ: thẻ ví, thu/chi tháng này, giao dịch gần đây, badge đồng bộ) · `feature/accounts` (danh sách ví, tạo/sửa ví) · `feature/transactions` (lịch sử + tìm kiếm/lọc/dòng tổng, thêm/sửa giao dịch + phí chuyển, danh mục) · `feature/reports` (báo cáo thu/chi theo tháng/năm, donut theo danh mục, cột xu hướng, `../docs/REPORTS-PLAN.md`) · `feature/budgets` (tab Ngân sách: tiến độ theo tháng, tạo/sửa/xoá) · `feature/recurring` (Khoản định kỳ, mở từ Trang chủ: cần xác nhận / sắp đến hạn / tạo-sửa theo phiên bản, `../RECURRING-PLAN.md`, ADR-008 backend).
+- Hợp đồng API: `api/openapi.yaml` là bản **copy nguyên văn** từ `finance-backend`, pin theo `api/VERSION` (hiện `2.4.0`). **Không sửa tay file này.**
+- Feature hiện có: `feature/auth` (reference feature: SignedOut / Profile; login/register diễn ra trên **Keycloak** qua system browser, ADR-004) · `feature/home` (Trang chủ: thẻ ví, thu/chi tháng này, giao dịch gần đây, badge đồng bộ) · `feature/accounts` (danh sách ví, tạo/sửa ví) · `feature/transactions` (lịch sử + tìm kiếm/lọc/dòng tổng, thêm/sửa giao dịch + phí chuyển, danh mục) · `feature/reports` (báo cáo thu/chi theo tháng/năm, donut theo danh mục, cột xu hướng, `../docs/REPORTS-PLAN.md`) · `feature/budgets` (tab Ngân sách: tiến độ theo tháng, tạo/sửa/xoá) · `feature/recurring` (Khoản định kỳ, mở từ Trang chủ: cần xác nhận / sắp đến hạn / tạo-sửa theo phiên bản, `../RECURRING-PLAN.md`, ADR-009 backend).
 - UI theo bản thiết kế tham chiếu Purrweb "Finance Mobile iOS App" (dribbble.com/shots/21793126): Montserrat, sage `#94C1B2` / cam đào `#FFC789` / nền `#121212`. Token và component ở `core/designsystem`; icon là Lucide nhưng **chỉ** import trong `FinanceIcons.kt`.
 - Dữ liệu ledger (ví, danh mục, giao dịch) + sync offline-first: `core/ledger` + `core/sync`, theo `../docs/LEDGER-PLAN.md`.
 - Ngân sách theo danh mục (ADR-007 backend, `../docs/BUDGET-PLAN.md`): dữ liệu + sync ở `core/budget`; "đã chi" tính từ giao dịch qua `SpendingRepository` (core/ledger), không lưu; màn hình ở `feature/budgets`.
-- Khoản định kỳ (ADR-008): `core/recurring` giữ khoản + timeline, ghi có điều kiện (revision), engine lịch thuần Kotlin, generator sinh giao dịch nháp id UUIDv5 + op `CREATE` (chỉ ghi khi chưa có), thông báo nhắc cục bộ; màn hình ở `feature/recurring`.
+- Khoản định kỳ (ADR-009): `core/recurring` giữ khoản + timeline, ghi có điều kiện (revision), engine lịch thuần Kotlin, generator sinh giao dịch nháp id UUIDv5 + op `CREATE` (chỉ ghi khi chưa có), thông báo nhắc cục bộ; màn hình ở `feature/recurring`.
 - `finance-backend` là repo riêng — **không sửa từ đây**.
 
 ## 2. Commands
@@ -60,7 +60,7 @@ build-logic/          4 convention plugin: finance.kmp.library / .kmp.compose / 
 gradle/libs.versions.toml   version catalog — MỌI version nằm ở đây
 
 core/common           AppResult / AppError / FieldError, Money (Long minor units), DispatcherProvider,
-                      UuidGenerator + uuidV5 (SHA-1 Kotlin thuần, ADR-008 §2), Clock + observeToday (phát lại lúc 00:00), PlatformInfo, foldForSearch / searchTextOf
+                      UuidGenerator + uuidV5 (SHA-1 Kotlin thuần, ADR-009 §2), Clock + observeToday (phát lại lúc 00:00), PlatformInfo, foldForSearch / searchTextOf
                       (bỏ dấu NFC+NFD để tìm kiếm). Kotlin thuần
 core/presentation     MviViewModel<State, Intent, Effect>, UiText + AppError.toUiText(), MoneyFormatter (corePresentationModule),
                       DateLabels (toRelativeLabel / toLongLabel)
@@ -90,7 +90,7 @@ core/ledger           Model + validate ví/danh mục/giao dịch, repository (g
 core/budget           Model + validate ngân sách (khớp ADR-007), BudgetRepository (bản ghi + outbox + outbox_ref tới danh
                       mục trong 1 transaction), BudgetSyncChangeApplier (discard khi REJECTED budget.duplicate). Module duy
                       nhất đụng bảng budget. Payload qua BudgetPayloadCodec (core/network)
-core/recurring        Khoản định kỳ (ADR-008): model + timeline, RecurrenceEngine (lịch lặp, property test), RecurringRepository
+core/recurring        Khoản định kỳ (ADR-009): model + timeline, RecurrenceEngine (lịch lặp, property test), RecurringRepository
                       (bản ghi + timeline + outbox không gộp, revision local + 1 mỗi lần ghi), RecurringSyncApplier (bỏ op chờ khi
                       revision_conflict), GenerateDueOccurrencesUseCase, RecurringCoordinator (chạy suốt process: mở sổ, qua ngày,
                       sau mỗi vòng sync), ReminderPlanner + ReminderScheduler (Android WorkManager · iOS UNUserNotificationCenter),

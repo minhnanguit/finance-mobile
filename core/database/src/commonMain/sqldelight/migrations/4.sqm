@@ -1,4 +1,4 @@
--- Schema 4 → 5 (RECURRING-PLAN.md Phase 5, ADR-008):
+-- Schema 4 → 5 (RECURRING-PLAN.md Phase 5, ADR-009):
 --  * recurring + recurring_revision: khoản định kỳ và timeline, đi qua sync.
 --  * recurring_occurrence_local: chỉ trên máy, kỳ do máy này sinh (R16).
 -- Phải khớp đúng Recurring.sq: DB tạo mới đi theo .sq, DB cũ đi qua đây (test: UserDatabaseMigrationTest).

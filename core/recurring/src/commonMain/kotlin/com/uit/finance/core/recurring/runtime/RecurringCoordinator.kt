@@ -36,7 +36,7 @@ import kotlinx.coroutines.sync.withLock
 import kotlinx.datetime.TimeZone
 
 /**
- * Chạy generator và hẹn lại thông báo trong suốt đời process (ADR-008 RS12, mục 6 của plan):
+ * Chạy generator và hẹn lại thông báo trong suốt đời process (ADR-009 RS12, mục 6 của plan):
  *
  * - khi mở sổ của user, khi qua ngày mới lúc app đang mở, và **sau mỗi vòng sync xong hết các trang pull**;
  * - mỗi khi danh sách khoản đổi thì hẹn lại thông báo;

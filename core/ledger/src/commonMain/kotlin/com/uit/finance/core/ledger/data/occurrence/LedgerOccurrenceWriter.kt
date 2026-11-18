@@ -19,7 +19,7 @@ import com.uit.finance.core.sync.outbox.SyncRef
 import kotlinx.datetime.LocalDate
 
 /**
- * Một giao dịch sinh từ khoản định kỳ (ADR-008 §2): [id] đã tính sẵn bằng UUIDv5, [refs] thêm tham chiếu ngoài ví và
+ * Một giao dịch sinh từ khoản định kỳ (ADR-009 §2): [id] đã tính sẵn bằng UUIDv5, [refs] thêm tham chiếu ngoài ví và
  * danh mục (khoản định kỳ, để op `CREATE` không lên server trước khoản của nó, RS7).
  */
 data class OccurrenceDraft(
@@ -43,7 +43,7 @@ enum class OccurrenceWrite {
     /** Đã ghi dòng ledger + op `CREATE` trong transaction của người gọi. */
     WRITTEN,
 
-    /** Id đã có trên máy, kể cả đã xoá (đã bỏ qua kỳ này): không làm gì (ADR-008 RS5, RS13). */
+    /** Id đã có trên máy, kể cả đã xoá (đã bỏ qua kỳ này): không làm gì (ADR-009 RS5, RS13). */
     ALREADY_EXISTS,
 
     /** Ví/danh mục đã lưu trữ, đã xoá, chưa có, khác tiền tệ hoặc khác loại: không sinh kỳ này (R13). */

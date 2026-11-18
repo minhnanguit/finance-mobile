@@ -8,7 +8,7 @@ import kotlinx.datetime.DatePeriod
 import kotlinx.datetime.LocalDate
 import kotlinx.datetime.plus
 
-/** Giới hạn khớp ADR-008 §7. */
+/** Giới hạn khớp ADR-009 §7. */
 object RecurringLimits {
     const val MAX_NAME_LENGTH = 50
     const val MAX_AMOUNT_MINOR: Long = 1_000_000_000_000_000L

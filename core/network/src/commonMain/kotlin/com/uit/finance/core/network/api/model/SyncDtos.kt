@@ -16,7 +16,7 @@ object SyncEntity {
     const val RECURRING: String = "recurring"
 }
 
-/** [CREATE] (contract 2.3.0): chỉ ghi khi id chưa có; đã có (kể cả tombstone) → `CONFLICT sync.already_exists`. */
+/** [CREATE] (contract 2.4.0): chỉ ghi khi id chưa có; đã có (kể cả tombstone) → `CONFLICT sync.already_exists`. */
 enum class SyncActionDto { UPSERT, DELETE, CREATE }
 
 /** ADR-002 §4. Mọi kết quả trừ [RETRY] là chốt. */
@@ -126,7 +126,7 @@ interface BudgetPayloadCodec {
     fun decodeBudget(data: JsonObject): BudgetPayload
 }
 
-/** Schema `RecurrenceRevisionData` (contract 2.3.0, ADR-008 R2). */
+/** Schema `RecurrenceRevisionData` (contract 2.4.0, ADR-009 R2). */
 data class RecurrenceRevisionPayload(
     val id: String,
     val effectiveFrom: LocalDate,
@@ -146,7 +146,7 @@ data class RecurrenceRevisionPayload(
     override fun toString(): String = "RecurrenceRevisionPayload(id=$id, effectiveFrom=$effectiveFrom, frequency=$frequency)"
 }
 
-/** Schema `RecurringData` (contract 2.3.0, ADR-008). [revision] trong op = revision máy dựa vào; trong pull = hiện tại. */
+/** Schema `RecurringData` (contract 2.4.0, ADR-009). [revision] trong op = revision máy dựa vào; trong pull = hiện tại. */
 data class RecurringPayload(
     val name: String,
     val type: String,

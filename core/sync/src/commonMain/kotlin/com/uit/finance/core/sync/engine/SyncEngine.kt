@@ -82,7 +82,7 @@ interface SyncChangeApplier {
 
     /**
      * `true`: một `CONFLICT` với [code] làm mọi op còn chờ của bản ghi đó vô nghĩa (chúng dựa trên phiên bản đã bị
-     * máy khác thay, ADR-008 RS10). Engine bỏ các op đó, ghi một dòng `sync_rejection` để báo user, rồi áp bản server.
+     * máy khác thay, ADR-009 RS10). Engine bỏ các op đó, ghi một dòng `sync_rejection` để báo user, rồi áp bản server.
      */
     fun dropPendingOnConflict(code: String?): Boolean = false
 }

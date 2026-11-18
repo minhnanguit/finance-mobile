@@ -14,7 +14,7 @@ import kotlinx.datetime.LocalDate
 /*
  * Mọi lần ghi lưu vào DB của user trên máy rồi mới gửi lên server (offline-first). Vi phạm luật trả
  * `AppError.Validation` với mã trong `RecurringErrorCode`. Mỗi lần ghi khoản gửi kèm revision local làm điều kiện
- * (ADR-008 RS8, RS9); op của khoản định kỳ không bao giờ bị gộp.
+ * (ADR-009 RS8, RS9); op của khoản định kỳ không bao giờ bị gộp.
  */
 interface RecurringRepository {
     /** Khoản chưa xoá, kèm timeline và cờ còn op chờ gửi; tự đổi theo user đang đăng nhập. */

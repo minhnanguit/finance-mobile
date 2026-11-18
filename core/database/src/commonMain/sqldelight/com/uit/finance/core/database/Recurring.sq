@@ -1,4 +1,4 @@
--- Khoản định kỳ (ADR-008). Không đặt FK sang bảng ledger (xem Account.sq): pull có thể đưa khoản về trước ví/danh
+-- Khoản định kỳ (ADR-009). Không đặt FK sang bảng ledger (xem Account.sq): pull có thể đưa khoản về trước ví/danh
 -- mục của nó. Ngày ISO yyyy-MM-dd. Chỉ core/recurring được dùng.
 --
 -- revision: revision của trạng thái local. Ghi local thì gửi revision hiện tại làm điều kiện rồi tăng 1 (RS9); nhận

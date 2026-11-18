@@ -17,7 +17,7 @@ data class GenerationReport(val written: Int, val blocked: Int, val stale: Int) 
 }
 
 /**
- * Sinh giao dịch cho các kỳ đã đến hạn (ADR-008 R5–R9, R13, RS13). Không cần mạng; chạy lại bao nhiêu lần cũng không
+ * Sinh giao dịch cho các kỳ đã đến hạn (ADR-009 R5–R9, R13, RS13). Không cần mạng; chạy lại bao nhiêu lần cũng không
  * trùng vì id kỳ cố định và repository kiểm "đã có" trong cùng transaction.
  *
  * - Chỉ xét kỳ trong `[max(hôm nay − 89, generationNotBefore), min(hôm nay, ngày kết thúc)]` (R7).

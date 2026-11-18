@@ -14,7 +14,7 @@ import kotlinx.datetime.plus
 import kotlinx.datetime.yearMonth
 
 /**
- * Tính các ngày đến hạn từ timeline (ADR-008 R2–R5). Kotlin thuần, không phụ thuộc nền tảng.
+ * Tính các ngày đến hạn từ timeline (ADR-009 R2–R5). Kotlin thuần, không phụ thuộc nền tảng.
  *
  * Mỗi phiên bản i áp trong `[effectiveFrom_i, effectiveFrom_(i+1))`; trong khoảng đó lấy các ngày theo lịch của nó,
  * nhịp tính từ `anchorDate`. Ngày không tồn tại lùi về cuối tháng, nhưng kỳ sau luôn tính lại từ ngày mục tiêu.

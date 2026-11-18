@@ -5,7 +5,7 @@ package com.uit.finance.core.sync.outbox
 import kotlin.time.ExperimentalTime
 import kotlin.time.Instant
 
-/** [CREATE] (contract 2.3.0, ADR-008 §3): server chỉ ghi khi id chưa có, đã có thì `CONFLICT sync.already_exists`. */
+/** [CREATE] (contract 2.4.0, ADR-009 §3): server chỉ ghi khi id chưa có, đã có thì `CONFLICT sync.already_exists`. */
 enum class OutboxAction { UPSERT, DELETE, CREATE }
 
 /**

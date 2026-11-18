@@ -16,7 +16,7 @@ import kotlinx.datetime.plus
 import kotlinx.datetime.toInstant
 
 /**
- * Một thông báo nhắc hẹn trước (ADR-008 R15): **chỉ tên khoản và ngày đến hạn**, không có số tiền, vì màn hình khoá
+ * Một thông báo nhắc hẹn trước (ADR-009 R15): **chỉ tên khoản và ngày đến hạn**, không có số tiền, vì màn hình khoá
  * ai cũng thấy. [id] cố định theo (khoản, ngày) để hẹn lại không bị trùng.
  */
 data class ReminderNotification(

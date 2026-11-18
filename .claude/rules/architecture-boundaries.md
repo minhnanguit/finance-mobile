@@ -61,7 +61,7 @@ Một feature = **một Gradle module** chứa cả ba package `domain/`, `data/
 
 | Luật | Ý nghĩa |
 |---|---|
-| Bảng recurring bị nhốt | Chỉ `core/recurring` được dùng `recurringQueries` / row class `Recurring*` — giao dịch của kỳ đi qua `LedgerOccurrenceWriter` (ADR-008 §8) |
+| Bảng recurring bị nhốt | Chỉ `core/recurring` được dùng `recurringQueries` / row class `Recurring*` — giao dịch của kỳ đi qua `LedgerOccurrenceWriter` (ADR-009 §8) |
 | Thông báo không có số tiền | `ReminderNotification(...)` không được mang `amount*` (R15) |
 
 ### `DesignSystemRulesTest`

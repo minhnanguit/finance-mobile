@@ -45,7 +45,7 @@ internal fun remindLabel(days: Int?): String = when (days) {
     else -> "Trước $days ngày, 9:00"
 }
 
-/** Mã lỗi `recurring.*` (máy kiểm hoặc server trả qua sync, ADR-008 §6) → câu người dùng đọc được. */
+/** Mã lỗi `recurring.*` (máy kiểm hoặc server trả qua sync, ADR-009 §6) → câu người dùng đọc được. */
 internal fun AppError.toRecurringUiText(): UiText = when (this) {
     is AppError.Validation -> fieldErrors.firstOrNull()?.toRecurringUiText() ?: toLedgerUiText()
     is AppError.Api -> code?.let { FieldError("", it).toRecurringUiText() } ?: toLedgerUiText()

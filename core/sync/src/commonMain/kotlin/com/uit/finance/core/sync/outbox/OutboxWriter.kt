@@ -55,7 +55,7 @@ class OutboxWriter(
     }
 
     /**
-     * Op "chỉ tạo nếu chưa có" (ADR-008 §3). Không bao giờ bị gộp, và [upsert] cũng không gộp vào nó: sửa/xoá sau đó
+     * Op "chỉ tạo nếu chưa có" (ADR-009 §3). Không bao giờ bị gộp, và [upsert] cũng không gộp vào nó: sửa/xoá sau đó
      * đi thành op riêng, đúng thứ tự, để server luôn biết bản ghi đã từng được tạo rồi mới bị sửa hay xoá.
      */
     fun create(

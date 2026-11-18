@@ -31,7 +31,7 @@ import kotlinx.datetime.minus
 import kotlinx.datetime.plus
 
 /**
- * Gom khoản định kỳ + giao dịch nháp + ví/danh mục + "hôm nay" thành toàn cảnh màn (plan mục 2.1, ADR-008 R13, R16).
+ * Gom khoản định kỳ + giao dịch nháp + ví/danh mục + "hôm nay" thành toàn cảnh màn (plan mục 2.1, ADR-009 R13, R16).
  *
  * - "Cần xác nhận": nháp có id trùng một kỳ theo lịch hiện hành (tính lại id UUIDv5, không cần cột nguồn).
  * - "Cần kiểm tra": nháp do máy này sinh mà timeline hiện hành không còn kỳ đó (R16). Không tự xoá.

@@ -3,10 +3,10 @@ package com.uit.finance.core.recurring.domain.model
 import com.uit.finance.core.common.id.uuidV5
 import kotlinx.datetime.LocalDate
 
-/** Chiều của khoản (ADR-008 R1). */
+/** Chiều của khoản (ADR-009 R1). */
 enum class RecurringType { EXPENSE, INCOME }
 
-/** Chu kỳ lặp (ADR-008 R3). */
+/** Chu kỳ lặp (ADR-009 R3). */
 enum class Frequency { WEEKLY, MONTHLY, YEARLY }
 
 /**
@@ -112,7 +112,7 @@ enum class OccurrenceResult {
     STALE,
 }
 
-/** Id giao dịch của một kỳ (ADR-008 §2). */
+/** Id giao dịch của một kỳ (ADR-009 §2). */
 object OccurrenceIds {
     const val NAMESPACE = "9ec1e9e3-0bb0-485a-ba55-77182d53d5f4"
 
@@ -152,7 +152,7 @@ data class RevisionChange(
     override fun toString(): String = "RevisionChange(effectiveFrom=$effectiveFrom, rule=$rule)"
 }
 
-/** Mã lỗi dùng chung với backend (ADR-008 §6), đặt trong `FieldError.message`. */
+/** Mã lỗi dùng chung với backend (ADR-009 §6), đặt trong `FieldError.message`. */
 object RecurringErrorCode {
     const val INVALID_FIELD = "recurring.invalid_field"
     const val LIMIT_REACHED = "recurring.limit_reached"

@@ -3,7 +3,7 @@ package com.uit.finance.core.common.id
 import kotlin.test.Test
 import kotlin.test.assertEquals
 
-/** Vector của RFC 4122 và vector chung ADR-008 §2: backend có test Java với đúng các giá trị này. */
+/** Vector của RFC 4122 và vector chung ADR-009 §2: backend có test Java với đúng các giá trị này. */
 class UuidV5Test {
 
     private val dns = "6ba7b810-9dad-11d1-80b4-00c04fd430c8"
@@ -16,7 +16,7 @@ class UuidV5Test {
     }
 
     @Test
-    fun `khớp vector chung của ADR-008`() {
+    fun `khớp vector chung của ADR-009`() {
         assertEquals("0cdf7899-a9f2-53ca-b1c4-f9475ebfe6a0", uuidV5(recurringNamespace, "$recurringId/2026-12-05"))
         assertEquals("b62a0a6d-780d-538f-9512-a0d2e7fc9cea", uuidV5(recurringNamespace, "$recurringId/2027-02-28"))
         assertEquals("bee84904-e343-5093-9109-a21e2e728584", uuidV5(recurringNamespace, "$recurringId/2028-02-29"))

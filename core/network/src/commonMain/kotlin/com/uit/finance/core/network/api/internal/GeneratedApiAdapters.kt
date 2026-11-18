@@ -234,7 +234,7 @@ internal class GeneratedBudgetPayloadCodec(private val json: Json) : BudgetPaylo
         }
 }
 
-/** Payload khoản định kỳ đi qua model generated `RecurringData` + `RecurrenceRevisionData` (contract 2.3.0). */
+/** Payload khoản định kỳ đi qua model generated `RecurringData` + `RecurrenceRevisionData` (contract 2.4.0). */
 internal class GeneratedRecurringPayloadCodec(private val json: Json) : RecurringPayloadCodec {
 
     override fun encode(payload: RecurringPayload): JsonObject = json.encodeToJsonElement(

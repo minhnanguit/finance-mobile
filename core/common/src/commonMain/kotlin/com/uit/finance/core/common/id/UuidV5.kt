@@ -2,7 +2,7 @@ package com.uit.finance.core.common.id
 
 /**
  * UUID name-based SHA-1 (version 5, RFC 4122 §4.3). Kotlin thuần để Android và iOS ra cùng một kết quả: dùng cho id
- * giao dịch của từng kỳ định kỳ (ADR-008 §2), mọi máy tính ra cùng id cho cùng (khoản, ngày).
+ * giao dịch của từng kỳ định kỳ (ADR-009 §2), mọi máy tính ra cùng id cho cùng (khoản, ngày).
  *
  * @param namespace UUID dạng chuỗi chuẩn
  * @return UUID dạng chuỗi chuẩn, chữ thường
