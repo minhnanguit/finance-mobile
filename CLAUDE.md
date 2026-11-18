@@ -8,7 +8,7 @@ Client Kotlin Multiplatform (Android + iOS) dùng **Compose Multiplatform UI chu
 - Package gốc: `com.uit.finance` · compileSdk 36 · minSdk 26 · targetSdk 36
 - Kiến trúc đã **chốt** ở `../ARCHITECTURE.md` (repo-level, tiếng Việt). Không tự đổi.
 - Hợp đồng API: `api/openapi.yaml` là bản **copy nguyên văn** từ `finance-backend`, pin theo `api/VERSION` (hiện `2.4.0`). **Không sửa tay file này.**
-- Feature hiện có: `feature/auth` (reference feature: SignedOut / Profile; login/register diễn ra trên **Keycloak** qua system browser, ADR-004) · `feature/home` (Trang chủ: thẻ ví, thu/chi tháng này, giao dịch gần đây, badge đồng bộ) · `feature/accounts` (danh sách ví, tạo/sửa ví) · `feature/transactions` (lịch sử + tìm kiếm/lọc/dòng tổng, thêm/sửa giao dịch + phí chuyển, danh mục) · `feature/reports` (báo cáo thu/chi theo tháng/năm, donut theo danh mục, cột xu hướng, `../docs/REPORTS-PLAN.md`) · `feature/budgets` (tab Ngân sách: tiến độ theo tháng, tạo/sửa/xoá) · `feature/recurring` (Khoản định kỳ, mở từ Trang chủ: cần xác nhận / sắp đến hạn / tạo-sửa theo phiên bản, `../RECURRING-PLAN.md`, ADR-009 backend).
+- Feature hiện có: `feature/auth` (reference feature: SignedOut + S6 + thông báo tài khoản đã xoá; login/register diễn ra trên **Keycloak** qua system browser, ADR-004) · `feature/settings` (tab Cá nhân: hồ sơ, đổi mật khẩu, chính sách quyền riêng tư, đăng xuất, xoá tài khoản — `../docs/SETTINGS-SECURITY-PLAN.md`, ADR-008) · `feature/home` (Trang chủ: thẻ ví, thu/chi tháng này, giao dịch gần đây, badge đồng bộ) · `feature/accounts` (danh sách ví, tạo/sửa ví) · `feature/transactions` (lịch sử + tìm kiếm/lọc/dòng tổng, thêm/sửa giao dịch + phí chuyển, danh mục) · `feature/reports` (báo cáo thu/chi theo tháng/năm, donut theo danh mục, cột xu hướng, `../docs/REPORTS-PLAN.md`) · `feature/budgets` (tab Ngân sách: tiến độ theo tháng, tạo/sửa/xoá) · `feature/recurring` (Khoản định kỳ, mở từ Trang chủ: cần xác nhận / sắp đến hạn / tạo-sửa theo phiên bản, `../RECURRING-PLAN.md`, ADR-009 backend).
 - UI theo bản thiết kế tham chiếu Purrweb "Finance Mobile iOS App" (dribbble.com/shots/21793126): Montserrat, sage `#94C1B2` / cam đào `#FFC789` / nền `#121212`. Token và component ở `core/designsystem`; icon là Lucide nhưng **chỉ** import trong `FinanceIcons.kt`.
 - Dữ liệu ledger (ví, danh mục, giao dịch) + sync offline-first: `core/ledger` + `core/sync`, theo `../docs/LEDGER-PLAN.md`.
 - Ngân sách theo danh mục (ADR-007 backend, `../docs/BUDGET-PLAN.md`): dữ liệu + sync ở `core/budget`; "đã chi" tính từ giao dịch qua `SpendingRepository` (core/ledger), không lưu; màn hình ở `feature/budgets`.
@@ -31,13 +31,15 @@ Mọi lệnh thường dùng đều là target trong `Makefile`. Gõ `make` đ�
 | `make crash` | Chỉ theo dõi warning + crash |
 | `make apk` | Build APK debug, không cài |
 | `make test` | Unit test **mọi module KMP** (chạy trên host JVM) |
-| `make arch` | 27 luật Konsist |
+| `make arch` | 29 luật Konsist |
 | `make bench` | Benchmark tìm kiếm + báo cáo trên SQLCipher thật, 50k giao dịch (instrumented test, **cần máy ảo đang chạy**); in bảng số đo từ logcat |
 | `make lint` | Android Lint cho `composeApp` |
 | `make tunnel URL=https://…` | Trỏ build debug tới URL HTTPS của `make tunnel` bên backend (ghi `finance.publicBaseUrl` vào `local.properties`). Có URL thì APK **tắt** cleartext |
 | `make tunnel-off` | Quay về loopback `10.0.2.2` / `localhost` (http) |
 | `make api` | Sinh lại Kotlin client từ `api/openapi.yaml` |
 | `make ios` | Compile klib iOS **không cần Xcode** |
+| `make prod-url URL=https://…` | URL server production cho bản **release** (ghi `finance.releaseBaseUrl` vào `local.properties`; build release thiếu nó thì Gradle dừng) |
+| `make ios-team` / `make ios-device` | Ghi TEAM_ID Personal Team / build Release + cài + mở trên iPhone thật (Apple ID free: chạy lại trước 7 ngày) — `iosApp/README.md` |
 | `./gradlew :composeApp:linkDebugFrameworkIosSimulatorArm64` | Link framework iOS (**cần Xcode**) |
 | `cd iosApp && xcodegen generate && open iosApp.xcodeproj` | Mở project iOS (cần `brew install xcodegen`) |
 
@@ -65,9 +67,12 @@ core/common           AppResult / AppError / FieldError, Money (Long minor units
 core/presentation     MviViewModel<State, Intent, Effect>, UiText + AppError.toUiText(), MoneyFormatter (corePresentationModule),
                       DateLabels (toRelativeLabel / toLongLabel)
 core/network          Ktor client (ContentNegotiation, logging sanitize, timeout, bearer + refresh rotation,
-                      IdempotencyKeyPlugin, RFC 7807 → ApiException), UserApi, port TokenProvider + TokenRefresher
+                      IdempotencyKeyPlugin, RFC 7807 → ApiException), UserApi (+ deleteCurrentUser), port TokenProvider +
+                      TokenRefresher, DeletedAccountSignal (403 identity.user_deleted kèm token bị từ chối), ApiErrorCodes
 core/auth             OIDC client Keycloak: PKCE S256, discovery, token/refresh/logout, AuthorizationLauncher
-                      (Android Custom Tabs · iOS ASWebAuthenticationSession), implement TokenRefresher
+                      (Android Custom Tabs · iOS ASWebAuthenticationSession), implement TokenRefresher; reauthenticate()
+                      (prompt=login + max_age=0, kiểm `sub`) trước việc nhạy cảm, changePassword() (kc_action=UPDATE_PASSWORD,
+                      kiểm `sub`, trả token của phiên còn sống); hai luồng này mở trình duyệt ephemeral (A11), TokenClaims (+ sid)
 core/database         SQLDelight FinanceDatabase **mỗi user một file** `finance-<userId>.db`, mã hoá SQLCipher (khoá 256-bit
                       trong SecureStorage): outbox (+ outbox_ref), sync_cursor, sync_rejection, sync_deferred, account,
                       category, ledger_transaction (+ search_text), budget, recurring (+ recurring_revision, recurring_occurrence_local). Query tìm/lọc riêng ở `LedgerSearch.sq`, số liệu báo cáo/ngân sách ở `LedgerReport.sq`. Schema version 5,
@@ -93,13 +98,19 @@ core/budget           Model + validate ngân sách (khớp ADR-007), BudgetRepos
 core/recurring        Khoản định kỳ (ADR-009): model + timeline, RecurrenceEngine (lịch lặp, property test), RecurringRepository
                       (bản ghi + timeline + outbox không gộp, revision local + 1 mỗi lần ghi), RecurringSyncApplier (bỏ op chờ khi
                       revision_conflict), GenerateDueOccurrencesUseCase, RecurringCoordinator (chạy suốt process: mở sổ, qua ngày,
-                      sau mỗi vòng sync), ReminderPlanner + ReminderScheduler (Android WorkManager · iOS UNUserNotificationCenter),
+                      sau mỗi vòng sync), ReminderPlanner + ReminderScheduler (qua core/notification, nhóm "recurring"),
                       NotificationPermissionGate. Module duy nhất đụng bảng recurring
-core/session          UserSession: sau /me mở DB của user + chạy sync; đăng xuất xoá DB + khoá; DB của user khác trên máy
+core/session          UserSession: sau /me mở DB của user + chạy sync; đăng xuất xoá DB + khoá; DB của user khác trên máy;
+                      UserDataCleaner (dữ liệu theo user ngoài DB); discardDeletedAccount + SessionNotice
+core/notification     Port thông báo cục bộ, quyền thông báo và sự kiện bấm thông báo; Android dùng WorkManager,
+                      iOS dùng UNUserNotificationCenter. Toàn bộ API thông báo nền tảng bị nhốt trong module này
+core/reminder         Cài đặt nhắc theo từng user, lập lịch tối đa 14 ngày, bỏ ngày đã có giao dịch và tự lập lại khi
+                      phiên đăng nhập/cài đặt/ngày hiện tại thay đổi
 core/designsystem     FinanceTheme (Color/Typography Montserrat/Shape/Spacing 4dp/Motion), FinanceIcons (facade Lucide) +
                       categoryIcon(key), component: AccountCard (+contourPattern), QuickActionButton, FinanceListItem,
                       IconTile, AmountText, StatTile, SectionHeader, PagerIndicator, Avatar, CircleIconButton, LabelChip,
-                      EmptyState, pressScale, PrimaryButton, FinanceTextField, LoadingIndicator, ErrorBanner, ConfirmDialog,
+                      EmptyState, pressScale, PrimaryButton, SecondaryButton, DangerButton, FinanceTextField, LoadingIndicator,
+                      ErrorBanner, NoticeBanner, ConfirmDialog, SettingsGroup + SettingsItem + SettingsSwitch + TimePickerSheet,
                       SearchField, FilterChipRow + RemovableChip, SelectableChip, CircleIconButton(badgeCount),
                       form: AmountField, SegmentedControl, ChoiceTile, SelectionField, OptionSheet, DatePickerSheet,
                       ColorSwatchPicker · màn: FinanceTopBar, FinanceFab, OverflowMenu, SwipeToDeleteBox, RefreshContainer,
@@ -113,7 +124,7 @@ core/testing          TestDispatcherProvider, TestClock, FakeUuidGenerator, Main
 core/ledger-testing   Fake repository của core/ledger + core/sync (FakeSyncKit) cho commonTest của các feature
 core/budget-testing   FakeBudgetRepository cho commonTest của các feature
 core/recurring-testing FakeRecurringRepository cho commonTest của các feature
-feature/auth          domain / data / presentation trong CÙNG một Gradle module
+feature/auth          domain / data / presentation trong CÙNG một Gradle module: SignedOut, LocalDataGate (S6)
 feature/home          Trang chủ: domain (ObserveHomeDashboardUseCase gom ví + số dư + thu/chi tháng + giao dịch gần đây từ
                       repository của core/ledger) + presentation (HomeUiMapper format, HomeScreen theo bản thiết kế)
 feature/accounts      domain (use case ví: tổng quan, lưu, lưu trữ, xoá, đổi thứ tự) + presentation (list, editor)
@@ -128,7 +139,10 @@ feature/budgets       domain (BudgetMath: màu G9, % G10, mỗi ngày còn đư�
 feature/recurring     domain (ObserveRecurringOverviewUseCase: cần chú ý / cần xác nhận / cần kiểm tra / sắp đến hạn; form data,
                       tạo, sửa theo phiên bản, kết thúc, xoá, xác nhận/bỏ qua kỳ) + presentation (list, editor: chọn lịch, xem trước
                       5 kỳ, ngày hiệu lực, hỏi ghi bù). Mở giao dịch nháp qua callback → TransactionEditorDestination
-architecture-test     27 luật Konsist (JVM)
+feature/settings      Tab "Cá nhân": domain (hồ sơ, đổi mật khẩu, đăng xuất, xoá tài khoản 2 bước, bật/tắt và chọn giờ nhắc) + data (AccountRepositoryImpl:
+                      reauth → DELETE /me → xoá dữ liệu máy; đổi mật khẩu → gắn token mới) + presentation (settings, deleteaccount).
+                      Không có cài đặt đồng bộ (trạng thái + làm mới ở Trang chủ)
+architecture-test     29 luật Konsist (JVM)
 ```
 
 Chiều phụ thuộc: **`presentation → domain ← data`**. Feature không phụ thuộc feature. Core không phụ thuộc feature.
@@ -140,7 +154,7 @@ Mỗi Gradle module expose **đúng một** Koin module public (`coreNetworkModu
 
 | File | Nội dung |
 |---|---|
-| `architecture-boundaries.md` | presentation ↛ data, domain thuần, feature isolation, 27 luật Konsist |
+| `architecture-boundaries.md` | presentation ↛ data, domain thuần, feature isolation, 29 luật Konsist |
 | `mvi-and-state.md` | MviViewModel, State/Intent/Effect, Route vs Screen |
 | `kmp-and-platform.md` | source set, expect/actual, Dispatchers, giới hạn iOS |
 | `contract-pinning.md` | `api/openapi.yaml` pin, generated client chỉ ở `core/network` |
@@ -172,6 +186,6 @@ Tóm tắt không được vi phạm:
 - MCP `code-review-graph`: repo này **chưa có** cache graph (`list_repos_tool` = 0 registered, kiểm tra 2026-09-18). Muốn dùng phải `build_or_update_graph_tool` trước; nếu không, dùng Grep/Glob/Read là hợp lệ.
 - `local.properties` (git-ignored) phải có `sdk.dir` trỏ Android SDK.
 - Gradle daemon pin **Java 21 Adoptium (Temurin)** ở `gradle/gradle-daemon-jvm.properties`. Thiếu vendor thì Gradle có thể chọn JRE không có `jlink` (vd JRE của extension Java trong VS Code) → `:composeApp` fail ở bước JdkImageTransform.
-- **Máy dev hiện tại không có Xcode** ⇒ mọi task liên quan link framework iOS / `xcodebuild` sẽ fail ở local; compile klib (`compileKotlinIosSimulatorArm64`) thì vẫn chạy được. Nói rõ với user thay vì tìm cách né.
+- Máy dev có **Xcode 27.2** (từ 2026-11-13): link framework iOS và `xcodebuild` chạy được ở local. Ký app dùng Personal Team (Apple ID free) — chỉ cài lên máy thật của chủ dự án, hạn 7 ngày.
 - `build/`, `.gradle/`, `.kotlin/`, `bin/`, `iosApp/*.xcodeproj` là output — đừng đọc/sửa.
 - Nâng version thư viện: **chỉ sửa `gradle/libs.versions.toml`**, và đọc comment cảnh báo trong đó trước (một số version mới hơn cố tình không được dùng vì xung đột AGP/Kotlin metadata).

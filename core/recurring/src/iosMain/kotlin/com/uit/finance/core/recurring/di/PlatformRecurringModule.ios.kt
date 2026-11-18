@@ -1,16 +1,10 @@
 package com.uit.finance.core.recurring.di
 
-import com.uit.finance.core.recurring.reminder.IosNotificationPermissionGate
-import com.uit.finance.core.recurring.reminder.IosReminderScheduler
-import com.uit.finance.core.recurring.reminder.NotificationPermissionGate
-import com.uit.finance.core.recurring.reminder.ReminderScheduler
 import org.koin.core.module.Module
 import org.koin.dsl.module
 
-internal actual fun platformRecurringModule(): Module = module {
-    single<ReminderScheduler> { IosReminderScheduler() }
-    single<NotificationPermissionGate> { IosNotificationPermissionGate() }
-}
+/** Thông báo đi qua core/notification; iOS không có worker riêng. */
+internal actual fun platformRecurringModule(): Module = module {}
 
 /**
  * iOS không có worker hằng ngày riêng: BGAppRefreshTask của sync (core/sync) đánh thức app định kỳ, coordinator sinh kỳ

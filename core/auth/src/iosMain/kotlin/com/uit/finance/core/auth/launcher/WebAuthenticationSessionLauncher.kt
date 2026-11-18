@@ -23,7 +23,8 @@ internal class WebAuthenticationSessionLauncher(
     // `presentationContextProvider` là weak reference phía ObjC: phải giữ strong reference ở đây.
     private val contextProvider = KeyWindowContextProvider()
 
-    override suspend fun launch(authorizationUrl: String, redirectUri: String): LaunchResult =
+    // iOS luôn ephemeral (xem dưới), nên [ephemeral] không đổi gì.
+    override suspend fun launch(authorizationUrl: String, redirectUri: String, ephemeral: Boolean): LaunchResult =
         withContext(dispatchers.main) {
             suspendCancellableCoroutine { continuation ->
                 val url = NSURL.URLWithString(authorizationUrl)

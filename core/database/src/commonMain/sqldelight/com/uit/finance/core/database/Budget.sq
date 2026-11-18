@@ -32,3 +32,7 @@ UPDATE budget SET deleted = 1 WHERE id = ?;
 
 remove:
 DELETE FROM budget WHERE id = ?;
+
+-- Pull lại từ đầu sau 410 sync.cursor_expired (ADR-008 T4). Xem Account.sq `deleteSynced`.
+deleteSynced:
+DELETE FROM budget WHERE id NOT IN (SELECT entity_id FROM outbox WHERE entity = 'budget');

@@ -10,6 +10,7 @@ import com.uit.finance.core.common.result.AppResult
 import com.uit.finance.core.common.time.Clock
 import com.uit.finance.core.database.FinanceDatabase
 import com.uit.finance.core.database.UserDatabaseProvider
+import com.uit.finance.core.network.api.ApiErrorCodes
 import com.uit.finance.core.sync.outbox.OutboxEntry
 import kotlin.concurrent.Volatile
 import kotlin.time.Duration.Companion.seconds
@@ -39,6 +40,8 @@ import kotlinx.coroutines.withContext
  * - 429: dừng và không gọi server nữa cho tới khi hết `Retry-After`.
  * - Push bị từ chối vì nội dung không chặn pull: user vẫn nhận được thay đổi từ máy khác.
  * - `409 sync.cursor_ahead`: xoá cursor, pull lại từ đầu một lần (áp lại là idempotent).
+ * - `410 sync.cursor_expired` (máy offline quá lâu, server đã dọn tombstone): xoá bản đã đồng bộ (giữ bản còn op
+ *   chờ gửi), pull lại từ đầu một lần (ADR-008 T4).
  * - Chưa có DB của user (chưa đăng nhập): không làm gì.
  */
 internal class DefaultSyncEngine(
@@ -165,6 +168,14 @@ internal class DefaultSyncEngine(
                         restarted = true
                         continue
                     }
+                    if (response.error.isCursorExpired() && !restarted) {
+                        // Push đầu vòng đã gửi hết op gửi được; op còn lại giữ nguyên bản ghi của nó (ADR-008 T4).
+                        logger.i { "Server đã dọn bản ghi đã xoá cũ hơn cursor; tải lại toàn bộ sổ" }
+                        store.resetReplica(database)
+                        cursor = null
+                        restarted = true
+                        continue
+                    }
                     return stop(response.error)
                 }
             }
@@ -274,7 +285,9 @@ internal class DefaultSyncEngine(
         retryAfterSeconds = waitSeconds,
     )
 
-    private fun AppError.isCursorAhead() = this is AppError.Api && status == HTTP_CONFLICT && code == CURSOR_AHEAD_CODE
+    private fun AppError.isCursorAhead() = this is AppError.Api && status == HTTP_CONFLICT && code == ApiErrorCodes.CURSOR_AHEAD
+
+    private fun AppError.isCursorExpired() = this is AppError.Api && status == HTTP_GONE && code == ApiErrorCodes.CURSOR_EXPIRED
 
     /** Server từ chối cả request vì nội dung batch, không phải vì mạng/phiên/tần suất. */
     private fun AppError.isBatchRejection() = this is AppError.Api && (status == HTTP_BAD_REQUEST || status == HTTP_PAYLOAD_TOO_LARGE)
@@ -298,9 +311,9 @@ internal class DefaultSyncEngine(
         const val DEFAULT_RETRY_AFTER_SECONDS = 60L
         const val HTTP_BAD_REQUEST = 400
         const val HTTP_CONFLICT = 409
+        const val HTTP_GONE = 410
         const val HTTP_PAYLOAD_TOO_LARGE = 413
         const val HTTP_TOO_MANY_REQUESTS = 429
-        const val CURSOR_AHEAD_CODE = "sync.cursor_ahead"
         const val RATE_LIMITED_CODE = "request.rate_limited"
         val STOPPED = AppError.Unknown("sync stopped")
     }

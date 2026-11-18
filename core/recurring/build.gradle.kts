@@ -10,6 +10,7 @@ kotlin {
             implementation(projects.core.sync) // OutboxWriter, SyncChangeApplier, SyncScheduler, SyncEngine
             implementation(projects.core.network) // RecurringPayloadCodec: payload đi qua model của contract
             implementation(projects.core.ledger) // LedgerOccurrenceWriter: ghi kỳ trong cùng transaction (RS13)
+            implementation(projects.core.notification) // nhắc hạn: mọi API thông báo nền tảng nằm ở đó
             implementation(libs.sqldelight.coroutines)
             implementation(libs.koin.core)
         }

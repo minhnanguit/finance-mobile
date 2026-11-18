@@ -50,7 +50,7 @@ fun draft(id: String, on: LocalDate, amount: Long = 3_000_000, payee: String? = 
 
 class FakePermissionGate(var granted: Boolean = false) : NotificationPermissionGate {
     var requests = 0
-    override fun isGranted(): Boolean = granted
+    override suspend fun isGranted(): Boolean = granted
     override suspend fun request(): Boolean {
         requests++
         return granted

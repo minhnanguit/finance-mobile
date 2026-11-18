@@ -65,6 +65,12 @@ class RecordingApplier(override val entity: String = "account") : SyncChangeAppl
     override fun discard(database: FinanceDatabase, entityId: String) {
         discarded += entityId
     }
+
+    var clearedSynced = 0
+
+    override fun clearSynced(database: FinanceDatabase) {
+        clearedSynced++
+    }
 }
 
 fun remote(id: String, seq: Long, deleted: Boolean = false, entity: String = "account", data: JsonObject? = null) =

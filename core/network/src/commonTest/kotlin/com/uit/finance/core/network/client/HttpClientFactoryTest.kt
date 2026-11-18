@@ -6,6 +6,7 @@ import com.uit.finance.core.common.result.FieldError
 import com.uit.finance.core.network.api.ApiException
 import com.uit.finance.core.network.api.apiCall
 import com.uit.finance.core.network.auth.AuthTokens
+import com.uit.finance.core.network.auth.DeletedAccountSignal
 import com.uit.finance.core.network.auth.RefreshOutcome
 import com.uit.finance.core.network.auth.TokenRefresher
 import io.ktor.client.call.body
@@ -15,6 +16,8 @@ import io.ktor.client.request.post
 import io.ktor.client.statement.bodyAsText
 import io.ktor.http.HttpHeaders
 import io.ktor.http.HttpStatusCode
+import kotlinx.coroutines.launch
+import kotlinx.coroutines.test.UnconfinedTestDispatcher
 import kotlinx.coroutines.test.runTest
 import kotlin.test.Test
 import kotlin.test.assertEquals
@@ -38,6 +41,36 @@ class HttpClientFactoryTest {
 
         assertEquals("Bearer access-1", authHeaders[0])
         assertNull(authHeaders[1], "token không được gửi sang host khác backend")
+    }
+
+    @Test
+    fun reportsTheAccessTokenWhenTheServerSaysTheAccountIsDeleted() = runTest {
+        val signal = DeletedAccountSignal()
+        val reported = mutableListOf<String>()
+        val collector = launch(UnconfinedTestDispatcher(testScheduler)) { signal.rejectedAccessTokens.collect { reported += it } }
+        val client = testClient(
+            tokenProvider = FakeTokenProvider(AuthTokens("access-of-deleted", "refresh-1", 300)),
+            deletedAccountSignal = signal,
+        ) { request ->
+            when (request.url.encodedPath) {
+                "/api/v1/me" -> problemResponse(
+                    HttpStatusCode.Forbidden,
+                    """{"title":"Forbidden","status":403,"code":"identity.user_deleted"}""",
+                )
+                else -> problemResponse(
+                    HttpStatusCode.Forbidden,
+                    """{"title":"Forbidden","status":403,"code":"identity.reauth_required"}""",
+                )
+            }
+        }
+
+        val deleted = apiCall { client.get("/api/v1/me").body<String>() }
+        val reauth = apiCall { client.get("/api/v1/other").body<String>() }
+
+        assertEquals(listOf("access-of-deleted"), reported, "chỉ identity.user_deleted mới báo, kèm đúng token")
+        assertEquals("identity.user_deleted", ((deleted as AppResult.Failure).error as AppError.Api).code)
+        assertEquals("identity.reauth_required", ((reauth as AppResult.Failure).error as AppError.Api).code)
+        collector.cancel()
     }
 
     @Test

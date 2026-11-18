@@ -3,7 +3,7 @@
 | Lệnh | Chạy gì | Cần gì |
 |---|---|---|
 | `make test` | Unit test mọi module KMP (target Android/JVM, chạy trên host) | JDK + Android SDK |
-| `make arch` | 27 luật Konsist (đọc **source**, không phải bytecode) | JDK |
+| `make arch` | 29 luật Konsist (đọc **source**, không phải bytecode) | JDK |
 | `make apk` | Build APK — smoke test biên dịch | Android SDK |
 
 CI chạy cả ba (job `android`) + build iOS (job `ios`, cần macOS + Xcode).
@@ -41,6 +41,6 @@ make arch
 make apk     # nếu đụng UI / DI / build config
 ```
 
-Đụng code iOS-specific mà máy không có Xcode ⇒ tối thiểu `make ios`, và nói rõ phần link framework **chưa verify được**.
+Đụng code iOS-specific ⇒ tối thiểu `make ios`, và link framework (`./gradlew :composeApp:linkDebugFrameworkIosSimulatorArm64`) khi có Xcode.
 
 Báo cáo trung thực: lệnh nào chưa chạy thì nói là chưa chạy.

@@ -34,6 +34,11 @@ UPDATE account SET deleted = 1 WHERE id = ?;
 remove:
 DELETE FROM account WHERE id = ?;
 
+-- Pull lại từ đầu sau 410 sync.cursor_expired (ADR-008 T4): bỏ mọi ví đã đồng bộ, giữ ví còn op chờ gửi
+-- (bản local chưa gửi luôn thắng). Lần pull lại đưa về đúng bản của server.
+deleteSynced:
+DELETE FROM account WHERE id NOT IN (SELECT entity_id FROM outbox WHERE entity = 'account');
+
 -- Số dư = ban đầu + thu − chi − chuyển đi + chuyển đến; chỉ giao dịch CONFIRMED chưa xoá (ADR-005 §5).
 -- Cùng công thức với backend (AccountFlowsQueryAdapter).
 --

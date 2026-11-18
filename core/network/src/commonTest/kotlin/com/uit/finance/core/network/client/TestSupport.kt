@@ -2,6 +2,7 @@ package com.uit.finance.core.network.client
 
 import co.touchlab.kermit.Logger
 import com.uit.finance.core.network.auth.AuthTokens
+import com.uit.finance.core.network.auth.DeletedAccountSignal
 import com.uit.finance.core.network.auth.RefreshOutcome
 import com.uit.finance.core.network.auth.TokenProvider
 import com.uit.finance.core.network.auth.TokenRefresher
@@ -52,6 +53,7 @@ internal fun testClient(
     tokenProvider: TokenProvider = FakeTokenProvider(),
     tokenRefresher: TokenRefresher = FakeTokenRefresher(),
     uuidGenerator: FakeUuidGenerator = FakeUuidGenerator(),
+    deletedAccountSignal: DeletedAccountSignal = DeletedAccountSignal(),
     handler: suspend MockRequestHandleScope.(HttpRequestData) -> HttpResponseData,
 ): HttpClient = createHttpClient(
     engine = MockEngine(handler),
@@ -61,6 +63,7 @@ internal fun testClient(
     tokenRefresher = tokenRefresher,
     uuidGenerator = uuidGenerator,
     logger = Logger.withTag("test"),
+    deletedAccountSignal = deletedAccountSignal,
 )
 
 internal fun MockRequestHandleScope.jsonResponse(body: String, status: HttpStatusCode = HttpStatusCode.OK): HttpResponseData =

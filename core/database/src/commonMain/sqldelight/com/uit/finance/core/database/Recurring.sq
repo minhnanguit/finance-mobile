@@ -104,3 +104,11 @@ SELECT * FROM recurring_occurrence_local;
 
 deleteLocalOccurrences:
 DELETE FROM recurring_occurrence_local WHERE recurring_id = ?;
+
+-- Pull lại từ đầu sau 410 sync.cursor_expired (ADR-008 T4). Xem Account.sq `deleteSynced`. Timeline đi theo khoản;
+-- recurring_occurrence_local là dữ liệu chỉ trên máy nên giữ (kỳ đã sinh vẫn tránh sinh lại khi khoản về lại).
+deleteSyncedRevisions:
+DELETE FROM recurring_revision WHERE recurring_id NOT IN (SELECT entity_id FROM outbox WHERE entity = 'recurring');
+
+deleteSynced:
+DELETE FROM recurring WHERE id NOT IN (SELECT entity_id FROM outbox WHERE entity = 'recurring');

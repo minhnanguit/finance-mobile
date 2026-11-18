@@ -104,11 +104,13 @@ class RecurringCoordinator(
         }
     }
 
-    private fun reschedule(recurrings: List<Recurring>, recorded: Set<String>) {
+    private suspend fun reschedule(recurrings: List<Recurring>, recorded: Set<String>) {
         val zone = TimeZone.currentSystemDefault()
         val planned = ReminderPlanner.plan(recurrings, clock.now(), zone, clock.today(zone), recorded)
         try {
             reminders.replaceAll(planned)
+        } catch (e: CancellationException) {
+            throw e
         } catch (e: Exception) {
             logger.w { "Không hẹn được thông báo: ${e::class.simpleName}" }
         }

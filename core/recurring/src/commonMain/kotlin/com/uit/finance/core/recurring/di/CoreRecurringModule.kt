@@ -1,5 +1,9 @@
 package com.uit.finance.core.recurring.di
 
+import com.uit.finance.core.recurring.reminder.ReminderScheduler
+import com.uit.finance.core.recurring.reminder.NotificationReminderScheduler
+import com.uit.finance.core.recurring.reminder.NotificationPermissionGateAdapter
+import com.uit.finance.core.recurring.reminder.NotificationPermissionGate
 import com.uit.finance.core.recurring.data.local.RecurringStore
 import com.uit.finance.core.recurring.data.repository.RecurringRepositoryImpl
 import com.uit.finance.core.recurring.data.sync.RecurringSyncApplier
@@ -16,10 +20,13 @@ import org.koin.dsl.module
 /**
  * Cần có trong graph: `UserDatabaseProvider` (core/database), `OutboxWriter` + `SyncScheduler` (core/sync),
  * `RecurringPayloadCodec` (core/network), `LedgerOccurrenceWriter` (core/ledger), `UuidGenerator` + `Clock` +
- * `DispatcherProvider` (core/common).
+ * `DispatcherProvider` (core/common), `LocalNotificationScheduler` + `NotificationPermission` (core/notification).
  */
 val coreRecurringModule = module {
     includes(platformRecurringModule())
+
+    single<ReminderScheduler> { NotificationReminderScheduler(scheduler = get()) }
+    single<NotificationPermissionGate> { NotificationPermissionGateAdapter(permission = get()) }
 
     single { RecurringStore(databases = get(), scheduler = get(), dispatchers = get()) }
 
@@ -58,7 +65,7 @@ val coreRecurringModule = module {
     single { RecurringSyncApplier(codec = get()) } bind SyncChangeApplier::class
 }
 
-/** Thông báo + worker theo nền tảng (Android WorkManager, iOS UNUserNotificationCenter). */
+/** Worker theo nền tảng (Android WorkManager sinh kỳ hằng ngày). */
 internal expect fun platformRecurringModule(): Module
 
 /** Android: worker sinh kỳ hằng ngày. iOS: dựa vào BGAppRefreshTask của sync. */

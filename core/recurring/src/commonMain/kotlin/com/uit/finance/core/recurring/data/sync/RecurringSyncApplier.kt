@@ -36,4 +36,9 @@ internal class RecurringSyncApplier(private val codec: RecurringPayloadCodec) : 
     }
 
     override fun dropPendingOnConflict(code: String?): Boolean = code == RecurringErrorCode.REVISION_CONFLICT
+
+    override fun clearSynced(database: FinanceDatabase) {
+        database.recurringQueries.deleteSyncedRevisions()
+        database.recurringQueries.deleteSynced()
+    }
 }

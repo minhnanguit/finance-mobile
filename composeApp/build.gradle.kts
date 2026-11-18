@@ -5,26 +5,44 @@ plugins {
 }
 
 /*
- * URL HTTPS công khai cho build debug (Cloudflare Tunnel), inject lúc build thay vì hardcode vì Quick Tunnel
- * đổi URL mỗi lần bật lại. Nguồn: `-Pfinance.publicBaseUrl=...` hoặc `finance.publicBaseUrl` trong
- * local.properties (git-ignored, `make tunnel URL=...` ghi hộ). Không có thì dùng loopback của emulator.
+ * URL inject lúc build (không hardcode), đọc từ `-P<key>=...` hoặc `<key>` trong local.properties (git-ignored).
+ * - finance.publicBaseUrl:  HTTPS công khai cho build DEBUG (Cloudflare Tunnel, đổi mỗi lần bật lại —
+ *                           `make tunnel URL=...` ghi hộ). Không có thì debug dùng loopback của emulator/simulator.
+ * - finance.releaseBaseUrl: server production cho build RELEASE (một host cho cả API lẫn Keycloak, Caddy chia theo
+ *                           path — xem finance-backend/deploy/PROD.md). Bắt buộc khi build release.
  */
-val publicBaseUrl: String? = run {
-    val local = Properties().apply {
-        rootProject.file("local.properties").takeIf { it.exists() }?.inputStream()?.use { load(it) }
-    }
-    (providers.gradleProperty("finance.publicBaseUrl").orNull ?: local.getProperty("finance.publicBaseUrl"))
-        ?.trim()?.removeSuffix("/")?.takeIf { it.isNotEmpty() }
+val localProperties = Properties().apply {
+    rootProject.file("local.properties").takeIf { it.exists() }?.inputStream()?.use { load(it) }
 }
-require(publicBaseUrl == null || publicBaseUrl.startsWith("https://")) {
-    "finance.publicBaseUrl phải là https://…, nhận được: $publicBaseUrl"
+
+fun httpsUrlProperty(key: String): String? =
+    (providers.gradleProperty(key).orNull ?: localProperties.getProperty(key))
+        ?.trim()?.removeSuffix("/")?.takeIf { it.isNotEmpty() }
+        ?.also { require(it.startsWith("https://")) { "$key phải là https://…, nhận được: $it" } }
+
+val publicBaseUrl: String? = httpsUrlProperty("finance.publicBaseUrl")
+val releaseBaseUrl: String? = httpsUrlProperty("finance.releaseBaseUrl")
+
+// Build release mà thiếu URL thì dừng ngay lúc build, không để app lên máy rồi mới hỏng.
+gradle.taskGraph.whenReady {
+    val buildsRelease = allTasks.any { task ->
+        task.project == project && (task.name.startsWith("assembleRelease") || task.name.startsWith("bundleRelease") ||
+            task.name.startsWith("linkRelease") || task.name == "embedAndSignAppleFrameworkForXcode" &&
+            System.getenv("CONFIGURATION") == "Release")
+    }
+    check(!buildsRelease || releaseBaseUrl != null) {
+        "Build release cần finance.releaseBaseUrl (vd https://xxx.duckdns.org) trong local.properties hoặc -P."
+    }
 }
 
 val appEnvironmentDir = layout.buildDirectory.dir("generated/appEnvironment/commonMain/kotlin")
 val generateAppEnvironment by tasks.registering {
-    val literal = publicBaseUrl?.let { "\"$it\"" } ?: "null"
+    fun literal(value: String?) = value?.let { "\"$it\"" } ?: "null"
+    val publicLiteral = literal(publicBaseUrl)
+    val releaseLiteral = literal(releaseBaseUrl)
     val outDir = appEnvironmentDir
     inputs.property("publicBaseUrl", publicBaseUrl ?: "")
+    inputs.property("releaseBaseUrl", releaseBaseUrl ?: "")
     outputs.dir(outDir)
     doLast {
         val file = outDir.get().file("com/uit/finance/app/config/AppEnvironment.kt").asFile
@@ -36,7 +54,10 @@ val generateAppEnvironment by tasks.registering {
             |
             |internal object AppEnvironment {
             |    /** HTTPS công khai cho build debug; `null` = dùng loopback của emulator/simulator. */
-            |    val publicBaseUrl: String? = $literal
+            |    val publicBaseUrl: String? = $publicLiteral
+            |
+            |    /** Server production cho build release (API + Keycloak cùng host); `null` khi chưa cấu hình. */
+            |    val releaseBaseUrl: String? = $releaseLiteral
             |}
             |""".trimMargin(),
         )
@@ -54,6 +75,8 @@ kotlin {
             implementation(projects.core.auth)
             implementation(projects.core.database)
             implementation(projects.core.datastore)
+            implementation(projects.core.notification)
+            implementation(projects.core.reminder)
             implementation(projects.core.sync)
             implementation(projects.core.ledger)
             implementation(projects.core.budget)
@@ -66,6 +89,7 @@ kotlin {
             implementation(projects.feature.budgets)
             implementation(projects.feature.recurring)
             implementation(projects.feature.reports)
+            implementation(projects.feature.settings)
         }
         commonTest.dependencies {
             implementation(projects.core.testing)

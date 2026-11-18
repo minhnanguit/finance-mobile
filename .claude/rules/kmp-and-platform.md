@@ -18,15 +18,17 @@ Dùng khi và chỉ khi hành vi khác nhau theo nền tảng. Mẫu có sẵn:
 
 | expect | actual Android | actual iOS |
 |---|---|---|
-| `DatabaseDriverFactory : EncryptedDatabaseFiles` (`create` / `delete` / `isUnreadableFile`) | `AndroidSqliteDriver` + SQLCipher `SupportOpenHelperFactory`; sai khoá = `SQLiteNotADatabaseException` | `NativeSqliteDriver` + `DatabaseConfiguration.Encryption` (SQLCipher qua SPM trong `iosApp/project.yml`, **không** `-lsqlite3`); sai khoá = `SqliteErrorType.SQLITE_NOTADB` |
+| `DatabaseDriverFactory : EncryptedDatabaseFiles` (`create` / `delete` / `isUnreadableFile`) | `AndroidSqliteDriver` + SQLCipher `SupportOpenHelperFactory`; sai khoá = `SQLiteNotADatabaseException` | `NativeSqliteDriver` + `DatabaseConfiguration.Encryption` (SQLCipher qua SPM trong `iosApp/project.yml`, **không** `-lsqlite3`); sai khoá = `SqliteErrorType.SQLITE_NOTADB`; thư mục `Application Support/databases` đặt `NSURLIsExcludedFromBackupKey` (ADR-008 P3) |
 | `SecureStorage` (interface + Koin platform module) | Keystore AES-256/GCM + SharedPreferences. Chỉ xoá giá trị khi lỗi vĩnh viễn (`AEADBadTag`...); lỗi tạm → `SecureStorageUnavailableException` | Keychain. OSStatus khác `errSecItemNotFound` → `SecureStorageUnavailableException` |
 | `PlatformInfo` | `.android.kt` | `.ios.kt` |
 | `platformEngine()` | OkHttp | Darwin |
 | `SyncScheduler` | WorkManager | BGTaskScheduler |
-| `AuthorizationLauncher` (interface + Koin platform module, `core/auth`) | Custom Tabs qua `AuthorizationActivity` + `RedirectReceiverActivity` | `ASWebAuthenticationSession` (ephemeral) |
+| `LocalNotificationScheduler`, `NotificationPermission` (`core/notification`) | WorkManager `NotificationWorker` + `NotificationPermissionActivity` | `UNUserNotificationCenter` + `UNCalendarNotificationTrigger` |
+| `AuthorizationLauncher` (interface + Koin platform module, `core/auth`) | Custom Tabs qua `AuthorizationActivity` + `RedirectReceiverActivity`; `ephemeral = true` (xác nhận lại, đổi mật khẩu) → `setEphemeralBrowsingEnabled`, Chrome 136+ (ADR-008 A11) | `ASWebAuthenticationSession` (luôn ephemeral) |
 | `secureRandomBytes()` (`core/common/security`) | `SecureRandom` | `SecRandomCopyBytes` |
 | `sha256()` (`core/auth/pkce`) | `MessageDigest` | `CC_SHA256` |
 | `defaultApiBaseUrl()`, `isDebugBuild` (composeApp) | `10.0.2.2:18473` khi debug | loopback simulator |
+| `appVersionName` (composeApp) | `BuildConfig.VERSION_NAME` | `CFBundleShortVersionString` |
 
 Đặt tên file: `X.kt` (expect) / `X.android.kt` / `X.ios.kt`.
 DI theo nền tảng: `di/PlatformXModule.android.kt` / `.ios.kt` — expect `val platformXModule: Module`.
@@ -51,7 +53,7 @@ Compiler flag đang bật: `-Xexpect-actual-classes` (expect/actual class vẫn 
 
 | Plugin | Dùng cho |
 |---|---|
-| `finance.kmp.library` | core module thuần (common, network, auth, database, datastore, sync, ledger, session, presentation, testing) |
+| `finance.kmp.library` | core module thuần (common, network, auth, database, datastore, sync, ledger, session, notification, reminder, presentation, testing) |
 | `finance.kmp.compose` | module có UI Compose (designsystem) |
 | `finance.kmp.feature` | feature module (Compose + Koin + lifecycle + navigation + serialization đã kèm sẵn) |
 | `finance.compose.application` | `composeApp` |
@@ -63,4 +65,4 @@ Thêm dependency chung cho mọi feature → sửa convention plugin, đừng co
 
 - Compile klib không cần Xcode: `make ios`.
 - Link framework + chạy app **cần Xcode 26+** (Kotlin 2.3 / Compose 1.11 link với iOS 26 SDK) và `xcodegen`. `iosApp/*.xcodeproj` được sinh ra, đã gitignore — đừng commit.
-- Máy dev hiện tại không có Xcode ⇒ báo rõ cho user khi task cần nó, đừng workaround.
+- Máy dev có Xcode 27.2: link framework + `xcodebuild` verify được ở local. Bản release cần `finance.releaseBaseUrl` (`make prod-url`).

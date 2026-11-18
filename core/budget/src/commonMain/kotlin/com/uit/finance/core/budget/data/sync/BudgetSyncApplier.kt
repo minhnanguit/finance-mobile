@@ -30,4 +30,8 @@ internal class BudgetSyncApplier(private val codec: BudgetPayloadCodec) : SyncCh
     override fun discard(database: FinanceDatabase, entityId: String) {
         database.budgetQueries.remove(entityId)
     }
+
+    override fun clearSynced(database: FinanceDatabase) {
+        database.budgetQueries.deleteSynced()
+    }
 }

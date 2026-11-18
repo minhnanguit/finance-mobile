@@ -26,18 +26,18 @@ data class ReminderNotification(
     val fireAt: Instant,
 )
 
-/** Hẹn/huỷ thông báo cục bộ của nền tảng (Android WorkManager + NotificationManager, iOS UNUserNotificationCenter). */
+/** Hẹn/huỷ thông báo nhắc của feature. Bản thật đi qua `core/notification` (nhóm [ReminderPlanner.GROUP]). */
 interface ReminderScheduler {
     /** Thay toàn bộ thông báo đang chờ của feature bằng [reminders]. */
-    fun replaceAll(reminders: List<ReminderNotification>)
+    suspend fun replaceAll(reminders: List<ReminderNotification>)
 
     /** Huỷ thông báo đang chờ **và đang hiện** (đăng xuất, đổi user). */
-    fun cancelAll()
+    suspend fun cancelAll()
 }
 
 /** Quyền hiện thông báo. Từ chối không chặn việc tạo khoản (chỉ không nhắc được). */
 interface NotificationPermissionGate {
-    fun isGranted(): Boolean
+    suspend fun isGranted(): Boolean
 
     /** Hỏi quyền một lần; đã có hoặc nền tảng không cần thì trả `true` ngay. */
     suspend fun request(): Boolean
@@ -88,6 +88,12 @@ object ReminderPlanner {
         "${reminder.recurringName} đến hạn ngày ${reminder.dueDate.day.pad()}/${(reminder.dueDate.month.ordinal + 1).pad()}"
 
     const val TITLE = "Khoản định kỳ sắp đến hạn"
+
+    /** Nhóm thông báo trong `core/notification`: chỉ feature này thay/huỷ nhóm của mình. */
+    const val GROUP = "recurring"
+
+    /** Action khi bấm thông báo: app mở màn Khoản định kỳ. */
+    const val ACTION_OPEN_RECURRING = "recurring_open"
 
     private fun Int.pad(): String = toString().padStart(2, '0')
 }

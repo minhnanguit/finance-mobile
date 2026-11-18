@@ -45,6 +45,21 @@ class AuthorizationRequestTest {
     }
 
     @Test
+    fun changePasswordAsksKeycloakForTheUpdatePasswordAction() {
+        val url = Url(authorizationUrl(AUTH_ENDPOINT, testConfig, "c", "s", AuthorizationPrompt.ChangePassword))
+
+        assertEquals("UPDATE_PASSWORD", url.parameters["kc_action"])
+        assertNull(url.parameters["prompt"])
+    }
+
+    @Test
+    fun parsesTheResultOfAnApplicationInitiatedAction() {
+        val callback = parseCallback("$REDIRECT_URI?code=abc&state=xyz&kc_action=UPDATE_PASSWORD&kc_action_status=cancelled", REDIRECT_URI)
+
+        assertEquals("cancelled", callback?.actionStatus)
+    }
+
+    @Test
     fun parsesCodeStateAndIssuerFromTheRegisteredRedirect() {
         val callback = parseCallback("$REDIRECT_URI?code=abc&state=xyz&iss=http%3A%2F%2Fidp", REDIRECT_URI)
 

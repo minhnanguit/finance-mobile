@@ -32,7 +32,6 @@ import com.uit.finance.feature.budgets.presentation.navigation.budgetsNavGraph
 import com.uit.finance.feature.auth.domain.usecase.ObserveLocalDataStatusUseCase
 import com.uit.finance.feature.auth.domain.usecase.ObserveSessionUseCase
 import com.uit.finance.feature.auth.presentation.navigation.LocalDataRequiredDestination
-import com.uit.finance.feature.auth.presentation.navigation.ProfileDestination
 import com.uit.finance.feature.auth.presentation.navigation.SignedOutDestination
 import com.uit.finance.feature.auth.presentation.navigation.authNavGraph
 import com.uit.finance.feature.home.presentation.navigation.HomeDestination
@@ -42,6 +41,9 @@ import com.uit.finance.feature.reports.presentation.navigation.ReportsDestinatio
 import com.uit.finance.feature.recurring.presentation.navigation.RecurringDestination
 import com.uit.finance.feature.recurring.presentation.navigation.RecurringEditorDestination
 import com.uit.finance.feature.recurring.presentation.navigation.recurringNavGraph
+import com.uit.finance.feature.settings.presentation.navigation.DeleteAccountDestination
+import com.uit.finance.feature.settings.presentation.navigation.SettingsDestination
+import com.uit.finance.feature.settings.presentation.navigation.settingsNavGraph
 import com.uit.finance.feature.reports.presentation.navigation.reportsNavGraph
 import com.uit.finance.feature.transactions.presentation.navigation.CategoriesDestination
 import com.uit.finance.feature.transactions.presentation.navigation.CategoryEditorDestination
@@ -50,6 +52,9 @@ import com.uit.finance.feature.transactions.presentation.navigation.TransactionE
 import com.uit.finance.feature.transactions.presentation.navigation.transactionsNavGraph
 import com.uit.finance.core.ledger.domain.model.CategoryKind
 import com.uit.finance.core.ledger.domain.model.TransactionType
+import com.uit.finance.core.notification.NotificationTaps
+import com.uit.finance.core.recurring.reminder.ReminderPlanner
+import com.uit.finance.core.reminder.ReminderNotifications
 import kotlinx.coroutines.flow.map
 import org.koin.compose.koinInject
 
@@ -82,6 +87,8 @@ private fun MainNavHost(isAuthenticated: Boolean) {
     val observeLocalData = koinInject<ObserveLocalDataStatusUseCase>()
     val localData by remember(observeLocalData) { observeLocalData() }
         .collectAsStateWithLifecycle(initialValue = LocalDataStatus.Preparing)
+    val notificationTaps = koinInject<NotificationTaps>()
+    val pendingTap by notificationTaps.pending.collectAsStateWithLifecycle()
 
     Scaffold(
         // safeDrawing = system bars + tai thỏ + bàn phím, nên từng màn không phải tự xử lý inset. consumeWindowInsets bên
@@ -101,9 +108,14 @@ private fun MainNavHost(isAuthenticated: Boolean) {
             ) {
                 authNavGraph(
                     onAuthenticated = { navController.navigateClearingBackStack(HomeDestination) },
-                    onLoggedOut = { navController.navigateClearingBackStack(SignedOutDestination) },
                     onLocalDataReady = { navController.navigateClearingBackStack(HomeDestination) },
-                    onOpenProfile = { navController.navigateSingleTop(ProfileDestination) },
+                    onOpenSettings = { navController.navigateSingleTop(SettingsDestination) },
+                )
+                settingsNavGraph(
+                    onBack = { navController.navigateUp() },
+                    onOpenDeleteAccount = { navController.navigateSingleTop(DeleteAccountDestination) },
+                    // Đăng xuất / xoá tài khoản: phiên kết thúc, không cho back về màn cũ.
+                    onSignedOut = { navController.navigateClearingBackStack(SignedOutDestination) },
                 )
                 homeNavGraph(onNavigate = navController::open)
                 accountsNavGraph(
@@ -151,12 +163,13 @@ private fun MainNavHost(isAuthenticated: Boolean) {
         }
     }
 
-    // Lần đầu đăng nhập mà mất mạng (S6) hoặc không mở được sổ: chặn ở màn giải thích + thử lại. Hồ sơ vẫn mở được
-    // từ màn đó để đăng xuất.
+    // Lần đầu đăng nhập mà mất mạng (S6) hoặc không mở được sổ: chặn ở màn giải thích + thử lại. Cài đặt vẫn mở
+    // được từ màn đó để đăng xuất hoặc xoá tài khoản.
     LaunchedEffect(isAuthenticated, localData, currentDestination) {
         val blocked = localData == LocalDataStatus.NeedsNetwork || localData == LocalDataStatus.Unavailable
         val onGate = currentDestination?.hasRoute<LocalDataRequiredDestination>() == true ||
-            currentDestination?.hasRoute<ProfileDestination>() == true
+            currentDestination?.hasRoute<SettingsDestination>() == true ||
+            currentDestination?.hasRoute<DeleteAccountDestination>() == true
         if (isAuthenticated && blocked && currentDestination != null && !onGate) {
             navController.navigateClearingBackStack(LocalDataRequiredDestination)
         }
@@ -167,6 +180,23 @@ private fun MainNavHost(isAuthenticated: Boolean) {
         val onProtectedScreen = currentDestination != null && !currentDestination.hasRoute<SignedOutDestination>()
         if (!isAuthenticated && onProtectedScreen) {
             navController.navigateClearingBackStack(SignedOutDestination)
+        }
+    }
+
+    LaunchedEffect(pendingTap, isAuthenticated, localData) {
+        val action = pendingTap ?: return@LaunchedEffect
+        when {
+            !isAuthenticated -> notificationTaps.consume()
+            localData != LocalDataStatus.Ready -> Unit
+            action == ReminderNotifications.ACTION_ADD_TRANSACTION -> {
+                navController.navigateSingleTop(TransactionEditorDestination())
+                notificationTaps.consume()
+            }
+            action == ReminderPlanner.ACTION_OPEN_RECURRING -> {
+                navController.navigateSingleTop(RecurringDestination)
+                notificationTaps.consume()
+            }
+            else -> notificationTaps.consume()
         }
     }
 }

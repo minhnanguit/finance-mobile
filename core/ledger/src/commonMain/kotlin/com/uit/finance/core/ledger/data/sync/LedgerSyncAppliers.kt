@@ -27,6 +27,10 @@ internal class AccountSyncApplier(private val codec: SyncPayloadCodec) : SyncCha
     override fun discard(database: FinanceDatabase, entityId: String) {
         database.accountQueries.remove(entityId)
     }
+
+    override fun clearSynced(database: FinanceDatabase) {
+        database.accountQueries.deleteSynced()
+    }
 }
 
 internal class CategorySyncApplier(private val codec: SyncPayloadCodec) : SyncChangeApplier {
@@ -43,6 +47,10 @@ internal class CategorySyncApplier(private val codec: SyncPayloadCodec) : SyncCh
     override fun discard(database: FinanceDatabase, entityId: String) {
         database.categoryQueries.remove(entityId)
     }
+
+    override fun clearSynced(database: FinanceDatabase) {
+        database.categoryQueries.deleteSynced()
+    }
 }
 
 internal class TransactionSyncApplier(private val codec: SyncPayloadCodec) : SyncChangeApplier {
@@ -58,5 +66,9 @@ internal class TransactionSyncApplier(private val codec: SyncPayloadCodec) : Syn
 
     override fun discard(database: FinanceDatabase, entityId: String) {
         database.ledgerTransactionQueries.remove(entityId)
+    }
+
+    override fun clearSynced(database: FinanceDatabase) {
+        database.ledgerTransactionQueries.deleteSynced()
     }
 }

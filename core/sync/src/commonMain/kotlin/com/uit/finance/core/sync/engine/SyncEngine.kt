@@ -85,6 +85,13 @@ interface SyncChangeApplier {
      * máy khác thay, ADR-009 RS10). Engine bỏ các op đó, ghi một dòng `sync_rejection` để báo user, rồi áp bản server.
      */
     fun dropPendingOnConflict(code: String?): Boolean = false
+
+    /**
+     * Pull lại từ đầu sau `410 sync.cursor_expired` (ADR-008 T4): xoá mọi bản ghi của entity này đã đồng bộ,
+     * **giữ** bản ghi còn op chờ gửi trong outbox (bản local chưa gửi luôn thắng). Lần pull lại đưa phần còn lại
+     * về đúng bản của server, kể cả việc bản ghi nào đã bị xoá mà máy này không còn được báo.
+     */
+    fun clearSynced(database: FinanceDatabase)
 }
 
 /** `installationId` của máy, gửi kèm mỗi lần push để server ghi nhật ký (ADR-006 B9). */

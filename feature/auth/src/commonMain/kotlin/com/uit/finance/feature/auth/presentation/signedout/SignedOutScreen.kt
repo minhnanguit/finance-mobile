@@ -1,20 +1,20 @@
 package com.uit.finance.feature.auth.presentation.signedout
 
-import androidx.compose.foundation.background
 import androidx.compose.foundation.Canvas
 import androidx.compose.foundation.Image
-import androidx.compose.foundation.layout.Box
+import androidx.compose.foundation.background
 import androidx.compose.foundation.layout.Arrangement
+import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.Spacer
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.height
+import androidx.compose.foundation.layout.heightIn
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.safeDrawingPadding
 import androidx.compose.foundation.layout.size
-import androidx.compose.foundation.layout.heightIn
 import androidx.compose.foundation.rememberScrollState
 import androidx.compose.foundation.verticalScroll
 import androidx.compose.material3.MaterialTheme
@@ -33,25 +33,32 @@ import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import com.uit.finance.core.designsystem.component.ConfirmDialog
 import com.uit.finance.core.designsystem.component.ErrorBanner
 import com.uit.finance.core.designsystem.component.FinanceLogo
+import com.uit.finance.core.designsystem.component.NoticeBanner
 import com.uit.finance.core.designsystem.component.PrimaryButton
 import com.uit.finance.core.designsystem.component.SecondaryOutlinedButton
+import com.uit.finance.core.designsystem.component.SecondaryTextButton
+import com.uit.finance.core.designsystem.icon.FinanceIcons
 import com.uit.finance.core.designsystem.theme.FinanceTheme
+import com.uit.finance.feature.auth.domain.model.SignInMode
 import com.uit.finance.feature.auth.generated.resources.Res
-import com.uit.finance.feature.auth.generated.resources.welcome_wallet
 import com.uit.finance.feature.auth.generated.resources.other_accounts_delete
 import com.uit.finance.feature.auth.generated.resources.other_accounts_keep
 import com.uit.finance.feature.auth.generated.resources.other_accounts_message
 import com.uit.finance.feature.auth.generated.resources.other_accounts_title
 import com.uit.finance.feature.auth.generated.resources.signed_out_brand
 import com.uit.finance.feature.auth.generated.resources.signed_out_create_account
+import com.uit.finance.feature.auth.generated.resources.signed_out_local_data_wiped
 import com.uit.finance.feature.auth.generated.resources.signed_out_security
 import com.uit.finance.feature.auth.generated.resources.signed_out_sign_in
 import com.uit.finance.feature.auth.generated.resources.signed_out_subtitle
 import com.uit.finance.feature.auth.generated.resources.signed_out_title
-import com.uit.finance.feature.auth.domain.model.SignInMode
-import org.koin.compose.viewmodel.koinViewModel
+import com.uit.finance.feature.auth.generated.resources.signed_out_wipe_local_data
+import com.uit.finance.feature.auth.generated.resources.signed_out_wipe_message
+import com.uit.finance.feature.auth.generated.resources.signed_out_wipe_title
+import com.uit.finance.feature.auth.generated.resources.welcome_wallet
 import org.jetbrains.compose.resources.painterResource
 import org.jetbrains.compose.resources.stringResource
+import org.koin.compose.viewmodel.koinViewModel
 
 @Composable
 internal fun SignedOutRoute(
@@ -111,7 +118,6 @@ internal fun SignedOutScreen(
             }
             drawPath(path = wave, color = welcomeActionSurface)
         }
-
         Column(
             modifier = Modifier
                 .fillMaxSize()
@@ -161,6 +167,24 @@ internal fun SignedOutScreen(
             )
             Spacer(Modifier.height(spacing.md))
 
+            state.notice?.let { notice ->
+                NoticeBanner(
+                    message = notice.resolve(),
+                    icon = FinanceIcons.ShieldCheck,
+                    onDismiss = { onIntent(SignedOutIntent.NoticeDismissed) },
+                )
+                Spacer(Modifier.height(spacing.md))
+            }
+
+            if (state.localDataWiped) {
+                NoticeBanner(
+                    message = stringResource(Res.string.signed_out_local_data_wiped),
+                    icon = FinanceIcons.ShieldCheck,
+                    onDismiss = { onIntent(SignedOutIntent.LocalDataWipedDismissed) },
+                )
+                Spacer(Modifier.height(spacing.md))
+            }
+
             state.error?.let { error ->
                 ErrorBanner(message = error, onDismiss = { onIntent(SignedOutIntent.ErrorDismissed) })
                 Spacer(Modifier.height(spacing.sm))
@@ -178,6 +202,7 @@ internal fun SignedOutScreen(
                 text = stringResource(Res.string.signed_out_sign_in),
                 onClick = { onIntent(SignedOutIntent.SignInClicked) },
                 enabled = !state.isBusy,
+                loading = state.inProgress == SignInMode.SignIn,
                 large = true,
             )
             Spacer(Modifier.height(spacing.lg))
@@ -186,8 +211,32 @@ internal fun SignedOutScreen(
                 style = MaterialTheme.typography.bodySmall,
                 color = FinanceTheme.colors.welcomeTextSecondary,
             )
-            Spacer(Modifier.height(spacing.md))
+
+            // Ít khi cần, nên đặt dưới nút chính: máy còn sổ của lần đăng nhập trước mà không còn phiên (B7, hoặc tài
+            // khoản đã bị xoá từ máy khác — ADR-008 A9).
+            if (state.localDataOnDevice) {
+                Spacer(Modifier.height(spacing.xl))
+                SecondaryTextButton(
+                    text = stringResource(Res.string.signed_out_wipe_local_data),
+                    onClick = { onIntent(SignedOutIntent.WipeLocalDataClicked) },
+                    enabled = !state.isBusy,
+                    muted = true,
+                )
+            }
+            Spacer(Modifier.height(spacing.lg))
         }
+    }
+
+    if (state.wipeLocalDataPrompt) {
+        ConfirmDialog(
+            title = stringResource(Res.string.signed_out_wipe_title),
+            message = stringResource(Res.string.signed_out_wipe_message),
+            confirmLabel = stringResource(Res.string.other_accounts_delete),
+            dismissLabel = stringResource(Res.string.other_accounts_keep),
+            destructive = true,
+            onConfirm = { onIntent(SignedOutIntent.WipeLocalDataConfirmed) },
+            onDismiss = { onIntent(SignedOutIntent.WipeLocalDataDismissed) },
+        )
     }
 
     if (state.otherAccountsPrompt) {
