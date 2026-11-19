@@ -1,5 +1,8 @@
 package com.uit.finance.app.di
 
+import com.uit.finance.core.capture.di.coreCaptureModule
+import com.uit.finance.feature.capture.di.captureFeatureModule
+
 import com.uit.finance.core.auth.di.coreAuthModule
 import com.uit.finance.core.budget.di.coreBudgetModule
 import com.uit.finance.core.recurring.di.coreRecurringModule
@@ -46,6 +49,7 @@ fun initKoin(platformDeclaration: KoinAppDeclaration = {}): KoinApplication = st
         coreLedgerModule,
         coreBudgetModule,
         coreRecurringModule,
+        coreCaptureModule,
         coreReminderModule,
         coreSessionModule,
         authFeatureModule,
@@ -54,6 +58,7 @@ fun initKoin(platformDeclaration: KoinAppDeclaration = {}): KoinApplication = st
         transactionsFeatureModule,
         budgetsFeatureModule,
         recurringFeatureModule,
+        captureFeatureModule,
         reportsFeatureModule,
         settingsFeatureModule,
     )
