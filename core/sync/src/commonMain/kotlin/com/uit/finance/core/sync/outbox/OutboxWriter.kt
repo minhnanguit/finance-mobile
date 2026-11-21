@@ -34,11 +34,14 @@ class OutboxWriter(
         entityId: String,
         payload: JsonObject,
         references: Collection<SyncRef> = emptyList(),
+        mergeIntoTail: Boolean = true,
     ) {
         val queries = database.outboxQueries
         val now = clock.now().toEpochMilliseconds()
         val tail = queries.selectTail().executeAsOneOrNull()
-        val seq = if (tail != null && tail.entity == entity && tail.entity_id == entityId && tail.action == OutboxAction.UPSERT.name) {
+        val canMerge = mergeIntoTail && tail != null && tail.entity == entity && tail.entity_id == entityId &&
+            tail.action == OutboxAction.UPSERT.name
+        val seq = if (canMerge && tail != null) {
             queries.replace(opId = uuidGenerator.generate(), payload = payload.toString(), createdAt = now, seq = tail.seq)
             queries.deleteRefs(tail.seq)
             tail.seq
@@ -46,6 +49,32 @@ class OutboxWriter(
             queries.insert(uuidGenerator.generate(), entity, entityId, OutboxAction.UPSERT.name, payload.toString(), now)
             queries.lastInsertedSeq().executeAsOne()
         }
+        references
+            .filterNot { it.entity == entity && it.entityId == entityId }
+            .forEach { queries.insertRef(seq, it.entity, it.entityId) }
+    }
+
+    /**
+     * Op "chỉ tạo nếu chưa có" (ADR-009 §3). Không bao giờ bị gộp, và [upsert] cũng không gộp vào nó: sửa/xoá sau đó
+     * đi thành op riêng, đúng thứ tự, để server luôn biết bản ghi đã từng được tạo rồi mới bị sửa hay xoá.
+     */
+    fun create(
+        database: FinanceDatabase,
+        entity: String,
+        entityId: String,
+        payload: JsonObject,
+        references: Collection<SyncRef> = emptyList(),
+    ) {
+        val queries = database.outboxQueries
+        queries.insert(
+            uuidGenerator.generate(),
+            entity,
+            entityId,
+            OutboxAction.CREATE.name,
+            payload.toString(),
+            clock.now().toEpochMilliseconds(),
+        )
+        val seq = queries.lastInsertedSeq().executeAsOne()
         references
             .filterNot { it.entity == entity && it.entityId == entityId }
             .forEach { queries.insertRef(seq, it.entity, it.entityId) }

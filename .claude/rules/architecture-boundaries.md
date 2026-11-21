@@ -15,7 +15,7 @@ presentation ──► domain ◄── data
 
 Một feature = **một Gradle module** chứa cả ba package `domain/`, `data/`, `presentation/` (+ `di/`). Không tách thành 3 Gradle module.
 
-## 27 luật Konsist (file `architecture-test/src/test/kotlin/…`)
+## 29 luật Konsist (file `architecture-test/src/test/kotlin/…`)
 
 ### `LayerDependencyRulesTest`
 
@@ -58,6 +58,13 @@ Một feature = **một Gradle module** chứa cả ba package `domain/`, `data/
 | Luật | Ý nghĩa |
 |---|---|
 | Bảng budget bị nhốt | Chỉ `core/budget` được dùng `budgetQueries` / row class `Budget` — mọi chỗ khác đi qua `BudgetRepository` (ADR-007 §8) |
+
+### `RecurringDataRulesTest`
+
+| Luật | Ý nghĩa |
+|---|---|
+| Bảng recurring bị nhốt | Chỉ `core/recurring` được dùng `recurringQueries` / row class `Recurring*` — giao dịch của kỳ đi qua `LedgerOccurrenceWriter` (ADR-009 §8) |
+| Thông báo không có số tiền | `ReminderNotification(...)` không được mang `amount*` (R15) |
 
 ### `DesignSystemRulesTest`
 

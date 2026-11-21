@@ -87,4 +87,20 @@ class OutboxWriterTest {
 
         assertTrue(refsOf(row.seq).isEmpty())
     }
+    @Test
+    fun `CREATE không bị gộp và upsert sau đó cũng không gộp vào nó`() {
+        writer.create(database, "transaction", "t1", payload("nháp"), listOf(SyncRef("recurring", "k1")))
+        writer.upsert(database, "transaction", "t1", payload("đã xác nhận"))
+
+        assertEquals(listOf("CREATE", "UPSERT"), rows().map { it.action })
+        assertEquals(listOf("recurring:k1"), refsOf(rows().first().seq))
+    }
+
+    @Test
+    fun `mergeIntoTail false - hai lần sửa liên tiếp là hai op`() {
+        writer.upsert(database, "recurring", "k1", payload("a"), mergeIntoTail = false)
+        writer.upsert(database, "recurring", "k1", payload("b"), mergeIntoTail = false)
+
+        assertEquals(2, rows().size)
+    }
 }

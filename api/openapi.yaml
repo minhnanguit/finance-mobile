@@ -1,7 +1,7 @@
 openapi: 3.0.3
 info:
   title: Finance API
-  version: 2.3.0
+  version: 2.4.0
   description: |
     API contract của finance-backend, là single source of truth: backend generate server interface,
     app mobile generate client từ file này.
@@ -35,6 +35,15 @@ info:
     - Tài khoản đã xoá: mọi endpoint trả `403 identity.user_deleted`.
     - `GET /api/v1/sync/pull` có thể trả `410 sync.cursor_expired` khi máy giữ cursor cũ hơn mốc server đã dọn
       bản ghi đã xoá (90 ngày): app xoá dữ liệu đã đồng bộ trên máy rồi pull lại từ đầu.
+
+    Khoản định kỳ (2.4.0, chỉ thêm, không breaking, ADR-009)
+    - Entity sync mới `recurring`, dữ liệu `RecurringData` gồm cả timeline phiên bản (`revisions`).
+    - Ghi có điều kiện: `RecurringData.revision` trong op là revision client dựa vào (tạo mới = 0); khác server
+      → `CONFLICT recurring.revision_conflict` + `current`. Phiên bản đã có hiệu lực không sửa được.
+    - Op mới `action: CREATE` cho mọi entity: chỉ ghi khi id chưa có. Id đã có (kể cả tombstone) →
+      `CONFLICT sync.already_exists` + `current`. App dùng cho giao dịch sinh từ khoản định kỳ, id
+      `UUIDv5(9ec1e9e3-0bb0-485a-ba55-77182d53d5f4, "<recurringId>/<yyyy-MM-dd>")`.
+    - Server không tự sinh giao dịch; app sinh khi đến hạn.
 
     Breaking changes so với 1.0.0
     - Xoá `/api/v1/auth/register`, `/login`, `/refresh`, `/logout` cùng các schema đi kèm.
@@ -255,7 +264,7 @@ components:
           type: string
           minLength: 1
           maxLength: 30
-          description: '`account` | `category` | `transaction` | `budget`. Giá trị khác → op bị `REJECTED sync.unknown_entity`.'
+          description: '`account` | `category` | `transaction` | `budget` | `recurring`. Giá trị khác → op bị `REJECTED sync.unknown_entity`.'
           example: transaction
         id:
           type: string
@@ -263,14 +272,18 @@ components:
           description: Id bản ghi, do client sinh
         action:
           type: string
-          enum: [UPSERT, DELETE]
+          enum: [UPSERT, DELETE, CREATE]
+          description: |
+            `UPSERT`: tạo hoặc sửa. `DELETE`: tombstone. `CREATE` (2.4.0): chỉ tạo khi id chưa có với user;
+            id đã có, còn sống hay đã xoá → `CONFLICT sync.already_exists` + `current`, bản của server giữ
+            nguyên. Id của user khác bị từ chối như `UPSERT`.
         data:
           type: object
           nullable: true
           additionalProperties: true
           description: |
-            Bắt buộc khi `UPSERT`, bỏ qua khi `DELETE`. Hình dạng theo `entity`: `AccountData`,
-            `CategoryData`, `TransactionData` hoặc `BudgetData`. Không được có field nào khác.
+            Bắt buộc khi `UPSERT` và `CREATE`, bỏ qua khi `DELETE`. Hình dạng theo `entity`: `AccountData`,
+            `CategoryData`, `TransactionData`, `BudgetData` hoặc `RecurringData`. Không được có field nào khác.
     SyncPushResponse:
       type: object
       required: [results]
@@ -290,8 +303,8 @@ components:
           type: string
           enum: [APPLIED, DUPLICATE, CONFLICT, REJECTED, RETRY]
           description: |
-            APPLIED: đã ghi. DUPLICATE: opId đã xử lý trước đó. CONFLICT: server giữ bản của mình (đã xoá),
-            ghi đè local bằng `current`. REJECTED: bỏ op, khôi phục local theo `current`, báo user.
+            APPLIED: đã ghi. DUPLICATE: opId đã xử lý trước đó. CONFLICT: server giữ bản của mình (đã xoá,
+            id đã có khi `CREATE`, hoặc `recurring.revision_conflict`), ghi đè local bằng `current`. REJECTED: bỏ op, khôi phục local theo `current`, báo user.
             RETRY: ví/danh mục được trỏ tới chưa tới, giữ op và thử lại sau.
         code:
           type: string
@@ -333,7 +346,7 @@ components:
           type: object
           nullable: true
           additionalProperties: true
-          description: '`AccountData` / `CategoryData` / `TransactionData` / `BudgetData`; null khi `deleted = true`.'
+          description: '`AccountData` / `CategoryData` / `TransactionData` / `BudgetData` / `RecurringData`; null khi `deleted = true`.'
     AccountData:
       type: object
       additionalProperties: false
@@ -470,6 +483,132 @@ components:
           description: |
             Ngày 1 của tháng bắt đầu áp dụng, từ 2000-01-01 tới tháng UTC hiện tại + 1. Không đổi được
             sau khi tạo.
+    RecurringData:
+      type: object
+      additionalProperties: false
+      required: [name, type, currency, generationNotBefore, revision, revisions]
+      properties:
+        name:
+          type: string
+          minLength: 1
+          maxLength: 50
+          description: Tên hiển thị, trim. Sửa được; được chụp vào `payee` của giao dịch lúc sinh.
+        type:
+          type: string
+          enum: [EXPENSE, INCOME]
+          description: Không đổi được sau khi tạo.
+        currency:
+          type: string
+          pattern: '^[A-Z]{3}$'
+          description: ISO-4217, phải trùng tiền tệ của ví ở mọi phiên bản. Không đổi được sau khi tạo.
+        generationNotBefore:
+          type: string
+          format: date
+          description: |
+            Không sinh kỳ trước ngày này. Chỉ được tăng, giá trị mới tối đa hôm nay (UTC) + 1. Giảm →
+            `REJECTED recurring.immutable_field`.
+        generationEndDate:
+          type: string
+          format: date
+          nullable: true
+          description: |
+            Ngày cuối còn sinh kỳ. Chỉ được giảm, giá trị mới tối thiểu hôm nay (UTC) − 1; nhỏ hơn kỳ đầu =
+            huỷ khoản chưa bắt đầu. Đã đặt thì không gỡ về null, không tăng.
+        remindDaysBefore:
+          type: integer
+          format: int32
+          nullable: true
+          minimum: 0
+          maximum: 7
+          description: Nhắc trước bao nhiêu ngày; null = tắt. Sửa được.
+        revision:
+          type: integer
+          format: int64
+          minimum: 0
+          description: |
+            Trong op: revision mà client dựa vào (tạo mới = 0); khác server → `CONFLICT
+            recurring.revision_conflict`. Trong pull và `current`: revision hiện tại. Server tự tăng 1 mỗi lần áp.
+        revisions:
+          type: array
+          minItems: 1
+          maxItems: 50
+          description: |
+            Timeline, `effectiveFrom` tăng dần, không trùng. Phiên bản có `effectiveFrom` trước hôm nay (UTC)
+            − 1 phải giữ nguyên; phiên bản thêm hoặc sửa có `effectiveFrom` từ hôm nay (UTC) − 1 tới + 366
+            ngày (khi tạo mới: từ 2000-01-01).
+          items:
+            $ref: '#/components/schemas/RecurrenceRevisionData'
+    RecurrenceRevisionData:
+      type: object
+      additionalProperties: false
+      required: [id, effectiveFrom, anchorDate, accountId, categoryId, amountMinor, frequency, interval, autoConfirm]
+      properties:
+        id:
+          type: string
+          format: uuid
+          description: Do client sinh, cố định cho phiên bản
+        effectiveFrom:
+          type: string
+          format: date
+          description: Phiên bản áp từ ngày này tới trước `effectiveFrom` của phiên bản kế tiếp
+        anchorDate:
+          type: string
+          format: date
+          description: |
+            Mốc nhịp lặp: tuần ISO / tháng / năm chứa ngày này là kỳ 0, lấy kỳ cách nó bội số của `interval`.
+            Không sau `effectiveFrom`.
+        accountId:
+          type: string
+          format: uuid
+          description: Ví của chính user, cùng `currency`. Chưa tới → `RETRY recurring.reference_pending`.
+        categoryId:
+          type: string
+          format: uuid
+          description: Danh mục cùng loại với `type`, cấp nào cũng được. Chưa tới → `RETRY recurring.reference_pending`.
+        amountMinor:
+          type: integer
+          format: int64
+          minimum: 1
+          maximum: 1000000000000000
+          description: Số tiền dự kiến mỗi kỳ
+        note:
+          type: string
+          nullable: true
+          maxLength: 500
+        frequency:
+          type: string
+          enum: [WEEKLY, MONTHLY, YEARLY]
+        interval:
+          type: integer
+          format: int32
+          minimum: 1
+          maximum: 12
+          description: Mỗi bao nhiêu tuần / tháng / năm
+        weekday:
+          type: integer
+          format: int32
+          nullable: true
+          minimum: 1
+          maximum: 7
+          description: ISO, 1 = thứ Hai. Bắt buộc khi WEEKLY, null với tần suất khác.
+        month:
+          type: integer
+          format: int32
+          nullable: true
+          minimum: 1
+          maximum: 12
+          description: Bắt buộc khi YEARLY, null với tần suất khác.
+        dayOfMonth:
+          type: integer
+          format: int32
+          nullable: true
+          minimum: 1
+          maximum: 31
+          description: |
+            Bắt buộc khi MONTHLY và YEARLY, null khi WEEKLY. Tháng không có ngày này thì lùi về ngày cuối tháng.
+        autoConfirm:
+          type: boolean
+          description: Kỳ đúng hôm nay được ghi `CONFIRMED` thay vì `DRAFT`. Kỳ bù luôn là `DRAFT`.
     FieldError:
       type: object
       required: [field, message]
