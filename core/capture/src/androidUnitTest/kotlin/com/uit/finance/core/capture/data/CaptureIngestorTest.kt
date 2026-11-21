@@ -6,6 +6,7 @@ import app.cash.sqldelight.driver.jdbc.sqlite.JdbcSqliteDriver
 import co.touchlab.kermit.Logger
 import com.russhwolf.settings.Settings
 import com.uit.finance.core.capture.data.repository.CaptureRepositoryImpl
+import com.uit.finance.core.capture.data.settings.CaptureDeviceKeys
 import com.uit.finance.core.capture.data.settings.CaptureSettingsRepositoryImpl
 import com.uit.finance.core.capture.data.settings.CaptureUserDataCleaner
 import com.uit.finance.core.capture.domain.model.BankId
@@ -69,7 +70,8 @@ class CaptureIngestorTest {
         }
         val session = FakeSession(LocalDataState.Ready(userId))
         val settingsStore = MemorySettings()
-        val settings = CaptureSettingsRepositoryImpl(settingsStore, session, CaptureEnvironment(debug = true))
+        val deviceKeys = CaptureDeviceKeys(settingsStore, CaptureEnvironment(debug = true))
+        val settings = CaptureSettingsRepositoryImpl(settingsStore, session, deviceKeys)
         val accounts = FakeAccountRepository()
         val categories = FakeCategoryRepository()
         val notifications = RecordingScheduler()
@@ -275,7 +277,7 @@ class CaptureIngestorTest {
         val device = Device().apply { setUp() }
         assertTrue("com.VCB" in device.settings.devicePackages())
 
-        CaptureUserDataCleaner(device.settingsStore, device.settings).clear(USER)
+        CaptureUserDataCleaner(device.settingsStore, device.deviceKeys).clear(USER)
 
         assertTrue(device.settings.devicePackages().isEmpty())
     }

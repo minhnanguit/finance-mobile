@@ -6,6 +6,7 @@ import com.uit.finance.core.capture.data.CaptureIngestor
 import com.uit.finance.core.capture.data.CaptureNotificationIngress
 import com.uit.finance.core.capture.data.CaptureStartup
 import com.uit.finance.core.capture.data.repository.CaptureRepositoryImpl
+import com.uit.finance.core.capture.data.settings.CaptureDeviceKeys
 import com.uit.finance.core.capture.data.settings.CaptureSettingsRepositoryImpl
 import com.uit.finance.core.capture.data.settings.CaptureUserDataCleaner
 import com.uit.finance.core.capture.domain.repository.CaptureRepository
@@ -24,9 +25,11 @@ import org.koin.dsl.module
  * `NotificationAccess` (core/notification), `Clock`, `DispatcherProvider`, và `CaptureEnvironment` (composeApp).
  */
 val coreCaptureModule = module {
-    single { CaptureSettingsRepositoryImpl(settings = get(), session = get(), environment = get()) }
+    // CaptureDeviceKeys không phụ thuộc UserSession: cleaner dùng nó mà không tạo vòng UserSession → cleaner → session.
+    single { CaptureDeviceKeys(settings = get(), environment = get()) }
+    single { CaptureSettingsRepositoryImpl(settings = get(), session = get(), deviceKeys = get()) }
     single<CaptureSettingsRepository> { get<CaptureSettingsRepositoryImpl>() }
-    single { CaptureUserDataCleaner(settings = get(), repository = get()) } bind UserDataCleaner::class
+    single { CaptureUserDataCleaner(settings = get(), deviceKeys = get()) } bind UserDataCleaner::class
 
     single {
         CaptureInboxNotifier(
