@@ -22,6 +22,8 @@ data class HomeState(
     val sync: SyncOverview = SyncOverview.IDLE,
     /** User đang kéo để làm mới và vòng sync chưa xong. */
     val isRefreshing: Boolean = false,
+    /** Số mục Chờ xác nhận, hiện trên chuông. */
+    val pendingCount: Int = 0,
     /** Thông báo một lần (snackbar); màn hình báo [HomeIntent.MessageShown] khi đã hiện. */
     val message: UiText? = null,
 )

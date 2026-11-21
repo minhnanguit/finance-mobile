@@ -225,7 +225,8 @@ private fun NavHostController.open(target: HomeTarget) = when (target) {
     HomeTarget.Accounts -> navigateSingleTop(AccountsDestination)
     HomeTarget.CreateAccount -> navigateSingleTop(AccountEditorDestination())
     HomeTarget.Reports -> navigateSingleTop(ReportsDestination)
-    HomeTarget.Bills -> navigateSingleTop(RecurringDestination)
+    HomeTarget.Recurring -> navigateSingleTop(RecurringDestination)
+    HomeTarget.PendingReview -> navigateSingleTop(CaptureInboxDestination)
     HomeTarget.AddTransaction -> navigateSingleTop(TransactionEditorDestination())
     is HomeTarget.EditTransaction -> navigateSingleTop(TransactionEditorDestination(target.transactionId))
 }

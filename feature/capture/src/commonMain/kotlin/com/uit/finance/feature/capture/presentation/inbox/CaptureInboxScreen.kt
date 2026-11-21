@@ -75,7 +75,7 @@ internal fun CaptureInboxScreen(
                     EmptyState(
                         icon = FinanceIcons.Inbox,
                         title = "Không có gì cần xác nhận",
-                        message = "Giao dịch tự ghi từ thông báo ngân hàng sẽ hiện ở đây.",
+                        message = "Giao dịch nháp từ khoản định kỳ và từ thông báo ngân hàng sẽ hiện ở đây.",
                         modifier = Modifier.padding(spacing.lg),
                     )
                 }

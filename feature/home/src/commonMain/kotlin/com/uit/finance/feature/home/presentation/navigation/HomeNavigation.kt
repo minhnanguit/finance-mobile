@@ -20,7 +20,11 @@ sealed interface HomeTarget {
     data object CreateAccount : HomeTarget
     data object Budgets : HomeTarget
     data object Reports : HomeTarget
-    data object Bills : HomeTarget
+    /** Khoản định kỳ (nút ở hàng thao tác nhanh). */
+    data object Recurring : HomeTarget
+
+    /** Chuông: màn Chờ xác nhận (mọi giao dịch nháp + tin ngân hàng cần xử lý). */
+    data object PendingReview : HomeTarget
 }
 
 /** Hợp đồng navigation của feature: app quyết định đi *đâu*, feature quyết định *khi nào*. */

@@ -2,6 +2,7 @@
 
 package com.uit.finance.feature.home.presentation.home
 
+import kotlinx.coroutines.flow.MutableStateFlow
 import app.cash.turbine.test
 import com.uit.finance.core.common.money.Money
 import com.uit.finance.core.common.result.AppError
@@ -25,6 +26,7 @@ import com.uit.finance.core.testing.TestClock
 import com.uit.finance.core.ui.sync.toSyncMessage
 import com.uit.finance.core.ui.transaction.TransactionItemFormatter
 import com.uit.finance.feature.home.domain.usecase.ObserveHomeDashboardUseCase
+import com.uit.finance.feature.home.domain.usecase.ObservePendingReviewCountUseCase
 import com.uit.finance.feature.home.presentation.navigation.HomeTarget
 import kotlin.test.AfterTest
 import kotlin.test.BeforeTest
@@ -62,10 +64,12 @@ class HomeViewModelTest {
     fun tearDown() = Dispatchers.resetMain()
 
     private val sync = FakeSyncKit()
+    private val pendingCapture = PendingCountCapture()
 
     private fun viewModel() = HomeViewModel(
         observeDashboard = ObserveHomeDashboardUseCase(accounts, balances, transactions, categories),
         observeSync = sync.observeOverview,
+        observePendingCount = ObservePendingReviewCountUseCase(pendingCapture),
         syncNow = sync.syncNow,
         acknowledgeSyncIssues = sync.acknowledgeIssues,
         mapper = HomeUiMapper(MoneyFormatter(), TransactionItemFormatter(MoneyFormatter()), clock),
@@ -190,11 +194,24 @@ class HomeViewModelTest {
     }
 
     @Test
+    fun `chuông hiện số mục chờ xác nhận`() = runTest(dispatcher) {
+        val vm = viewModel()
+        advanceUntilIdle()
+        assertEquals(0, vm.state.value.pendingCount)
+
+        pendingCapture.count.value = 3
+        advanceUntilIdle()
+
+        assertEquals(3, vm.state.value.pendingCount)
+    }
+
+    @Test
     fun `mọi HomeTarget đều thành đúng một effect điều hướng`() = runTest(dispatcher) {
         val vm = viewModel()
         val targets = listOf(
             HomeTarget.AddTransaction, HomeTarget.EditTransaction("t1"), HomeTarget.Transactions, HomeTarget.Accounts,
-            HomeTarget.CreateAccount, HomeTarget.Budgets, HomeTarget.Reports, HomeTarget.Bills,
+            HomeTarget.CreateAccount, HomeTarget.Budgets, HomeTarget.Reports, HomeTarget.Recurring,
+            HomeTarget.PendingReview,
         )
 
         vm.effects.test {
@@ -205,4 +222,24 @@ class HomeViewModelTest {
             expectNoEvents()
         }
     }
+}
+
+/** Chỉ cần số đếm cho chuông; các thao tác khác không dùng ở Trang chủ. */
+private class PendingCountCapture(val count: MutableStateFlow<Int> = MutableStateFlow(0)) :
+    com.uit.finance.core.capture.domain.repository.CaptureRepository {
+    override fun observeInbox() = kotlinx.coroutines.flow.flowOf(com.uit.finance.core.capture.domain.repository.CaptureInbox.EMPTY)
+    override fun observePendingCount(): kotlinx.coroutines.flow.Flow<Int> = count
+    override suspend fun confirm(transactionId: String) = com.uit.finance.core.common.result.AppResult.Success(Unit)
+    override suspend fun dismissDraft(transactionId: String) = com.uit.finance.core.common.result.AppResult.Success(Unit)
+    override suspend fun dismissEvent(eventId: String) = com.uit.finance.core.common.result.AppResult.Success(Unit)
+    override suspend fun linkAccount(
+        bank: com.uit.finance.core.capture.domain.model.BankId,
+        accountHint: String?,
+        accountId: String,
+    ) = com.uit.finance.core.common.result.AppResult.Success(0)
+    override suspend fun parsePasted(text: String, bank: com.uit.finance.core.capture.domain.model.BankId?) =
+        com.uit.finance.core.capture.domain.repository.PasteParseResult.NotReadable
+    override suspend fun savePasted(submission: com.uit.finance.core.capture.domain.repository.PasteSubmission) =
+        com.uit.finance.core.common.result.AppResult.Success(com.uit.finance.core.capture.domain.model.IngestOutcome.SAVED)
+    override suspend fun purgeExpired() = Unit
 }
