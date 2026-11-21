@@ -33,6 +33,7 @@ data class ProfileUi(
 
 sealed interface SettingsIntent {
     data object ChangePasswordClicked : SettingsIntent
+    data object AutoCaptureClicked : SettingsIntent
     data object PrivacyPolicyClicked : SettingsIntent
     data object DeleteAccountClicked : SettingsIntent
     data object LogoutClicked : SettingsIntent
@@ -51,5 +52,8 @@ sealed interface SettingsEffect {
     /** Mở trang ngoài app trong trình duyệt hệ thống (chính sách quyền riêng tư). */
     data class OpenUrl(val url: String) : SettingsEffect
     data object OpenDeleteAccount : SettingsEffect
+
+    /** Mở cài đặt "Tự ghi từ thông báo ngân hàng" (feature/capture, composeApp map sang destination). */
+    data object OpenAutoCapture : SettingsEffect
     data object LoggedOut : SettingsEffect
 }

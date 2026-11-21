@@ -1,5 +1,8 @@
 package com.uit.finance.core.notification.di
 
+import com.uit.finance.core.notification.NotificationAccess
+import com.uit.finance.core.notification.listener.AndroidNotificationAccess
+
 import com.uit.finance.core.notification.LocalNotificationScheduler
 import com.uit.finance.core.notification.NotificationPermission
 import com.uit.finance.core.notification.permission.AndroidNotificationPermission
@@ -13,5 +16,6 @@ import org.koin.dsl.module
 internal actual fun platformNotificationModule(): Module = module {
     single<LocalNotificationScheduler> { WorkManagerNotificationScheduler(androidContext(), get(), get()) }
     single<NotificationPermission> { AndroidNotificationPermission(androidContext()) }
+    single<NotificationAccess> { AndroidNotificationAccess(androidContext()) }
     workerOf(::NotificationWorker)
 }

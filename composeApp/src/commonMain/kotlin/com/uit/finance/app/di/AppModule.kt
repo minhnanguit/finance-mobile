@@ -1,5 +1,7 @@
 package com.uit.finance.app.di
 
+import com.uit.finance.core.capture.domain.model.CaptureEnvironment
+
 import com.uit.finance.app.config.AppEnvironment
 import com.uit.finance.app.devtools.DemoDataSeeder
 import com.uit.finance.core.auth.OidcConfig
@@ -47,6 +49,8 @@ internal const val PRIVACY_POLICY_URL = "https://finance.example.com/privacy"
 
 internal val appModule: Module = module {
     single { NetworkConfig(baseUrl = defaultApiBaseUrl(), logHttp = isDebugBuild) }
+    // Chỉ bản debug nhận thông báo demo từ `adb shell cmd notification post` (AUTO-CAPTURE-PLAN mục 7).
+    single { CaptureEnvironment(debug = isDebugBuild) }
     single {
         OidcConfig(
             issuer = defaultOidcIssuer(),

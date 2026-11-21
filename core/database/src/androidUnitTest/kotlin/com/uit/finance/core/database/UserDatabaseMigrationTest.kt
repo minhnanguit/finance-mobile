@@ -167,11 +167,42 @@ class UserDatabaseMigrationTest {
         UserDatabaseSchema.migrate(driver, oldVersion = 4, newVersion = UserDatabaseSchema.version)
 
         val database = FinanceDatabase(driver)
-        assertEquals(5L, UserDatabaseSchema.version)
+        assertEquals(6L, UserDatabaseSchema.version)
         assertEquals(1L, database.budgetQueries.countActive().executeAsOne())
         assertEquals(listOf("op-1"), database.outboxQueries.selectEligible(now = 0, limit = 10).executeAsList().map { it.op_id })
         database.recurringQueries.upsert("r1", "Tiền nhà", "EXPENSE", "VND", "2026-11-01", null, 2, 1, null, 0)
         assertEquals(1L, database.recurringQueries.countActive("2026-11-10").executeAsOne())
+    }
+
+    @Test
+    fun `nâng từ schema 5 ra đúng schema của DB tạo mới`() {
+        val upgraded = schemaTwoDriver().also {
+            UserDatabaseSchema.migrate(it, oldVersion = 2, newVersion = 5)
+            UserDatabaseSchema.migrate(it, oldVersion = 5, newVersion = UserDatabaseSchema.version)
+        }
+
+        assertEquals(describe(freshDriver()), describe(upgraded))
+    }
+
+    @Test
+    fun `DB ở schema 5 nâng lên có bảng capture - khoản định kỳ và op chờ gửi giữ nguyên`() {
+        val driver = schemaTwoDriver().also { UserDatabaseSchema.migrate(it, oldVersion = 2, newVersion = 5) }
+        val before = FinanceDatabase(driver)
+        before.recurringQueries.upsert("r1", "Tiền nhà", "EXPENSE", "VND", "2026-11-01", null, 2, 1, null, 0)
+        driver.execute(
+            null,
+            "INSERT INTO outbox(op_id, entity, entity_id, action, payload, created_at) VALUES ('op-1', 'recurring', 'r1', 'UPSERT', '{}', 0)",
+            0,
+        )
+
+        UserDatabaseSchema.migrate(driver, oldVersion = 5, newVersion = UserDatabaseSchema.version)
+
+        val database = FinanceDatabase(driver)
+        assertEquals(6L, UserDatabaseSchema.version)
+        assertEquals(1L, database.recurringQueries.countActive("2026-11-10").executeAsOne())
+        assertEquals(listOf("op-1"), database.outboxQueries.selectEligible(now = 0, limit = 10).executeAsList().map { it.op_id })
+        database.captureQueries.upsertLink("VIETCOMBANK", "5678", "a1")
+        assertEquals("a1", database.captureQueries.selectLink("VIETCOMBANK", "5678").executeAsOne())
     }
 
     /** Schema 1 đóng băng đúng như đã phát hành ở Phase 4 (commit 9c84e89). Không sửa. */

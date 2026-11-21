@@ -1,0 +1,68 @@
+-- Tự ghi giao dịch từ thông báo ngân hàng (AUTO-CAPTURE-PLAN mục 3.4). Chỉ trên máy, KHÔNG sync:
+-- giao dịch nháp đi qua ledger (op CREATE), còn đây chỉ là nhật ký xử lý + liên kết ví của máy này.
+-- Chỉ core/capture được dùng captureQueries (Konsist).
+
+-- Mỗi thông báo / tin dán đã xử lý (trừ OTP và tin bị bỏ: không lưu gì).
+CREATE TABLE capture_event (
+    id TEXT NOT NULL PRIMARY KEY,   -- Parsed: = id giao dịch (UUIDv5 của fingerprint). Unparsed: UUIDv5 của nguyên văn + phút
+    bank TEXT,                      -- BankId, null khi không rõ
+    status TEXT NOT NULL,           -- DRAFTED | NEEDS_ACCOUNT | UNPARSED | DISMISSED
+    direction TEXT,                 -- IN | OUT
+    amount_minor INTEGER,
+    account_hint TEXT,              -- đúng 4 số cuối
+    payee TEXT,
+    note TEXT,                      -- đã che số
+    occurred_on TEXT,               -- yyyy-MM-dd
+    confidence TEXT,                -- HIGH | LOW
+    raw_text TEXT,                  -- chỉ UNPARSED / NEEDS_ACCOUNT, xoá khi xử lý xong hoặc sau 14 ngày (S2)
+    received_at INTEGER NOT NULL    -- epoch ms
+);
+
+CREATE INDEX capture_event_status ON capture_event(status, received_at);
+
+-- (ngân hàng, 4 số cuối) -> ví. '' khi ngân hàng không gửi số tài khoản.
+CREATE TABLE capture_account_link (
+    bank TEXT NOT NULL,
+    account_hint TEXT NOT NULL,
+    account_id TEXT NOT NULL,
+    PRIMARY KEY (bank, account_hint)
+);
+
+selectEvent:
+SELECT * FROM capture_event WHERE id = ?;
+
+upsertEvent:
+INSERT OR REPLACE INTO capture_event(id, bank, status, direction, amount_minor, account_hint, payee, note, occurred_on, confidence, raw_text, received_at)
+VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?);
+
+selectByStatus:
+SELECT * FROM capture_event WHERE status IN ? ORDER BY received_at DESC;
+
+selectAll:
+SELECT * FROM capture_event;
+
+selectNeedsAccount:
+SELECT * FROM capture_event WHERE status = 'NEEDS_ACCOUNT' AND bank = ? AND coalesce(account_hint, '') = ?;
+
+-- Đổi trạng thái và bỏ nguyên văn (mọi trạng thái sau khi user xử lý đều không cần nữa, S2).
+setStatus:
+UPDATE capture_event SET status = :status, raw_text = NULL WHERE id = :id;
+
+-- S2: nguyên văn quá 14 ngày. S3: dòng đã xong quá 30 ngày (chống trùng đã nằm ở ledger, D5).
+purgeRawText:
+UPDATE capture_event SET raw_text = NULL WHERE raw_text IS NOT NULL AND received_at < ?;
+
+purgeFinished:
+DELETE FROM capture_event WHERE status IN ('DRAFTED', 'DISMISSED') AND received_at < ?;
+
+countOpen:
+SELECT count(*) FROM capture_event WHERE status IN ('NEEDS_ACCOUNT', 'UNPARSED');
+
+selectLink:
+SELECT account_id FROM capture_account_link WHERE bank = ? AND account_hint = ?;
+
+upsertLink:
+INSERT OR REPLACE INTO capture_account_link(bank, account_hint, account_id) VALUES (?, ?, ?);
+
+selectLinks:
+SELECT * FROM capture_account_link;

@@ -81,6 +81,7 @@ kotlin {
             implementation(projects.core.ledger)
             implementation(projects.core.budget)
             implementation(projects.core.recurring)
+            implementation(projects.core.capture)
             implementation(projects.core.session)
             implementation(projects.feature.auth)
             implementation(projects.feature.home)
@@ -88,6 +89,7 @@ kotlin {
             implementation(projects.feature.transactions)
             implementation(projects.feature.budgets)
             implementation(projects.feature.recurring)
+            implementation(projects.feature.capture)
             implementation(projects.feature.reports)
             implementation(projects.feature.settings)
         }

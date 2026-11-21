@@ -41,6 +41,10 @@ import com.uit.finance.feature.reports.presentation.navigation.ReportsDestinatio
 import com.uit.finance.feature.recurring.presentation.navigation.RecurringDestination
 import com.uit.finance.feature.recurring.presentation.navigation.RecurringEditorDestination
 import com.uit.finance.feature.recurring.presentation.navigation.recurringNavGraph
+import com.uit.finance.feature.capture.presentation.navigation.CaptureInboxDestination
+import com.uit.finance.feature.capture.presentation.navigation.CaptureSetupDestination
+import com.uit.finance.feature.capture.presentation.navigation.PasteMessageDestination
+import com.uit.finance.feature.capture.presentation.navigation.captureNavGraph
 import com.uit.finance.feature.settings.presentation.navigation.DeleteAccountDestination
 import com.uit.finance.feature.settings.presentation.navigation.SettingsDestination
 import com.uit.finance.feature.settings.presentation.navigation.settingsNavGraph
@@ -53,6 +57,7 @@ import com.uit.finance.feature.transactions.presentation.navigation.transactions
 import com.uit.finance.core.ledger.domain.model.CategoryKind
 import com.uit.finance.core.ledger.domain.model.TransactionType
 import com.uit.finance.core.notification.NotificationTaps
+import com.uit.finance.core.capture.domain.model.CaptureNotifications
 import com.uit.finance.core.recurring.reminder.ReminderPlanner
 import com.uit.finance.core.reminder.ReminderNotifications
 import kotlinx.coroutines.flow.map
@@ -114,6 +119,7 @@ private fun MainNavHost(isAuthenticated: Boolean) {
                 settingsNavGraph(
                     onBack = { navController.navigateUp() },
                     onOpenDeleteAccount = { navController.navigateSingleTop(DeleteAccountDestination) },
+                    onOpenAutoCapture = { navController.navigateSingleTop(CaptureSetupDestination) },
                     // Đăng xuất / xoá tài khoản: phiên kết thúc, không cho back về màn cũ.
                     onSignedOut = { navController.navigateClearingBackStack(SignedOutDestination) },
                 )
@@ -154,6 +160,13 @@ private fun MainNavHost(isAuthenticated: Boolean) {
                     onOpenEditor = { id -> navController.navigateSingleTop(RecurringEditorDestination(id)) },
                     onOpenTransaction = { id -> navController.navigateSingleTop(TransactionEditorDestination(id)) },
                 )
+                captureNavGraph(
+                    onBack = { navController.navigateUp() },
+                    onOpenInbox = { navController.navigateSingleTop(CaptureInboxDestination) },
+                    onOpenPaste = { navController.navigateSingleTop(PasteMessageDestination) },
+                    onOpenTransaction = { id -> navController.navigateSingleTop(TransactionEditorDestination(id)) },
+                    onAddTransaction = { navController.navigateSingleTop(TransactionEditorDestination()) },
+                )
             }
             // Menu DEV (dữ liệu mẫu…) chỉ có ở build debug và khi đã có sổ của user để ghi vào.
             if (isDebugBuild && isAuthenticated) {
@@ -192,6 +205,10 @@ private fun MainNavHost(isAuthenticated: Boolean) {
                 navController.navigateSingleTop(TransactionEditorDestination())
                 notificationTaps.consume()
             }
+            action == CaptureNotifications.ACTION_OPEN_INBOX -> {
+                navController.navigateSingleTop(CaptureInboxDestination)
+                notificationTaps.consume()
+            }
             action == ReminderPlanner.ACTION_OPEN_RECURRING -> {
                 navController.navigateSingleTop(RecurringDestination)
                 notificationTaps.consume()
@@ -208,7 +225,8 @@ private fun NavHostController.open(target: HomeTarget) = when (target) {
     HomeTarget.Accounts -> navigateSingleTop(AccountsDestination)
     HomeTarget.CreateAccount -> navigateSingleTop(AccountEditorDestination())
     HomeTarget.Reports -> navigateSingleTop(ReportsDestination)
-    HomeTarget.Bills -> navigateSingleTop(RecurringDestination)
+    HomeTarget.Recurring -> navigateSingleTop(RecurringDestination)
+    HomeTarget.PendingReview -> navigateSingleTop(CaptureInboxDestination)
     HomeTarget.AddTransaction -> navigateSingleTop(TransactionEditorDestination())
     is HomeTarget.EditTransaction -> navigateSingleTop(TransactionEditorDestination(target.transactionId))
 }

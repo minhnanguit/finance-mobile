@@ -15,7 +15,7 @@ presentation ──► domain ◄── data
 
 Một feature = **một Gradle module** chứa cả ba package `domain/`, `data/`, `presentation/` (+ `di/`). Không tách thành 3 Gradle module.
 
-## 29 luật Konsist (file `architecture-test/src/test/kotlin/…`)
+## 30 luật Konsist (file `architecture-test/src/test/kotlin/…`)
 
 ### `LayerDependencyRulesTest`
 
@@ -30,7 +30,7 @@ Một feature = **một Gradle module** chứa cả ba package `domain/`, `data/
 | Dispatchers bị nhốt | `kotlinx.coroutines.Dispatchers` / `IO` chỉ trong `DispatcherProvider.kt` và `core/testing` |
 | Browser API bị nhốt | Chỉ `core/auth` được import `androidx.browser.` / `platform.AuthenticationServices.` (ADR-004) |
 | Xác thực thiết bị bị nhốt | Chỉ `core/applock` được import `androidx.biometric.` / `platform.LocalAuthentication.` (ADR-008 K1). Module đã gỡ 2026-11-12, nên hiện tại không nơi nào được dùng |
-| Notification API bị nhốt | Chỉ `core/notification` được import `android.app.Notification`, `NotificationChannel`, `NotificationManager` và `platform.UserNotifications.` |
+| Notification API bị nhốt | Chỉ `core/notification` được import `android.app.Notification`, `NotificationChannel`, `NotificationManager`, `android.service.notification.` (listener đọc thông báo app khác) và `platform.UserNotifications.` |
 | Cấm WebView | `android.webkit.` / `platform.WebKit.` bị cấm mọi nơi — login phải qua system browser (RFC 8252) |
 | Cấm `GlobalScope` | Tuyệt đối, mọi module |
 
@@ -51,13 +51,19 @@ Một feature = **một Gradle module** chứa cả ba package `domain/`, `data/
 | Luật | Ý nghĩa |
 |---|---|
 | Bảng ledger bị nhốt | Chỉ `core/ledger` (và `core/database` nơi sinh code + backfill trong migration) được dùng query/row class của `account`, `category`, `ledger_transaction`, `LedgerSearch.sq`, `LedgerReport.sq` — mọi chỗ khác đi qua repository của `core/ledger` |
-| Log không chứa dữ liệu tiền | Lời gọi log không được nhắc `amount`, `note`, `payee`, `query`, `keyword`, `searchText`, `filter` (B8). Payload sync và `TransactionFilter` có `toString()` đã che |
+| Log không chứa dữ liệu tiền | Lời gọi log không được nhắc `amount`, `note`, `payee`, `query`, `keyword`, `searchText`, `filter`, và nội dung tin ngân hàng `rawText`, `description`, `accountHint`, `balanceAfter*` (B8, AUTO-CAPTURE S1). Payload sync và `TransactionFilter` có `toString()` đã che |
 
 ### `BudgetDataRulesTest`
 
 | Luật | Ý nghĩa |
 |---|---|
 | Bảng budget bị nhốt | Chỉ `core/budget` được dùng `budgetQueries` / row class `Budget` — mọi chỗ khác đi qua `BudgetRepository` (ADR-007 §8) |
+
+### `CaptureDataRulesTest`
+
+| Luật | Ý nghĩa |
+|---|---|
+| Bảng capture bị nhốt | Chỉ `core/capture` được dùng `captureQueries` / row class `Capture_*` — nháp đi qua `LedgerOccurrenceWriter` |
 
 ### `RecurringDataRulesTest`
 

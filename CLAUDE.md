@@ -13,6 +13,7 @@ Client Kotlin Multiplatform (Android + iOS) dùng **Compose Multiplatform UI chu
 - Dữ liệu ledger (ví, danh mục, giao dịch) + sync offline-first: `core/ledger` + `core/sync`, theo `../docs/LEDGER-PLAN.md`.
 - Ngân sách theo danh mục (ADR-007 backend, `../docs/BUDGET-PLAN.md`): dữ liệu + sync ở `core/budget`; "đã chi" tính từ giao dịch qua `SpendingRepository` (core/ledger), không lưu; màn hình ở `feature/budgets`.
 - Khoản định kỳ (ADR-009): `core/recurring` giữ khoản + timeline, ghi có điều kiện (revision), engine lịch thuần Kotlin, generator sinh giao dịch nháp id UUIDv5 + op `CREATE` (chỉ ghi khi chưa có), thông báo nhắc cục bộ; màn hình ở `feature/recurring`.
+- Tự ghi từ thông báo ngân hàng (`../AUTO-CAPTURE-PLANed.md`): `core/notification` giữ `BankNotificationListener` (Android `NotificationListenerService`) + port `NotificationIngress`/`NotificationAccess`; `core/capture` đọc tin (parser Kotlin thuần, lọc OTP, che số), id UUIDv5 theo nội dung, ghi **nháp** qua `LedgerOccurrenceWriter` (op `CREATE`); màn hình ở `feature/capture` (cài đặt, Chờ xác nhận, dán tin nhắn). iOS chỉ có màn dán.
 - `finance-backend` là repo riêng — **không sửa từ đây**.
 
 ## 2. Commands
@@ -31,7 +32,7 @@ Mọi lệnh thường dùng đều là target trong `Makefile`. Gõ `make` đ�
 | `make crash` | Chỉ theo dõi warning + crash |
 | `make apk` | Build APK debug, không cài |
 | `make test` | Unit test **mọi module KMP** (chạy trên host JVM) |
-| `make arch` | 29 luật Konsist |
+| `make arch` | 30 luật Konsist |
 | `make bench` | Benchmark tìm kiếm + báo cáo trên SQLCipher thật, 50k giao dịch (instrumented test, **cần máy ảo đang chạy**); in bảng số đo từ logcat |
 | `make lint` | Android Lint cho `composeApp` |
 | `make tunnel URL=https://…` | Trỏ build debug tới URL HTTPS của `make tunnel` bên backend (ghi `finance.publicBaseUrl` vào `local.properties`). Có URL thì APK **tắt** cleartext |
@@ -75,7 +76,7 @@ core/auth             OIDC client Keycloak: PKCE S256, discovery, token/refresh/
                       kiểm `sub`, trả token của phiên còn sống); hai luồng này mở trình duyệt ephemeral (A11), TokenClaims (+ sid)
 core/database         SQLDelight FinanceDatabase **mỗi user một file** `finance-<userId>.db`, mã hoá SQLCipher (khoá 256-bit
                       trong SecureStorage): outbox (+ outbox_ref), sync_cursor, sync_rejection, sync_deferred, account,
-                      category, ledger_transaction (+ search_text), budget, recurring (+ recurring_revision, recurring_occurrence_local). Query tìm/lọc riêng ở `LedgerSearch.sq`, số liệu báo cáo/ngân sách ở `LedgerReport.sq`. Schema version 5,
+                      category, ledger_transaction (+ search_text), budget, recurring (+ recurring_revision, recurring_occurrence_local), capture_event + capture_account_link (chỉ trên máy). Query tìm/lọc riêng ở `LedgerSearch.sq`, số liệu báo cáo/ngân sách ở `LedgerReport.sq`. Schema version 6,
                       migration ở `sqldelight/migrations/*.sqm` (đổi bảng = thêm file .sqm + cập nhật
                       UserDatabaseMigrationTest); bước sửa dữ liệu sau migration (backfill) ở `UserDatabaseSchema` (AfterVersion),
                       driver Android + iOS đều mở DB qua đó. UserDatabaseProvider (StateFlow DB đang mở) +
@@ -100,9 +101,15 @@ core/recurring        Khoản định kỳ (ADR-009): model + timeline, Recurren
                       revision_conflict), GenerateDueOccurrencesUseCase, RecurringCoordinator (chạy suốt process: mở sổ, qua ngày,
                       sau mỗi vòng sync), ReminderPlanner + ReminderScheduler (qua core/notification, nhóm "recurring"),
                       NotificationPermissionGate. Module duy nhất đụng bảng recurring
+core/capture          Tự ghi từ thông báo ngân hàng: BankMessageParser (chung Android/iOS: số tiền + chiều + số dư + 4 số cuối, OTP bỏ
+                      trước tiên, che dãy ≥ 6 số), CaptureIds (UUIDv5 theo fingerprint), CaptureIngestor (chờ sổ ≤ 10 s, ví theo (ngân hàng,
+                      4 số cuối), ghi nháp + nhật ký trong 1 transaction), CaptureRepository (Chờ xác nhận gồm mọi nháp, "Có thể trùng",
+                      gắn ví, dán tin → CONFIRMED), cài đặt theo user + key cấp máy cho listener, thông báo "Có N giao dịch" không số
+                      tiền. Module duy nhất đụng bảng capture
 core/session          UserSession: sau /me mở DB của user + chạy sync; đăng xuất xoá DB + khoá; DB của user khác trên máy;
                       UserDataCleaner (dữ liệu theo user ngoài DB); discardDeletedAccount + SessionNotice
-core/notification     Port thông báo cục bộ, quyền thông báo và sự kiện bấm thông báo; Android dùng WorkManager,
+core/notification     Port thông báo cục bộ, quyền thông báo, sự kiện bấm thông báo, và listener đọc thông báo app khác
+                      (BankNotificationListener → NotificationIngress, NotificationAccess); Android dùng WorkManager,
                       iOS dùng UNUserNotificationCenter. Toàn bộ API thông báo nền tảng bị nhốt trong module này
 core/reminder         Cài đặt nhắc theo từng user, lập lịch tối đa 14 ngày, bỏ ngày đã có giao dịch và tự lập lại khi
                       phiên đăng nhập/cài đặt/ngày hiện tại thay đổi
@@ -142,7 +149,9 @@ feature/recurring     domain (ObserveRecurringOverviewUseCase: cần chú ý / c
 feature/settings      Tab "Cá nhân": domain (hồ sơ, đổi mật khẩu, đăng xuất, xoá tài khoản 2 bước, bật/tắt và chọn giờ nhắc) + data (AccountRepositoryImpl:
                       reauth → DELETE /me → xoá dữ liệu máy; đổi mật khẩu → gắn token mới) + presentation (settings, deleteaccount).
                       Không có cài đặt đồng bộ (trạng thái + làm mới ở Trang chủ)
-architecture-test     29 luật Konsist (JVM)
+feature/capture       domain (setup, hộp Chờ xác nhận, dán tin) + presentation (setup: bật, quyền, ngân hàng, danh mục mặc định;
+                      inbox: xác nhận/sửa/bỏ qua, chọn ví, tự nhập; paste). Mở editor giao dịch qua callback
+architecture-test     30 luật Konsist (JVM)
 ```
 
 Chiều phụ thuộc: **`presentation → domain ← data`**. Feature không phụ thuộc feature. Core không phụ thuộc feature.
@@ -154,7 +163,7 @@ Mỗi Gradle module expose **đúng một** Koin module public (`coreNetworkModu
 
 | File | Nội dung |
 |---|---|
-| `architecture-boundaries.md` | presentation ↛ data, domain thuần, feature isolation, 29 luật Konsist |
+| `architecture-boundaries.md` | presentation ↛ data, domain thuần, feature isolation, 30 luật Konsist |
 | `mvi-and-state.md` | MviViewModel, State/Intent/Effect, Route vs Screen |
 | `kmp-and-platform.md` | source set, expect/actual, Dispatchers, giới hạn iOS |
 | `contract-pinning.md` | `api/openapi.yaml` pin, generated client chỉ ở `core/network` |
