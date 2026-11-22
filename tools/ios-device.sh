@@ -43,9 +43,10 @@ xcodebuild \
   -project iosApp/iosApp.xcodeproj \
   -scheme iosApp \
   -configuration Release \
-  -destination 'generic/platform=iOS' \
+  -destination "platform=iOS,id=$DEVICE" \
   -derivedDataPath "$DERIVED" \
   -allowProvisioningUpdates \
+  -allowProvisioningDeviceRegistration \
   -quiet \
   build
 
