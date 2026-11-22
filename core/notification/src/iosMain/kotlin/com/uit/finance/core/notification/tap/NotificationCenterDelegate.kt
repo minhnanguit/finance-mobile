@@ -33,7 +33,17 @@ internal class NotificationCenterDelegate(private val taps: DefaultNotificationT
     }
 }
 
+/**
+ * Koin không đăng ký trực tiếp được class Kotlin kế thừa NSObject: Kotlin/Native chưa hỗ trợ KClass của chúng
+ * ("KClass for Kotlin subclasses of Objective-C classes is not supported yet") ⇒ app crash lúc startKoin.
+ * Holder là class Kotlin thường, sống suốt app trong Koin và giữ tham chiếu mạnh tới delegate
+ * (UNUserNotificationCenter.delegate là weak).
+ */
+internal class NotificationDelegateHolder(taps: DefaultNotificationTaps) {
+    val delegate: NotificationCenterDelegate = NotificationCenterDelegate(taps)
+}
+
 @OptIn(ExperimentalForeignApi::class)
 fun installNotificationDelegate(koin: Koin) {
-    UNUserNotificationCenter.currentNotificationCenter().delegate = koin.get<NotificationCenterDelegate>()
+    UNUserNotificationCenter.currentNotificationCenter().delegate = koin.get<NotificationDelegateHolder>().delegate
 }
