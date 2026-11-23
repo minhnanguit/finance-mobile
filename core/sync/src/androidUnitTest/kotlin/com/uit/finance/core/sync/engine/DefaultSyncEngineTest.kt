@@ -158,6 +158,38 @@ class DefaultSyncEngineTest {
     }
 
     @Test
+    fun `CONFLICT mà applier yêu cầu bỏ op chờ - op DELETE vẫn được giữ và gửi - xoá luôn thắng`() = runTest {
+        val strict = object : SyncChangeApplier by RecordingApplier("recurring") {
+            val applied = mutableListOf<RemoteChange>()
+            override val entity = "recurring"
+            override fun apply(database: FinanceDatabase, change: RemoteChange) {
+                applied += change
+            }
+            override fun dropPendingOnConflict(code: String?) = code == "recurring.revision_conflict"
+        }
+        writer.upsert(database, "recurring", "k1", buildJsonObject { put("revision", JsonPrimitive(1)) }, mergeIntoTail = false)
+        writer.delete(database, "recurring", "k1")
+        remote.onPush = { batch ->
+            AppResult.Success(
+                batch.map {
+                    if (it.action == OutboxAction.DELETE) {
+                        PushResult(it.opId, SyncOutcome.APPLIED, null, remote(it.entityId, 10, deleted = true, entity = "recurring"))
+                    } else {
+                        PushResult(it.opId, SyncOutcome.CONFLICT, "recurring.revision_conflict", remote(it.entityId, 9, entity = "recurring"))
+                    }
+                },
+            )
+        }
+
+        engine(appliers = listOf(applier, strict)).sync()
+
+        assertEquals(listOf(OutboxAction.UPSERT, OutboxAction.DELETE), remote.pushedBatches.flatten().map { it.action })
+        assertEquals(0L, unsent())
+        // Bản server (chưa xoá) không được đè lên local khi DELETE còn chờ; chỉ tombstone của DELETE được áp.
+        assertEquals(listOf(10L), strict.applied.map { it.changeSeq })
+    }
+
+    @Test
     fun `REJECTED bỏ op, ghi nhật ký từ chối, bản chưa từng lên server thì xoá khỏi máy`() = runTest {
         queue("a1")
         remote.onPush = { batch ->

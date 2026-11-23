@@ -32,12 +32,20 @@ internal class RecurringStore(
         databases.database.value?.let(block) ?: empty
     }
 
-    suspend fun <T> write(block: (FinanceDatabase) -> T): AppResult<T> = withContext(dispatchers.io) {
+    /**
+     * [syncAfter]: kết quả này có đẩy gì vào outbox không. Ghi không tạo op (kỳ đã có, revision cũ, chỉ đổi cột
+     * chỉ-trên-máy) thì **không** hẹn sync: generator chạy lại sau mỗi vòng sync, hẹn sync vô điều kiện thành vòng
+     * lặp không dừng.
+     */
+    suspend fun <T> write(
+        syncAfter: (T) -> Boolean = { true },
+        block: (FinanceDatabase) -> T,
+    ): AppResult<T> = withContext(dispatchers.io) {
         val database = databases.database.value
             ?: return@withContext AppResult.Failure(AppError.Storage(NO_ACTIVE_USER))
         try {
             val result = database.transactionWithResult { block(database) }
-            scheduler.requestImmediate()
+            if (syncAfter(result)) scheduler.requestImmediate()
             AppResult.Success(result)
         } catch (e: CancellationException) {
             throw e
