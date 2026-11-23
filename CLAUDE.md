@@ -97,7 +97,7 @@ core/budget           Model + validate ngân sách (khớp ADR-007), BudgetRepos
                       mục trong 1 transaction), BudgetSyncChangeApplier (discard khi REJECTED budget.duplicate). Module duy
                       nhất đụng bảng budget. Payload qua BudgetPayloadCodec (core/network)
 core/recurring        Khoản định kỳ (ADR-009): model + timeline, RecurrenceEngine (lịch lặp, property test), RecurringRepository
-                      (bản ghi + timeline + outbox không gộp, revision local + 1 mỗi lần ghi), RecurringSyncApplier (bỏ op chờ khi
+                      (bản ghi + timeline + outbox không gộp, revision local + 1 mỗi lần ghi), RecurringSyncApplier (bỏ op sửa chờ, giữ op xoá khi
                       revision_conflict), GenerateDueOccurrencesUseCase, RecurringCoordinator (chạy suốt process: mở sổ, qua ngày,
                       sau mỗi vòng sync), ReminderPlanner + ReminderScheduler (qua core/notification, nhóm "recurring"),
                       NotificationPermissionGate. Module duy nhất đụng bảng recurring

@@ -174,7 +174,7 @@ internal class RecurringRepositoryImpl(
         }
     }
 
-    override suspend fun backfillBlocked(recurringId: String): AppResult<Recurring> = store.write { database ->
+    override suspend fun backfillBlocked(recurringId: String): AppResult<Recurring> = store.write(syncAfter = { false }) { database ->
         val current = database.load(recurringId) ?: rejectWith("recurring", RecurringErrorCode.NOT_FOUND)
         database.recurringQueries.setBlockedFrom(null, recurringId)
         current.copy(blockedFrom = null)
@@ -205,9 +205,14 @@ internal class RecurringRepositoryImpl(
             note = revision.note,
             refs = listOf(SyncRef(SyncEntity.RECURRING, recurring.id)),
         )
-        val result = store.write { database ->
+        // Chỉ WRITTEN tạo op CREATE; BLOCKED chỉ đổi cột blocked_from (chỉ trên máy).
+        val result = store.write(syncAfter = { it == OccurrenceResult.WRITTEN }) { database ->
             val currentRevision = database.recurringQueries.revisionOf(recurring.id).executeAsOneOrNull()
             if (currentRevision != recurring.revision) return@write OccurrenceResult.STALE
+            // Tombstone local có thể đã mất (pull lại từ đầu sau 410); dấu chỉ-trên-máy vẫn chặn sinh lại kỳ đã có.
+            if (database.recurringQueries.hasLocalOccurrence(occurrence.transactionId).executeAsOne() > 0) {
+                return@write OccurrenceResult.ALREADY_EXISTS
+            }
             when (occurrences.recordIfAbsent(database, draft)) {
                 OccurrenceWrite.WRITTEN -> {
                     database.recurringQueries.insertLocalOccurrence(

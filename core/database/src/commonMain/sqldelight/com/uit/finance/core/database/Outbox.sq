@@ -106,9 +106,10 @@ UPDATE outbox SET next_attempt_at = 0 WHERE next_attempt_at > 0;
 deleteByOpId:
 DELETE FROM outbox WHERE op_id = ?;
 
--- Bỏ mọi op còn chờ của một bản ghi: chúng dựa trên phiên bản server đã bị thay (ADR-009 RS10).
-deletePendingFor:
-DELETE FROM outbox WHERE entity = ? AND entity_id = ?;
+-- Bỏ các op sửa (UPSERT) còn chờ của một bản ghi: chúng dựa trên phiên bản server đã bị thay (ADR-009 RS10).
+-- Op DELETE được giữ: xoá luôn thắng (ADR-002 S4), không dựa vào revision.
+deletePendingUpsertsFor:
+DELETE FROM outbox WHERE entity = ? AND entity_id = ? AND action = 'UPSERT';
 
 -- Cả hàng chờ theo thứ tự ghi (debug, test).
 selectAll:
