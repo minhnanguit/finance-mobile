@@ -65,6 +65,7 @@ internal class SettingsViewModel(
             SettingsIntent.ChangePasswordClicked -> startPasswordChange()
             SettingsIntent.PrivacyPolicyClicked -> sendEffect(SettingsEffect.OpenUrl(appInfo.privacyPolicyUrl))
             SettingsIntent.DeleteAccountClicked -> sendEffect(SettingsEffect.OpenDeleteAccount)
+            SettingsIntent.AutoCaptureClicked -> sendEffect(SettingsEffect.OpenAutoCapture)
             SettingsIntent.LogoutClicked -> requestLogout()
             SettingsIntent.LogoutConfirmed -> {
                 setState { copy(unsentChangesWarning = null) }

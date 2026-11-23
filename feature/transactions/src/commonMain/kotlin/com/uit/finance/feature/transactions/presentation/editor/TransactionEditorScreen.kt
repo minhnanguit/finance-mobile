@@ -58,11 +58,12 @@ import org.koin.core.parameter.parametersOf
 @Composable
 internal fun TransactionEditorRoute(
     transactionId: String?,
+    initialNote: String? = null,
     onClose: () -> Unit,
     onCreateAccount: () -> Unit,
     onOpenCategories: (CategoryKind) -> Unit,
     viewModel: TransactionEditorViewModel = koinViewModel(key = "transaction-editor-$transactionId") {
-        parametersOf(TransactionEditorArgs(transactionId))
+        parametersOf(TransactionEditorArgs(transactionId, initialNote))
     },
 ) {
     val state by viewModel.state.collectAsStateWithLifecycle()

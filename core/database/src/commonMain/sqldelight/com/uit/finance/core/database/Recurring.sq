@@ -102,6 +102,10 @@ VALUES (?, ?, ?, ?);
 selectLocalOccurrences:
 SELECT * FROM recurring_occurrence_local;
 
+-- Máy này đã từng sinh kỳ này (kể cả khi dòng ledger/tombstone đã mất sau 410): không sinh lại.
+hasLocalOccurrence:
+SELECT count(*) FROM recurring_occurrence_local WHERE transaction_id = ?;
+
 deleteLocalOccurrences:
 DELETE FROM recurring_occurrence_local WHERE recurring_id = ?;
 

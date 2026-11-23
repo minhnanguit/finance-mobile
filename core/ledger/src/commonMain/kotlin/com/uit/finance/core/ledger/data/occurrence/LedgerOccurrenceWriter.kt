@@ -1,3 +1,5 @@
+@file:OptIn(ExperimentalTime::class)
+
 package com.uit.finance.core.ledger.data.occurrence
 
 import com.uit.finance.core.common.money.Money
@@ -16,6 +18,8 @@ import com.uit.finance.core.network.api.model.SyncEntity
 import com.uit.finance.core.network.api.model.SyncPayloadCodec
 import com.uit.finance.core.sync.outbox.OutboxWriter
 import com.uit.finance.core.sync.outbox.SyncRef
+import kotlin.time.ExperimentalTime
+import kotlin.time.Instant
 import kotlinx.datetime.LocalDate
 
 /**
@@ -34,6 +38,8 @@ data class OccurrenceDraft(
     val payee: String?,
     val note: String?,
     val refs: List<SyncRef> = emptyList(),
+    /** Thời điểm phát sinh nếu biết (giờ ngân hàng ghi trong tin); kỳ định kỳ không có giờ. */
+    val occurredAt: Instant? = null,
 ) {
     /** Không in số tiền, người nhận, ghi chú (ADR-006 B8). */
     override fun toString(): String = "OccurrenceDraft(id=$id, type=$type, status=$status, occurredOn=$occurredOn)"
@@ -86,7 +92,7 @@ internal class DefaultLedgerOccurrenceWriter(
             amount = Money(draft.amountMinor, draft.currency),
             categoryId = draft.categoryId,
             occurredOn = draft.occurredOn,
-            occurredAt = null,
+            occurredAt = draft.occurredAt,
             payee = draft.payee.normalizedOrNull()?.take(LedgerLimits.MAX_PAYEE_LENGTH),
             note = draft.note.normalizedOrNull()?.take(LedgerLimits.MAX_NOTE_LENGTH),
         )

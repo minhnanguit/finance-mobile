@@ -9,6 +9,7 @@ kotlin {
             implementation(projects.core.ledger)
             implementation(projects.core.sync)
             implementation(projects.core.ui)
+            implementation(projects.core.capture) // số mục Chờ xác nhận trên chuông (domain CaptureRepository)
         }
         commonTest.dependencies {
             implementation(projects.core.ledgerTesting)

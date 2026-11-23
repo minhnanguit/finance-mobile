@@ -9,6 +9,7 @@ import com.uit.finance.core.sync.domain.usecase.ObserveSyncOverviewUseCase
 import com.uit.finance.core.sync.domain.usecase.SyncNowUseCase
 import com.uit.finance.core.ui.sync.toSyncMessage
 import com.uit.finance.feature.home.domain.usecase.ObserveHomeDashboardUseCase
+import com.uit.finance.feature.home.domain.usecase.ObservePendingReviewCountUseCase
 import kotlinx.coroutines.ExperimentalCoroutinesApi
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.flatMapLatest
@@ -21,6 +22,7 @@ import kotlinx.datetime.LocalDate
 internal class HomeViewModel(
     observeDashboard: ObserveHomeDashboardUseCase,
     observeSync: ObserveSyncOverviewUseCase,
+    observePendingCount: ObservePendingReviewCountUseCase,
     private val syncNow: SyncNowUseCase,
     private val acknowledgeSyncIssues: AcknowledgeSyncIssuesUseCase,
     private val mapper: HomeUiMapper,
@@ -38,6 +40,9 @@ internal class HomeViewModel(
             .launchIn(viewModelScope)
         observeSync()
             .onEach { overview -> setState { copy(sync = overview) } }
+            .launchIn(viewModelScope)
+        observePendingCount()
+            .onEach { count -> setState { copy(pendingCount = count) } }
             .launchIn(viewModelScope)
     }
 

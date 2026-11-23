@@ -14,15 +14,17 @@ import kotlinx.serialization.Serializable
 /**
  * Hợp đồng navigation của feature: app quyết định đi *đâu*, feature quyết định *khi nào*.
  *
+ * @param onOpenAutoCapture mở cài đặt tự ghi từ thông báo ngân hàng (feature khác, app quyết định đích)
  * @param onSignedOut đăng xuất hoặc xoá tài khoản xong: phiên đã kết thúc, về màn đăng nhập
  */
 fun NavGraphBuilder.settingsNavGraph(
     onBack: () -> Unit,
     onOpenDeleteAccount: () -> Unit,
+    onOpenAutoCapture: () -> Unit,
     onSignedOut: () -> Unit,
 ) {
     composable<SettingsDestination> {
-        SettingsRoute(onOpenDeleteAccount = onOpenDeleteAccount, onLoggedOut = onSignedOut)
+        SettingsRoute(onOpenDeleteAccount = onOpenDeleteAccount, onOpenAutoCapture = onOpenAutoCapture, onLoggedOut = onSignedOut)
     }
     composable<DeleteAccountDestination> {
         DeleteAccountRoute(onBack = onBack, onDeleted = onSignedOut)

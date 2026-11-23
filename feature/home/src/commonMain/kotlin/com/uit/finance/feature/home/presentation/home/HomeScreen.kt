@@ -111,7 +111,8 @@ internal fun HomeScreen(
                     userName = state.userName,
                     todayLabel = state.todayLabel,
                     sync = state.sync,
-                    onBell = { open(HomeTarget.Bills) },
+                    pendingCount = state.pendingCount,
+                    onBell = { open(HomeTarget.PendingReview) },
                     onSyncNow = { onIntent(HomeIntent.SyncNow) },
                     onAcknowledgeSyncIssues = { onIntent(HomeIntent.AcknowledgeSyncIssues) },
                     modifier = horizontal,
@@ -173,6 +174,7 @@ private fun HomeHeader(
     userName: String?,
     todayLabel: String,
     sync: SyncOverview,
+    pendingCount: Int,
     onBell: () -> Unit,
     onSyncNow: () -> Unit,
     onAcknowledgeSyncIssues: () -> Unit,
@@ -211,7 +213,12 @@ private fun HomeHeader(
                 modifier = Modifier.padding(top = FinanceTheme.spacing.xs),
             )
         }
-        CircleIconButton(icon = FinanceIcons.Bell, contentDescription = "Khoản sắp đến hạn", onClick = onBell)
+        CircleIconButton(
+            icon = FinanceIcons.Bell,
+            contentDescription = if (pendingCount > 0) "Chờ xác nhận: $pendingCount mục" else "Chờ xác nhận",
+            onClick = onBell,
+            badgeCount = pendingCount,
+        )
     }
 }
 
@@ -281,7 +288,7 @@ private fun QuickActions(onOpen: (HomeTarget) -> Unit, modifier: Modifier = Modi
         QuickActionButton(FinanceIcons.Add, "Thêm", { onOpen(HomeTarget.AddTransaction) }, Modifier.weight(1f))
         QuickActionButton(FinanceIcons.Wallet, "Ví", { onOpen(HomeTarget.Accounts) }, Modifier.weight(1f))
         QuickActionButton(FinanceIcons.Reports, "Báo cáo", { onOpen(HomeTarget.Reports) }, Modifier.weight(1f))
-        QuickActionButton(FinanceIcons.Budget, "Ngân sách", { onOpen(HomeTarget.Budgets) }, Modifier.weight(1f))
+        QuickActionButton(FinanceIcons.Calendar, "Định kỳ", { onOpen(HomeTarget.Recurring) }, Modifier.weight(1f))
     }
 }
 

@@ -44,6 +44,7 @@ import org.koin.compose.viewmodel.koinViewModel
 @Composable
 internal fun SettingsRoute(
     onOpenDeleteAccount: () -> Unit,
+    onOpenAutoCapture: () -> Unit,
     onLoggedOut: () -> Unit,
     viewModel: SettingsViewModel = koinViewModel(),
 ) {
@@ -58,6 +59,7 @@ internal fun SettingsRoute(
             when (effect) {
                 is SettingsEffect.OpenUrl -> uriHandler.openUri(effect.url)
                 SettingsEffect.OpenDeleteAccount -> onOpenDeleteAccount()
+                SettingsEffect.OpenAutoCapture -> onOpenAutoCapture()
                 SettingsEffect.LoggedOut -> onLoggedOut()
             }
         }
@@ -132,6 +134,17 @@ internal fun SettingsScreen(
                             trailing = { SettingsChevron() },
                         )
                     }
+                }
+            }
+            item(key = "auto-capture") {
+                SettingsGroup(title = "Tự động", modifier = horizontal) {
+                    SettingsItem(
+                        icon = FinanceIcons.Inbox,
+                        title = "Tự ghi từ thông báo ngân hàng",
+                        subtitle = "Đọc biến động số dư, tạo giao dịch nháp để bạn xác nhận",
+                        onClick = { onIntent(SettingsIntent.AutoCaptureClicked) },
+                        trailing = { SettingsChevron() },
+                    )
                 }
             }
             item(key = "about") {
