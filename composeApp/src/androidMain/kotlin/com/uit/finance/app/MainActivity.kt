@@ -10,6 +10,7 @@ import com.uit.finance.core.notification.tap.handleNotificationIntent
 import org.koin.android.ext.android.get
 
 class MainActivity : ComponentActivity() {
+
     override fun onCreate(savedInstanceState: Bundle?) {
         enableEdgeToEdge()
         super.onCreate(savedInstanceState)
