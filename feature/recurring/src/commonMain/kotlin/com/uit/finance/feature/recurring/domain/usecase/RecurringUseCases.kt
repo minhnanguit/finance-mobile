@@ -13,6 +13,7 @@ import com.uit.finance.core.recurring.domain.model.Recurring
 import com.uit.finance.core.recurring.domain.model.RecurringDraft
 import com.uit.finance.core.recurring.domain.model.RevisionChange
 import com.uit.finance.core.recurring.domain.repository.RecurringRepository
+import com.uit.finance.core.recurring.domain.validation.RecurringRules
 import com.uit.finance.core.recurring.reminder.NotificationPermissionGate
 import com.uit.finance.feature.recurring.domain.model.RecurringFormData
 import kotlinx.coroutines.flow.Flow
@@ -58,12 +59,19 @@ class UpdateRecurringUseCase(private val repository: RecurringRepository) {
         detailsChanged: Boolean,
         change: RevisionChange?,
     ): AppResult<Unit> {
-        if (detailsChanged && name != null) {
-            val result = repository.updateDetails(recurringId, name, remindDaysBefore)
-            if (result is AppResult.Failure) return result
+        val updateDetails = detailsChanged && name != null
+        // Kiểm tên/nhắc trước khi ghi gì; phiên bản mới (nhiều luật hơn, cần "hôm nay") ghi trước. Một phần hỏng thì
+        // không phần nào được lưu, trừ lỗi lưu trữ.
+        if (updateDetails) {
+            val errors = RecurringRules.name(name) + RecurringRules.remind(remindDaysBefore)
+            if (errors.isNotEmpty()) return AppResult.Failure(AppError.Validation(errors))
         }
         if (change != null) {
             val result = repository.revise(recurringId, change)
+            if (result is AppResult.Failure) return result
+        }
+        if (updateDetails) {
+            val result = repository.updateDetails(recurringId, name, remindDaysBefore)
             if (result is AppResult.Failure) return result
         }
         return AppResult.Success(Unit)

@@ -99,6 +99,8 @@ class LayerDependencyRulesTest {
             "android.app.NotificationChannel",
             "android.app.NotificationManager",
             "platform.UserNotifications.",
+            // Đọc thông báo của app khác (AUTO-CAPTURE-PLAN L1): listener cũng phải nằm trong core/notification.
+            "android.service.notification.",
         )
         productionScope.files
             .filter {

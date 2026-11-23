@@ -59,9 +59,10 @@ class RecurringRepositoryTest {
     private val databases = object : UserDatabaseProvider {
         override val database = MutableStateFlow<FinanceDatabase?>(this@RecurringRepositoryTest.database)
     }
+    private var syncRequests = 0
     private val scheduler = object : SyncScheduler {
         override fun schedulePeriodic() = Unit
-        override fun requestImmediate() = Unit
+        override fun requestImmediate() { syncRequests++ }
         override fun cancelAll() = Unit
     }
     private val ids = FakeUuidGenerator()
@@ -129,6 +130,20 @@ class RecurringRepositoryTest {
     }
 
     @Test
+    fun `sinh kỳ không ghi gì thì không hẹn sync - tránh vòng sync rồi sinh kỳ rồi sync không dừng`() = runTest {
+        account(); category()
+        val repo = repository()
+        repo.created(draft(LocalDate(2026, 11, 5)))
+        val generate = GenerateDueOccurrencesUseCase(repo, clock)
+        assertEquals(1, generate().written)
+
+        syncRequests = 0
+        assertEquals(0, generate().written)
+
+        assertEquals(0, syncRequests)
+    }
+
+    @Test
     fun `sinh kỳ - đúng một giao dịch nháp id UUIDv5 + op CREATE - chạy lại không trùng`() = runTest {
         account(); category()
         val repo = repository()
@@ -186,6 +201,20 @@ class RecurringRepositoryTest {
 
         assertEquals(0, generate().written)
         assertEquals(1, database.ledgerTransactionQueries.selectById(OccurrenceIds.of(recurring.id, LocalDate(2026, 11, 5))).executeAsList().size)
+    }
+
+    @Test
+    fun `kỳ đã bỏ qua không quay lại kể cả khi tombstone local mất sau 410 cursor_expired`() = runTest {
+        account(); category()
+        val repo = repository()
+        val recurring = repo.created(draft(LocalDate(2026, 11, 5)))
+        val generate = GenerateDueOccurrencesUseCase(repo, clock)
+        generate()
+        val skipped = OccurrenceIds.of(recurring.id, LocalDate(2026, 11, 5))
+        database.ledgerTransactionQueries.remove(skipped) // dòng ledger + tombstone đều mất khi tải lại sổ
+
+        assertEquals(0, generate().written)
+        assertTrue(database.ledgerTransactionQueries.selectById(skipped).executeAsList().isEmpty())
     }
 
     @Test

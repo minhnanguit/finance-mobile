@@ -14,8 +14,8 @@ import kotlinx.datetime.LocalDate
  * Ghi bản của server vào bảng recurring, trong transaction của SyncEngine. `revision` local = revision server (RS9);
  * `blocked_from` là trạng thái chỉ trên máy nên giữ nguyên.
  *
- * `recurring.revision_conflict`: mọi op còn chờ của khoản dựa trên revision đã bị máy khác thay, engine bỏ hết rồi
- * áp bản server (RS10) và báo user qua `sync_rejection`.
+ * `recurring.revision_conflict`: các op sửa còn chờ của khoản dựa trên revision đã bị máy khác thay, engine bỏ hết
+ * (giữ op DELETE: xoá luôn thắng) rồi áp bản server nếu không còn gì chờ (RS10) và báo user qua `sync_rejection`.
  */
 internal class RecurringSyncApplier(private val codec: RecurringPayloadCodec) : SyncChangeApplier {
     override val entity: String = SyncEntity.RECURRING

@@ -66,7 +66,7 @@ internal class SyncStore(
                 when (result.outcome) {
                     SyncOutcome.CONFLICT if appliers[entry.entity]?.dropPendingOnConflict(result.code) == true -> {
                         database.outboxQueries.deleteByOpId(entry.opId)
-                        database.outboxQueries.deletePendingFor(entry.entity, entry.entityId)
+                        database.outboxQueries.deletePendingUpsertsFor(entry.entity, entry.entityId)
                         database.syncRejectionQueries.insert(
                             entry.opId,
                             entry.entity,
@@ -74,7 +74,8 @@ internal class SyncStore(
                             result.code,
                             now.toEpochMilliseconds(),
                         )
-                        result.current?.let { applyOrDefer(database, it, now) }
+                        // Còn op DELETE chờ gửi thì giữ bản local đã xoá; không còn gì chờ thì lấy bản server.
+                        result.current?.let { adoptIfIdle(database, it, now) }
                         done++
                     }
                     SyncOutcome.APPLIED, SyncOutcome.DUPLICATE, SyncOutcome.CONFLICT -> {

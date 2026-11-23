@@ -1,0 +1,29 @@
+-- Schema 5 → 6 (AUTO-CAPTURE-PLAN mục 3.4): tự ghi giao dịch từ thông báo ngân hàng.
+--  * capture_event: nhật ký xử lý thông báo/tin dán, chỉ trên máy.
+--  * capture_account_link: (ngân hàng, 4 số cuối) -> ví, chỉ trên máy.
+-- Phải khớp đúng Capture.sq: DB tạo mới đi theo .sq, DB cũ đi qua đây (test: UserDatabaseMigrationTest).
+
+CREATE TABLE capture_event (
+    id TEXT NOT NULL PRIMARY KEY,   -- Parsed: = id giao dịch (UUIDv5 của fingerprint). Unparsed: UUIDv5 của nguyên văn + phút
+    bank TEXT,                      -- BankId, null khi không rõ
+    status TEXT NOT NULL,           -- DRAFTED | NEEDS_ACCOUNT | UNPARSED | DISMISSED
+    direction TEXT,                 -- IN | OUT
+    amount_minor INTEGER,
+    account_hint TEXT,              -- đúng 4 số cuối
+    payee TEXT,
+    note TEXT,                      -- đã che số
+    occurred_on TEXT,               -- yyyy-MM-dd
+    confidence TEXT,                -- HIGH | LOW
+    raw_text TEXT,                  -- chỉ UNPARSED / NEEDS_ACCOUNT, xoá khi xử lý xong hoặc sau 14 ngày (S2)
+    received_at INTEGER NOT NULL    -- epoch ms
+);
+
+CREATE INDEX capture_event_status ON capture_event(status, received_at);
+
+-- (ngân hàng, 4 số cuối) -> ví. '' khi ngân hàng không gửi số tài khoản.
+CREATE TABLE capture_account_link (
+    bank TEXT NOT NULL,
+    account_hint TEXT NOT NULL,
+    account_id TEXT NOT NULL,
+    PRIMARY KEY (bank, account_hint)
+);

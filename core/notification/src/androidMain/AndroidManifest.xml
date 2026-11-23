@@ -6,5 +6,15 @@
             android:name="com.uit.finance.core.notification.permission.NotificationPermissionActivity"
             android:exported="false"
             android:theme="@android:style/Theme.Translucent.NoTitleBar" />
+        <!-- Đọc thông báo biến động số dư (plan auto-capture L1). Chỉ chạy khi user tự cấp quyền trong cài đặt máy. -->
+        <service
+            android:name="com.uit.finance.core.notification.listener.BankNotificationListener"
+            android:exported="true"
+            android:label="Finance: tự ghi giao dịch từ thông báo ngân hàng"
+            android:permission="android.permission.BIND_NOTIFICATION_LISTENER_SERVICE">
+            <intent-filter>
+                <action android:name="android.service.notification.NotificationListenerService" />
+            </intent-filter>
+        </service>
     </application>
 </manifest>

@@ -40,7 +40,10 @@ class LedgerDataRulesTest {
     @Test
     fun `logs never carry amounts, notes, payees or search terms`() {
         val logCall = Regex("""\b(logger|log|Logger|kermit)\.(v|d|i|w|e|a)\s*(\([^)]*\))?\s*\{[^}]*""")
-        val sensitive = Regex("""\b(note|payee|amount\w*|openingBalance\w*|query|keyword|searchText|search_text|filter)\b""")
+        // rawText / description / accountHint / balanceAfter: nội dung, số tài khoản, số dư của tin ngân hàng (AUTO-CAPTURE-PLAN S1).
+        val sensitive = Regex(
+            """\b(note|payee|amount\w*|openingBalance\w*|query|keyword|searchText|search_text|filter|rawText|raw_text|description|accountHint|account_hint|balanceAfter\w*)\b""",
+        )
         productionScope.files.filter { !it.packageName.startsWith(ARCHITECTURE_PACKAGE) }.assertFalse { file ->
             logCall.findAll(file.text).any { sensitive.containsMatchIn(it.value) } ||
                 file.text.lines().any { it.contains("println(") && sensitive.containsMatchIn(it) }
