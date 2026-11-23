@@ -30,6 +30,8 @@ data class UnparsedRow(
     val eventId: String,
     val bankName: String?,
     val preview: String,
+    /** Điền sẵn vào form khi bấm "Tự nhập": nội dung tin đã che số tài khoản. */
+    val manualNote: String? = null,
 )
 
 data class AccountChoice(val id: String, val name: String)
@@ -62,5 +64,5 @@ sealed interface CaptureInboxIntent {
 
 sealed interface CaptureInboxEffect {
     data class OpenTransaction(val transactionId: String) : CaptureInboxEffect
-    data object AddTransaction : CaptureInboxEffect
+    data class AddTransaction(val note: String?) : CaptureInboxEffect
 }

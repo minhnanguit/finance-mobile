@@ -49,6 +49,9 @@ setStatus:
 UPDATE capture_event SET status = :status, raw_text = NULL WHERE id = :id;
 
 -- S2: nguyên văn quá 14 ngày. S3: dòng đã xong quá 30 ngày (chống trùng đã nằm ở ledger, D5).
+expireUnparsed:
+UPDATE capture_event SET status = 'DISMISSED', raw_text = NULL WHERE status = 'UNPARSED' AND received_at < ?;
+
 purgeRawText:
 UPDATE capture_event SET raw_text = NULL WHERE raw_text IS NOT NULL AND received_at < ?;
 

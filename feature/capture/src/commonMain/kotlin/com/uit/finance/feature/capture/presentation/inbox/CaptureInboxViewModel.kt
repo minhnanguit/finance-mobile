@@ -2,6 +2,7 @@ package com.uit.finance.feature.capture.presentation.inbox
 
 import androidx.lifecycle.viewModelScope
 import com.uit.finance.core.capture.domain.model.Direction
+import com.uit.finance.core.capture.domain.parser.BankMessageParser
 import com.uit.finance.core.common.money.Money
 import com.uit.finance.core.common.result.AppResult
 import com.uit.finance.core.ledger.domain.model.TransactionType
@@ -80,6 +81,7 @@ internal class CaptureInboxViewModel(
                     eventId = event.id,
                     bankName = event.bank?.displayName,
                     preview = event.rawText?.take(PREVIEW_LENGTH) ?: "Nội dung đã được xoá sau 14 ngày",
+                    manualNote = event.rawText?.let(BankMessageParser::manualEntryNote),
                 )
             },
         )
@@ -108,10 +110,9 @@ internal class CaptureInboxViewModel(
         }
         CaptureInboxIntent.AccountPickerDismissed -> setState { copy(linking = null) }
         is CaptureInboxIntent.DismissEventClicked -> run(intent.eventId, null) { dismissEvent(intent.eventId) }
-        is CaptureInboxIntent.EnterManuallyClicked -> {
-            run(intent.eventId, null) { dismissEvent(intent.eventId) }
-            sendEffect(CaptureInboxEffect.AddTransaction)
-        }
+        // Không bỏ dòng này lúc mở form: user quay lại mà chưa lưu thì vẫn còn tin để nhập. Nhập xong thì bấm "Bỏ qua".
+        is CaptureInboxIntent.EnterManuallyClicked ->
+            sendEffect(CaptureInboxEffect.AddTransaction(currentState.unparsed.firstOrNull { it.eventId == intent.eventId }?.manualNote))
         CaptureInboxIntent.MessageShown -> setState { copy(message = null) }
     }
 

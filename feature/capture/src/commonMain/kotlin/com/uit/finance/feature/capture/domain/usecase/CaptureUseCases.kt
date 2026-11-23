@@ -104,7 +104,7 @@ class LinkCaptureAccountUseCase(private val capture: CaptureRepository) {
 
 /** Mở màn Chờ xác nhận: dọn hạn và gỡ thông báo đang hiện. */
 class OpenCaptureInboxUseCase(private val capture: CaptureRepository) {
-    suspend operator fun invoke() = capture.purgeExpired()
+    suspend operator fun invoke() = capture.openInbox()
 }
 
 /** Ví VND còn dùng được, danh mục còn dùng được, ngân hàng chọn được: cho form dán tin. */

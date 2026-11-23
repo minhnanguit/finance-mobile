@@ -59,6 +59,7 @@ import kotlinx.datetime.LocalDate
 import kotlinx.datetime.TimeZone
 import kotlinx.datetime.minus
 import kotlinx.datetime.plus
+import kotlinx.datetime.toInstant
 import kotlinx.datetime.toLocalDateTime
 
 internal class CaptureRepositoryImpl(
@@ -216,6 +217,7 @@ internal class CaptureRepositoryImpl(
             occurredOn = submission.occurredOn,
             payee = event.payee,
             note = submission.note?.trim()?.ifBlank { null },
+            occurredAt = event.postedAt?.toInstant(zone),
         )
         return guarded {
             withContext(dispatchers.io) {
@@ -235,6 +237,10 @@ internal class CaptureRepositoryImpl(
 
     override suspend fun purgeExpired() {
         writeLocal { database -> ingestor.purge(database) }
+    }
+
+    override suspend fun openInbox() {
+        purgeExpired()
         notifier.clear()
     }
 

@@ -165,7 +165,7 @@ private fun MainNavHost(isAuthenticated: Boolean) {
                     onOpenInbox = { navController.navigateSingleTop(CaptureInboxDestination) },
                     onOpenPaste = { navController.navigateSingleTop(PasteMessageDestination) },
                     onOpenTransaction = { id -> navController.navigateSingleTop(TransactionEditorDestination(id)) },
-                    onAddTransaction = { navController.navigateSingleTop(TransactionEditorDestination()) },
+                    onAddTransaction = { note -> navController.navigateSingleTop(TransactionEditorDestination(note = note)) },
                 )
             }
             // Menu DEV (dữ liệu mẫu…) chỉ có ở build debug và khi đã có sổ của user để ghi vào.

@@ -1,27 +1,26 @@
 package com.uit.finance.app.di
 
-import com.uit.finance.core.capture.di.coreCaptureModule
-import com.uit.finance.feature.capture.di.captureFeatureModule
-
 import com.uit.finance.core.auth.di.coreAuthModule
 import com.uit.finance.core.budget.di.coreBudgetModule
-import com.uit.finance.core.recurring.di.coreRecurringModule
+import com.uit.finance.core.capture.di.coreCaptureModule
 import com.uit.finance.core.common.di.coreCommonModule
 import com.uit.finance.core.database.di.coreDatabaseModule
 import com.uit.finance.core.datastore.di.coreDatastoreModule
 import com.uit.finance.core.ledger.di.coreLedgerModule
 import com.uit.finance.core.network.di.coreNetworkModule
 import com.uit.finance.core.notification.di.coreNotificationModule
-import com.uit.finance.core.reminder.di.coreReminderModule
 import com.uit.finance.core.presentation.di.corePresentationModule
+import com.uit.finance.core.recurring.di.coreRecurringModule
+import com.uit.finance.core.reminder.di.coreReminderModule
 import com.uit.finance.core.session.di.coreSessionModule
 import com.uit.finance.core.sync.di.coreSyncModule
 import com.uit.finance.core.ui.di.coreUiModule
 import com.uit.finance.feature.accounts.di.accountsFeatureModule
 import com.uit.finance.feature.auth.di.authFeatureModule
 import com.uit.finance.feature.budgets.di.budgetsFeatureModule
-import com.uit.finance.feature.recurring.di.recurringFeatureModule
+import com.uit.finance.feature.capture.di.captureFeatureModule
 import com.uit.finance.feature.home.di.homeFeatureModule
+import com.uit.finance.feature.recurring.di.recurringFeatureModule
 import com.uit.finance.feature.reports.di.reportsFeatureModule
 import com.uit.finance.feature.settings.di.settingsFeatureModule
 import com.uit.finance.feature.transactions.di.transactionsFeatureModule

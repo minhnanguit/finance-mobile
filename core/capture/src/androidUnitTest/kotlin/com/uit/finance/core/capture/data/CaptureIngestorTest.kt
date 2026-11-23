@@ -260,6 +260,20 @@ class CaptureIngestorTest {
     }
 
     @Test
+    fun `mo so chi don han - thong bao chi go khi mo man Cho xac nhan`() = runTest {
+        val device = Device().apply { setUp() }
+        val ingestor = with(device) { ingestor() }
+        val repository = with(device) { repository(ingestor) }
+        ingestor.post(sms)
+
+        repository.purgeExpired() // CaptureStartup chạy mỗi lần sổ mở
+        assertEquals(1, device.notifications.groups.getValue(CaptureInboxNotifier.GROUP).size)
+
+        repository.openInbox()
+        assertTrue(device.notifications.groups.getValue(CaptureInboxNotifier.GROUP).isEmpty())
+    }
+
+    @Test
     fun `SMS chi doc khi dung nguoi gui cua ngan hang da chon`() = runTest {
         val device = Device().apply { setUp() }
         val ingress: NotificationIngress = CaptureNotificationIngress(device.settings, with(device) { ingestor() }, CaptureEnvironment(debug = false), this)

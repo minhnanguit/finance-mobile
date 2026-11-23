@@ -242,4 +242,5 @@ private class PendingCountCapture(val count: MutableStateFlow<Int> = MutableStat
     override suspend fun savePasted(submission: com.uit.finance.core.capture.domain.repository.PasteSubmission) =
         com.uit.finance.core.common.result.AppResult.Success(com.uit.finance.core.capture.domain.model.IngestOutcome.SAVED)
     override suspend fun purgeExpired() = Unit
+    override suspend fun openInbox() = Unit
 }

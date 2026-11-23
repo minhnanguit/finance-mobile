@@ -38,7 +38,7 @@ import org.koin.compose.viewmodel.koinViewModel
 @Composable
 internal fun PasteMessageRoute(
     onBack: () -> Unit,
-    onAddTransaction: () -> Unit,
+    onAddTransaction: (note: String?) -> Unit,
     viewModel: PasteMessageViewModel = koinViewModel(),
 ) {
     val state by viewModel.state.collectAsStateWithLifecycle()
@@ -46,7 +46,7 @@ internal fun PasteMessageRoute(
         viewModel.effects.collect { effect ->
             when (effect) {
                 PasteMessageEffect.Saved -> onBack()
-                PasteMessageEffect.AddTransaction -> onAddTransaction()
+                is PasteMessageEffect.AddTransaction -> onAddTransaction(effect.note)
             }
         }
     }

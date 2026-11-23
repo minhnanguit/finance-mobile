@@ -19,14 +19,14 @@ import kotlinx.serialization.Serializable
  * Hợp đồng navigation: app quyết định đi *đâu*, feature quyết định *khi nào*.
  *
  * @param onOpenTransaction sửa một giao dịch nháp (editor của feature/transactions)
- * @param onAddTransaction tự nhập khi tin không đọc được
+ * @param onAddTransaction tự nhập khi tin không đọc được; `note` là nội dung tin đã che số để điền sẵn
  */
 fun NavGraphBuilder.captureNavGraph(
     onBack: () -> Unit,
     onOpenInbox: () -> Unit,
     onOpenPaste: () -> Unit,
     onOpenTransaction: (String) -> Unit,
-    onAddTransaction: () -> Unit,
+    onAddTransaction: (note: String?) -> Unit,
 ) {
     composable<CaptureSetupDestination> {
         CaptureSetupRoute(onBack = onBack, onOpenInbox = onOpenInbox, onOpenPaste = onOpenPaste)

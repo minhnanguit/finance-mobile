@@ -2,6 +2,7 @@ package com.uit.finance.feature.capture.presentation.paste
 
 import androidx.lifecycle.viewModelScope
 import com.uit.finance.core.capture.domain.model.Direction
+import com.uit.finance.core.capture.domain.parser.BankMessageParser
 import com.uit.finance.core.capture.domain.model.IngestOutcome
 import com.uit.finance.core.capture.domain.repository.PasteParseResult
 import com.uit.finance.core.capture.domain.repository.PasteSubmission
@@ -52,7 +53,8 @@ internal class PasteMessageViewModel(
         is PasteMessageIntent.NoteChanged -> setState { copy(note = intent.value.take(MAX_NOTE)) }
         is PasteMessageIntent.RememberToggled -> setState { copy(rememberAccount = intent.value) }
         PasteMessageIntent.SaveClicked -> submit()
-        PasteMessageIntent.ManualEntryClicked -> sendEffect(PasteMessageEffect.AddTransaction)
+        PasteMessageIntent.ManualEntryClicked ->
+            sendEffect(PasteMessageEffect.AddTransaction(BankMessageParser.manualEntryNote(currentState.text)))
     }
 
     private fun read() {

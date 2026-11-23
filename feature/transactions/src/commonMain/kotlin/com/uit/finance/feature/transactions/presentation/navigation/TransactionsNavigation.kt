@@ -42,7 +42,7 @@ data class FilteredTransactionsDestination(
 }
 
 /** Thêm (`transactionId == null`) hoặc sửa giao dịch. */
-@Serializable data class TransactionEditorDestination(val transactionId: String? = null)
+@Serializable data class TransactionEditorDestination(val transactionId: String? = null, val note: String? = null)
 
 /** Quản lý danh mục; [kind] là tên `CategoryKind` mở sẵn (route chỉ mang kiểu cơ bản). */
 @Serializable data class CategoriesDestination(val kind: String = CategoryKind.EXPENSE.name)
@@ -70,8 +70,10 @@ fun NavGraphBuilder.transactionsNavGraph(
         )
     }
     composable<TransactionEditorDestination> { entry ->
+        val destination = entry.toRoute<TransactionEditorDestination>()
         TransactionEditorRoute(
-            transactionId = entry.toRoute<TransactionEditorDestination>().transactionId,
+            transactionId = destination.transactionId,
+            initialNote = destination.note,
             onClose = onBack,
             onCreateAccount = onCreateAccount,
             onOpenCategories = onOpenCategories,

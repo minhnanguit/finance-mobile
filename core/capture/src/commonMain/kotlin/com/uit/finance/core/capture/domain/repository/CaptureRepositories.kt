@@ -102,6 +102,9 @@ interface CaptureRepository {
     /** Lưu tin dán thành giao dịch **đã xác nhận** (B18). */
     suspend fun savePasted(submission: PasteSubmission): AppResult<IngestOutcome>
 
-    /** Dọn nguyên văn quá hạn và dòng đã xong (S2, S3). */
+    /** Dọn nguyên văn quá hạn và dòng đã xong (S2, S3). Không đụng thông báo đang hiện. */
     suspend fun purgeExpired()
+
+    /** User mở màn Chờ xác nhận: dọn hạn và gỡ thông báo "Có N giao dịch cần xác nhận" (B13). */
+    suspend fun openInbox()
 }

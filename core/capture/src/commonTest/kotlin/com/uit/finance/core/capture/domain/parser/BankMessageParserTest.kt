@@ -96,6 +96,8 @@ class BankMessageParserTest {
     @Test
     fun `khuyen mai co so tien khong ra giao dich`() {
         assertIs<ParseResult.Ignored>(parse("Uu dai hoan tien den 50,000VND khi thanh toan QR"))
+        assertIs<ParseResult.Ignored>(parse("Nhan ngay uu dai 50,000VND khi mo the"))
+        assertIs<ParseResult.Ignored>(parse("Khuyen mai: tang 100.000d cho giao dich dau tien"))
     }
 
     @Test
@@ -159,5 +161,25 @@ class BankMessageParserTest {
             assertEquals(AmountParser.Result.Amount(value), AmountParser.parse(grouped, "VND"), grouped)
             assertEquals(AmountParser.Result.Amount(value), AmountParser.parse(grouped.replace(',', '.'), null), grouped)
         }
+    }
+
+    @Test
+    fun `bien dong that co chu uu dai trong noi dung van ra giao dich`() {
+        val event = parsed("TK ...5678 -120,000VND luc 12:30 16/11/2026. SD: 880,000VND. ND: THANH TOAN UU DAI SHOPEE")
+        assertEquals(Direction.OUT, event.direction)
+        assertEquals(120_000, event.amountMinor)
+    }
+
+    @Test
+    fun `so tai khoan sau tu khoa khong bi doc thanh so tien`() {
+        assertIs<ParseResult.Unparsed>(parse("Quy khach da chuyen tien tu TK 0011001234567 thanh cong"))
+        assertIs<ParseResult.Unparsed>(parse("Giao dich chuyen khoan tu TK 0011001234567 - so tien 50,000VND"))
+    }
+
+    @Test
+    fun `tu khoa kem so tien co don vi van doc duoc`() {
+        val event = parsed("TK 1234 ghi co 2,000,000VND luc 10:00 16/11/2026")
+        assertEquals(Direction.IN, event.direction)
+        assertEquals(2_000_000, event.amountMinor)
     }
 }

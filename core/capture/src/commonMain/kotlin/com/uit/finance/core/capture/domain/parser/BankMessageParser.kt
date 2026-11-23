@@ -27,13 +27,13 @@ object BankMessageParser {
         if (OtpFilter.isOtp(folded)) return ParseResult.Ignored(IgnoreReason.OTP)
 
         val balance = BALANCE.find(folded)
+        // Khuyến mãi/ưu đãi hay có số tiền ("nhận ưu đãi 50.000đ"): bỏ trước khi tìm số tiền (P6). Chỉ xét phần trước
+        // nội dung chuyển khoản, và chỉ khi tin không có số dư: biến động thật có số dư, nội dung có thể chứa "ưu đãi".
+        val header = DESCRIPTION.find(folded)?.let { folded.substring(0, it.range.first) } ?: folded
+        if (balance == null && IGNORE_WORDS.any { it in header }) return ParseResult.Ignored(IgnoreReason.NOT_ACCOUNT_MOVEMENT)
         val movement = findMovement(folded, balance?.range)
         if (movement == null) {
-            return when {
-                IGNORE_WORDS.any { it in folded } -> ParseResult.Ignored(IgnoreReason.NOT_ACCOUNT_MOVEMENT)
-                MOVEMENT_MARKERS.containsMatchIn(folded) -> ParseResult.Unparsed
-                else -> ParseResult.Ignored(IgnoreReason.NOT_ACCOUNT_MOVEMENT)
-            }
+            return if (MOVEMENT_MARKERS.containsMatchIn(folded)) ParseResult.Unparsed else ParseResult.Ignored(IgnoreReason.NOT_ACCOUNT_MOVEMENT)
         }
         if (CARD_WORDS.any { it in folded }) return ParseResult.Ignored(IgnoreReason.NOT_ACCOUNT_MOVEMENT)
         val amount = when (val parsed = AmountParser.parse(movement.digits, movement.currency)) {
@@ -65,6 +65,13 @@ object BankMessageParser {
         )
     }
 
+    /**
+     * Ghi chú điền sẵn khi user tự nhập từ một tin không đọc được: đã che số tài khoản (P7), tối đa 500 ký tự.
+     * Không bao giờ dùng nguyên văn tin cho dữ liệu được sync (B10).
+     */
+    fun manualEntryNote(text: String): String? =
+        Masking.mask(text.trim()).take(ParsedBankEvent.MAX_DESCRIPTION).ifBlank { null }
+
     private class Movement(val direction: Direction, val digits: String, val currency: String)
 
     /** Số tiền có dấu `+/-` (không nằm trong cụm số dư), hoặc đứng sau từ khoá "ghi có/ghi nợ/nhận/chuyển". */
@@ -75,11 +82,20 @@ object BankMessageParser {
                 val direction = if (match.groupValues[1] == "+") Direction.IN else Direction.OUT
                 return Movement(direction, match.groupValues[2], match.groupValues[3])
             }
-        KEYWORD_AMOUNT.find(folded)?.let { match ->
-            val keyword = match.groupValues[1]
-            val direction = if (IN_KEYWORDS.any { keyword.startsWith(it) }) Direction.IN else Direction.OUT
-            return Movement(direction, match.groupValues[2], match.groupValues[3])
-        }
+        // Theo từ khoá thì dễ bắt nhầm số tài khoản/mã giao dịch: chỉ nhận số có đơn vị tiền hoặc dấu phân cách hàng
+        // nghìn, và không đứng ngay sau "TK"/"tài khoản".
+        KEYWORD_AMOUNT.findAll(folded)
+            .firstOrNull { match ->
+                val gap = match.groupValues[2]
+                val digits = match.groupValues[3]
+                val looksLikeMoney = match.groupValues[4].isNotEmpty() || digits.any { it == '.' || it == ',' }
+                looksLikeMoney && !ACCOUNT_BEFORE_NUMBER.containsMatchIn(gap)
+            }
+            ?.let { match ->
+                val keyword = match.groupValues[1]
+                val direction = if (IN_KEYWORDS.any { keyword.startsWith(it) }) Direction.IN else Direction.OUT
+                return Movement(direction, match.groupValues[3], match.groupValues[4])
+            }
         return null
     }
 
@@ -107,7 +123,8 @@ object BankMessageParser {
 
     private val SIGNED_AMOUNT = Regex("""(?<![\w])([+-])\s?$NUMBER$CURRENCY""")
     private val IN_KEYWORDS = listOf("GHI CO", "NHAN", "CONG")
-    private val KEYWORD_AMOUNT = Regex("""(GHI CO|GHI NO|NHAN|CONG|TRU|CHUYEN|THANH TOAN)[^0-9]{0,20}$NUMBER$CURRENCY""")
+    private val KEYWORD_AMOUNT = Regex("""(GHI CO|GHI NO|NHAN|CONG|TRU|CHUYEN|THANH TOAN)([^0-9]{0,20})$NUMBER$CURRENCY""")
+    private val ACCOUNT_BEFORE_NUMBER = Regex("""(\bTK|TAI KHOAN|\bSTK|SO TK)\W*$""")
 
     // "SD: 1,234,567VND", "So du 1.234.567 VND". Không bắt "So du TK 001..." (số tài khoản).
     private val BALANCE = Regex("""(?:\bSD|\bSO DU)(?:\s*(?:KHA DUNG|CUOI))?\s*[:.]?\s*$NUMBER$CURRENCY""")

@@ -41,6 +41,7 @@ import kotlinx.coroutines.withContext
 import kotlinx.coroutines.withTimeoutOrNull
 import kotlinx.datetime.LocalDate
 import kotlinx.datetime.TimeZone
+import kotlinx.datetime.toInstant
 import kotlinx.datetime.toLocalDateTime
 
 /**
@@ -68,11 +69,12 @@ internal class CaptureIngestor(
 
     suspend fun ingestNotification(packageName: String, title: String?, text: String, postedAt: Instant): IngestOutcome {
         // Khi app đang tắt, hệ thống dựng process để giao thông báo trước khi sổ kịp mở: chờ một chút (L7).
-        val userId = withTimeoutOrNull(SESSION_WAIT) {
-            session.state.filterIsInstance<LocalDataState.Ready>().first().userId
+        // Một hạn chờ chung cho cả phiên lẫn sổ. Không bỏ ngay khi SignedOut: lúc process vừa dựng, phiên có thể
+        // đang SignedOut tạm thời trước khi khôi phục token.
+        val (userId, database) = withTimeoutOrNull(SESSION_WAIT) {
+            val ready = session.state.filterIsInstance<LocalDataState.Ready>().first().userId
+            ready to databases.database.filterNotNull().first()
         } ?: return log(null, IngestOutcome.NO_SESSION)
-        val database = withTimeoutOrNull(SESSION_WAIT) { databases.database.filterNotNull().first() }
-            ?: return log(null, IngestOutcome.NO_SESSION)
         val current = settings.read(userId)
         val bank = resolveBank(packageName, title, current)
         if (!current.enabled || bank == null) return log(bank, IngestOutcome.DISABLED)
@@ -114,7 +116,8 @@ internal class CaptureIngestor(
                 val id = CaptureIds.transactionId(userId, CaptureIds.fingerprint(event, occurredOn, minute))
                 if (database.captureQueries.selectEvent(id).executeAsOneOrNull() != null) return IngestOutcome.ALREADY_EXISTS
                 val pending = PendingDraft(id, message.bank, event.direction, event.amountMinor, event.accountHint, event.payee,
-                    event.description, occurredOn, event.confidence.name, message.receivedAt)
+                    event.description, occurredOn, event.confidence.name, message.receivedAt,
+                    occurredAt = event.postedAt?.toInstant(zone) ?: message.receivedAt)
                 write(database, current, pending, rawText = message.text)
             }
         }
@@ -132,6 +135,8 @@ internal class CaptureIngestor(
         val occurredOn: LocalDate,
         val confidence: String?,
         val receivedAt: Instant,
+        /** Giờ phát sinh (G5): giờ ghi trong tin, không có thì giờ thông báo đến. */
+        val occurredAt: Instant? = receivedAt,
     ) {
         override fun toString(): String = "PendingDraft(id=$id, bank=$bank)"
     }
@@ -155,6 +160,7 @@ internal class CaptureIngestor(
             occurredOn = pending.occurredOn,
             payee = pending.payee,
             note = pending.note,
+            occurredAt = pending.occurredAt,
         )
         val outcome = database.transactionWithResult {
             when (writer.recordIfAbsent(database, draft)) {
@@ -203,6 +209,8 @@ internal class CaptureIngestor(
     /** S2 + S4: chạy đầu mỗi lần ingest và khi mở màn Chờ xác nhận. */
     fun purge(database: FinanceDatabase) {
         val now = clock.now()
+        // Tin không đọc được mà nguyên văn đã hết hạn thì không còn gì để user nhập: tự bỏ, hộp chờ không tồn đọng.
+        database.captureQueries.expireUnparsed((now - RAW_TEXT_TTL).toEpochMilliseconds())
         database.captureQueries.purgeRawText((now - RAW_TEXT_TTL).toEpochMilliseconds())
         database.captureQueries.purgeFinished((now - FINISHED_TTL).toEpochMilliseconds())
     }

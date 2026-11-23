@@ -58,5 +58,5 @@ sealed interface PasteMessageIntent {
 
 sealed interface PasteMessageEffect {
     data object Saved : PasteMessageEffect
-    data object AddTransaction : PasteMessageEffect
+    data class AddTransaction(val note: String?) : PasteMessageEffect
 }

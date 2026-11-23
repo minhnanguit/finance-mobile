@@ -1,11 +1,10 @@
 package com.uit.finance.app.di
 
-import com.uit.finance.core.capture.domain.model.CaptureEnvironment
-
 import com.uit.finance.app.config.AppEnvironment
 import com.uit.finance.app.devtools.DemoDataSeeder
 import com.uit.finance.core.auth.OidcConfig
 import com.uit.finance.core.auth.preferredUiLocales
+import com.uit.finance.core.capture.domain.model.CaptureEnvironment
 import com.uit.finance.core.network.client.NetworkConfig
 import com.uit.finance.feature.settings.domain.model.SettingsAppInfo
 import org.koin.core.module.Module

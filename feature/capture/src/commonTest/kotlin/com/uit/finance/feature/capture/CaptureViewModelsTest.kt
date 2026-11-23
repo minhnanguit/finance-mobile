@@ -2,9 +2,12 @@
 
 package com.uit.finance.feature.capture
 
+import app.cash.turbine.test
 import com.uit.finance.core.capture.domain.model.BankId
 import com.uit.finance.core.capture.domain.model.BankMessage
+import com.uit.finance.core.capture.domain.model.CaptureEvent
 import com.uit.finance.core.capture.domain.model.CaptureSettings
+import com.uit.finance.core.capture.domain.model.CaptureStatus
 import com.uit.finance.core.capture.domain.model.IngestOutcome
 import com.uit.finance.core.capture.domain.model.ParseResult
 import com.uit.finance.core.capture.domain.parser.BankMessageParser
@@ -23,15 +26,25 @@ import com.uit.finance.core.ledger.domain.model.CategoryKind
 import com.uit.finance.core.ledger.testing.FakeAccountRepository
 import com.uit.finance.core.ledger.testing.FakeCategoryRepository
 import com.uit.finance.core.notification.NotificationAccess
+import com.uit.finance.core.presentation.money.MoneyFormatter
+import com.uit.finance.feature.capture.domain.usecase.ConfirmDraftUseCase
+import com.uit.finance.feature.capture.domain.usecase.DismissCaptureEventUseCase
+import com.uit.finance.feature.capture.domain.usecase.DismissDraftUseCase
 import com.uit.finance.feature.capture.domain.usecase.GetListenerAccessUseCase
+import com.uit.finance.feature.capture.domain.usecase.LinkCaptureAccountUseCase
+import com.uit.finance.feature.capture.domain.usecase.ObserveCaptureInboxUseCase
 import com.uit.finance.feature.capture.domain.usecase.ObserveCaptureSetupUseCase
 import com.uit.finance.feature.capture.domain.usecase.ObservePasteFormDataUseCase
+import com.uit.finance.feature.capture.domain.usecase.OpenCaptureInboxUseCase
 import com.uit.finance.feature.capture.domain.usecase.OpenListenerSettingsUseCase
 import com.uit.finance.feature.capture.domain.usecase.ParsePastedMessageUseCase
 import com.uit.finance.feature.capture.domain.usecase.SavePastedMessageUseCase
 import com.uit.finance.feature.capture.domain.usecase.SetCaptureBanksUseCase
 import com.uit.finance.feature.capture.domain.usecase.SetCaptureEnabledUseCase
 import com.uit.finance.feature.capture.domain.usecase.SetDefaultCategoryUseCase
+import com.uit.finance.feature.capture.presentation.inbox.CaptureInboxEffect
+import com.uit.finance.feature.capture.presentation.inbox.CaptureInboxIntent
+import com.uit.finance.feature.capture.presentation.inbox.CaptureInboxViewModel
 import com.uit.finance.feature.capture.presentation.paste.PasteMessageEffect
 import com.uit.finance.feature.capture.presentation.paste.PasteMessageIntent
 import com.uit.finance.feature.capture.presentation.paste.PasteMessageViewModel
@@ -42,6 +55,7 @@ import kotlin.test.BeforeTest
 import kotlin.test.Test
 import kotlin.test.assertEquals
 import kotlin.test.assertFalse
+import kotlin.test.assertIs
 import kotlin.test.assertNotNull
 import kotlin.test.assertNull
 import kotlin.test.assertTrue
@@ -66,6 +80,7 @@ class CaptureViewModelsTest {
     private val dispatcher = StandardTestDispatcher()
     private val settings = FakeCaptureSettings()
     private val capture = FakeCaptureRepository()
+    private val unparsedSms = "Bien dong TK 0011001234567 luc 10:00"
     private val access = FakeAccess()
     private val accounts = FakeAccountRepository()
     private val categories = FakeCategoryRepository()
@@ -97,6 +112,42 @@ class CaptureViewModelsTest {
         ParsePastedMessageUseCase(capture),
         SavePastedMessageUseCase(capture),
     )
+
+    private fun inboxViewModel() = CaptureInboxViewModel(
+        ObserveCaptureInboxUseCase(capture, accounts, categories),
+        OpenCaptureInboxUseCase(capture),
+        ConfirmDraftUseCase(capture),
+        DismissDraftUseCase(capture),
+        DismissCaptureEventUseCase(capture),
+        LinkCaptureAccountUseCase(capture),
+        MoneyFormatter(),
+    )
+
+    @Test
+    fun `tu nhap mo form dien san noi dung da che so - khong bo tin truoc khi luu`() = runTest(dispatcher) {
+        capture.inbox.value = CaptureInbox(
+            drafts = emptyList(),
+            needsAccount = emptyList(),
+            unparsed = listOf(
+                CaptureEvent(
+                    id = "e1", bank = BankId.VIETCOMBANK, status = CaptureStatus.UNPARSED, direction = null, amountMinor = null,
+                    accountHint = null, payee = null, note = null, occurredOn = null, confidence = null,
+                    rawText = unparsedSms, receivedAt = Instant.parse("2026-11-16T02:20:00Z"),
+                ),
+            ),
+        )
+        val viewModel = inboxViewModel()
+        advanceUntilIdle()
+
+        viewModel.effects.test {
+            viewModel.onIntent(CaptureInboxIntent.EnterManuallyClicked("e1"))
+            advanceUntilIdle()
+            val effect = assertIs<CaptureInboxEffect.AddTransaction>(awaitItem())
+            assertEquals("Bien dong TK •••4567 luc 10:00", effect.note)
+        }
+        assertTrue(capture.dismissedEvents.isEmpty())
+        assertEquals(1, capture.inboxOpened)
+    }
 
     @Test
     fun `bat tinh nang khi chua co quyen thi mo cai dat may`() = runTest(dispatcher) {
@@ -207,13 +258,17 @@ private class FakeAccess : NotificationAccess {
 private class FakeCaptureRepository : CaptureRepository {
     var saveOutcome = IngestOutcome.SAVED
     val saved = mutableListOf<PasteSubmission>()
-    override fun observeInbox(): Flow<CaptureInbox> = flowOf(CaptureInbox.EMPTY)
+    val inbox = MutableStateFlow(CaptureInbox.EMPTY)
+    val dismissedEvents = mutableListOf<String>()
+    var inboxOpened = 0
+    override fun observeInbox(): Flow<CaptureInbox> = inbox
     override fun observePendingCount(): Flow<Int> = flowOf(0)
     override suspend fun confirm(transactionId: String): AppResult<Unit> = AppResult.Success(Unit)
     override suspend fun dismissDraft(transactionId: String): AppResult<Unit> = AppResult.Success(Unit)
-    override suspend fun dismissEvent(eventId: String): AppResult<Unit> = AppResult.Success(Unit)
+    override suspend fun dismissEvent(eventId: String): AppResult<Unit> = AppResult.Success(Unit).also { dismissedEvents += eventId }
     override suspend fun linkAccount(bank: BankId, accountHint: String?, accountId: String): AppResult<Int> = AppResult.Success(0)
     override suspend fun purgeExpired() = Unit
+    override suspend fun openInbox() { inboxOpened++ }
 
     /** Dùng parser thật để form điền sẵn đúng như app. */
     override suspend fun parsePasted(text: String, bank: BankId?): PasteParseResult =

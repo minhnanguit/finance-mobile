@@ -58,6 +58,7 @@ internal class TransactionEditorViewModel(
             copy(
                 occurredOn = today,
                 dateLabel = today.label(today),
+                note = if (args.transactionId == null) args.initialNote.orEmpty() else note,
                 dateRange = LedgerLimits.EARLIEST_DATE..today.plus(LedgerLimits.MAX_AHEAD),
             )
         }

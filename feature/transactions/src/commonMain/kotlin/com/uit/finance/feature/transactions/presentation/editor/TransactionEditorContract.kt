@@ -7,7 +7,8 @@ import com.uit.finance.core.presentation.text.UiText
 import kotlinx.datetime.LocalDate
 
 /** Tham số mở màn (qua Koin `parametersOf`). `transactionId == null` là thêm mới. */
-data class TransactionEditorArgs(val transactionId: String?)
+/** [initialNote]: ghi chú điền sẵn khi tạo mới (vd. tin ngân hàng không đọc được, đã che số tài khoản). */
+data class TransactionEditorArgs(val transactionId: String?, val initialNote: String? = null)
 
 data class TransactionEditorState(
     val isLoading: Boolean = true,

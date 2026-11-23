@@ -36,7 +36,7 @@ import org.koin.compose.viewmodel.koinViewModel
 internal fun CaptureInboxRoute(
     onBack: () -> Unit,
     onOpenTransaction: (String) -> Unit,
-    onAddTransaction: () -> Unit,
+    onAddTransaction: (note: String?) -> Unit,
     viewModel: CaptureInboxViewModel = koinViewModel(),
 ) {
     val state by viewModel.state.collectAsStateWithLifecycle()
@@ -44,7 +44,7 @@ internal fun CaptureInboxRoute(
         viewModel.effects.collect { effect ->
             when (effect) {
                 is CaptureInboxEffect.OpenTransaction -> onOpenTransaction(effect.transactionId)
-                CaptureInboxEffect.AddTransaction -> onAddTransaction()
+                is CaptureInboxEffect.AddTransaction -> onAddTransaction(effect.note)
             }
         }
     }
